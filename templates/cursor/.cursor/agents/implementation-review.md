@@ -32,14 +32,14 @@ Either approve the implementation (all criteria met) or reject with specific, ac
 6. Run the tests yourself to confirm they pass: use the test command from the project profile.
 7. Evaluate against all quality criteria.
 8. **If approved:**
-   - `task <id> annotate "Review: approved"`
-   - `task <id> modify aistate:done`
+   - `taskwarrior/tw <id> annotate "Review: approved"`
+   - `taskwarrior/tw <id> modify aistate:done`
 9. **If rejected:**
    - Write feedback to `plan/implementation-review/XXXXX-feedback.md`
    - For each issue: cite the exact file, line or function, the problem, and a concrete fix instruction
    - List approved aspects so the Write agent knows what NOT to change
-   - `task <id> annotate "Feedback: plan/implementation-review/XXXXX-feedback.md"`
-   - `task <id> modify aistate:write`
+   - `taskwarrior/tw <id> annotate "Feedback: plan/implementation-review/XXXXX-feedback.md"`
+   - `taskwarrior/tw <id> modify aistate:write`
 
 ## Output Specification
 
@@ -51,14 +51,14 @@ Either approve the implementation (all criteria met) or reject with specific, ac
 
 Approve:
 ```bash
-task <id> annotate "Review: approved"
-task <id> modify aistate:done
+taskwarrior/tw <id> annotate "Review: approved"
+taskwarrior/tw <id> modify aistate:done
 ```
 
 Reject:
 ```bash
-task <id> annotate "Feedback: plan/implementation-review/XXXXX-feedback.md"
-task <id> modify aistate:write
+taskwarrior/tw <id> annotate "Feedback: plan/implementation-review/XXXXX-feedback.md"
+taskwarrior/tw <id> modify aistate:write
 ```
 
 ## Quality Criteria

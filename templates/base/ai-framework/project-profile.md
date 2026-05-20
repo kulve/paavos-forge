@@ -52,6 +52,14 @@ Do NOT mock internal collaborators.
 - [e.g. "Never use `unsafe` blocks without escalation"]
 - [e.g. "Never modify generated files in `build/`"]
 
+## Taskwarrior
+
+- Wrapper command: `taskwarrior/tw` (never bare `task`)
+- Config: `.taskrc` at project root
+- Data directory: `.task/` (gitignored, not committed)
+- Setup script: `bash taskwarrior/setup.sh`
+- Command patterns: `taskwarrior/recipes.md`
+
 ## Domain Tags
 
 Valid domain tags for organizing requirements in this project:

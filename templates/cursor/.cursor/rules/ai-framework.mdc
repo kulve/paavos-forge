@@ -13,6 +13,7 @@ These rules apply to ALL agents working in this project. They are non-negotiable
 - `ai-framework/project-profile.md` defines language-specific conventions. Read it before any work.
 - `ARCHITECTURE.md` at the project root defines the domain dependency policy. All agents must respect the domain dependency DAG. Circular cross-domain dependencies are strictly prohibited.
 - Taskwarrior state is the source of truth for execution progress, not filesystem layout or git status.
+- All Taskwarrior commands must use `taskwarrior/tw`, never bare `task`. This ensures per-project database isolation.
 
 ## State Discipline
 

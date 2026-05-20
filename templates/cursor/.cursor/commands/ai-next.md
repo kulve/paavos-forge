@@ -8,7 +8,7 @@ Equivalent to one iteration of the Coordinator loop. Useful for step-by-step deb
 
 1. Query Taskwarrior for the next ready task:
    ```bash
-   task status:pending +READY aistory.any: export
+   taskwarrior/tw status:pending +READY aistory.any: export
    ```
 
 2. If no ready tasks, report that the pipeline is idle or all stories are complete.

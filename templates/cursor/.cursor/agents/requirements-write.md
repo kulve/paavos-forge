@@ -33,8 +33,8 @@ Read these files from Taskwarrior annotations:
 3. For each requirement file specified in the plan:
    - Create `plan/requirements/[domain]/XXXXX-name.md` using the template from `plan/templates/requirement.md`
    - Fill in: domain, parent story link, rules in plain English, edge cases, verification method, out-of-scope
-4. Annotate the task with each artifact path: `task <id> annotate "Artifact: plan/requirements/[domain]/XXXXX-name.md"`
-5. Advance state: `task <id> modify aistate:review`
+4. Annotate the task with each artifact path: `taskwarrior/tw <id> annotate "Artifact: plan/requirements/[domain]/XXXXX-name.md"`
+5. Advance state: `taskwarrior/tw <id> modify aistate:review`
 
 ### Re-do After Review
 
@@ -42,7 +42,7 @@ Read these files from Taskwarrior annotations:
 2. Read the existing requirement files that were flagged.
 3. Fix ONLY what the review flagged. Do not rewrite requirements from scratch.
 4. If new requirement files are needed, create them.
-5. Annotate any new files. Advance state: `task <id> modify aistate:review`
+5. Annotate any new files. Advance state: `taskwarrior/tw <id> modify aistate:review`
 
 ## Output Specification
 
@@ -53,8 +53,8 @@ Read these files from Taskwarrior annotations:
 ## Taskwarrior Protocol
 
 ```bash
-task <id> annotate "Artifact: plan/requirements/core/XXXXX-auth.md"
-task <id> modify aistate:review
+taskwarrior/tw <id> annotate "Artifact: plan/requirements/core/XXXXX-auth.md"
+taskwarrior/tw <id> modify aistate:review
 ```
 
 ## Quality Criteria

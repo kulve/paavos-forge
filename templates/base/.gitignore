@@ -1,0 +1,5 @@
+# Taskwarrior per-project database (managed by framework, not committed)
+.task/
+
+# Common build output
+build/

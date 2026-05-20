@@ -1,0 +1,5 @@
+# Per-project Taskwarrior config (AI execution framework).
+# Use via taskwarrior/tw (never bare task).
+data.location=.task
+news=off
+confirmation=off

@@ -43,8 +43,8 @@ Read these files:
    - Verify the updated DAG has no cycles
    - NEVER add classes, methods, or internal design patterns to `ARCHITECTURE.md`
 8. Write the plan to `plan/arch-plans/XXXXX-slug.md` using the template from `plan/templates/phase-plan.md`.
-9. Annotate: `task <id> annotate "Plan: plan/arch-plans/XXXXX-slug.md"`
-10. Advance: `task <id> modify aistate:write`
+9. Annotate: `taskwarrior/tw <id> annotate "Plan: plan/arch-plans/XXXXX-slug.md"`
+10. Advance: `taskwarrior/tw <id> modify aistate:write`
 
 ## Output Specification
 
@@ -55,8 +55,8 @@ Read these files:
 ## Taskwarrior Protocol
 
 ```bash
-task <id> annotate "Plan: plan/arch-plans/XXXXX-slug.md"
-task <id> modify aistate:write
+taskwarrior/tw <id> annotate "Plan: plan/arch-plans/XXXXX-slug.md"
+taskwarrior/tw <id> modify aistate:write
 ```
 
 ## Quality Criteria

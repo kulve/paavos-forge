@@ -35,8 +35,8 @@ Produce a test plan that specifies which interface contracts to test, what scena
    - What the mock boundary is (only system boundaries from the project profile)
    - How tests should be organized (by feature, by interface, by scenario)
 6. Write the plan to `plan/integration-test-plans/XXXXX-slug.md`.
-7. Annotate: `task <id> annotate "Plan: plan/integration-test-plans/XXXXX-slug.md"`
-8. Advance: `task <id> modify aistate:write`
+7. Annotate: `taskwarrior/tw <id> annotate "Plan: plan/integration-test-plans/XXXXX-slug.md"`
+8. Advance: `taskwarrior/tw <id> modify aistate:write`
 
 ## Output Specification
 
@@ -46,8 +46,8 @@ Produce a test plan that specifies which interface contracts to test, what scena
 ## Taskwarrior Protocol
 
 ```bash
-task <id> annotate "Plan: plan/integration-test-plans/XXXXX-slug.md"
-task <id> modify aistate:write
+taskwarrior/tw <id> annotate "Plan: plan/integration-test-plans/XXXXX-slug.md"
+taskwarrior/tw <id> modify aistate:write
 ```
 
 ## Quality Criteria

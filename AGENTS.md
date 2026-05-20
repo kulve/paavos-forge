@@ -57,6 +57,12 @@ Never add content that assumes a specific downstream project. This includes:
 - Specific build commands (always reference "the build command from the project profile")
 - Hardcoded directory paths (always reference "the directory from the project profile")
 
+## Taskwarrior Wrapper (`taskwarrior/tw`)
+
+All Taskwarrior CLI references in agent prompts, recipes, and LOGIC.md must use `taskwarrior/tw`, never bare `task`. This ensures per-project database isolation in downstream projects.
+
+When updating agent prompts or command references, verify that every Taskwarrior CLI invocation uses `taskwarrior/tw`.
+
 ## File Structure
 
 ```
@@ -68,10 +74,14 @@ DEPLOY.md                                  # Deployment guide
 templates/base/                            # Copied to downstream project root
   AGENTS.md                                # Project-level AI instructions
   ARCHITECTURE.md                          # Domain dependency policy skeleton
+  .taskrc                                  # Per-project Taskwarrior config
+  .gitignore                               # Ignores .task/ and build/
   ai-framework/LOGIC.md                    # Deployed workflow spec
   ai-framework/project-profile.md          # Filled by deploying user
   plan/templates/*.md                      # Artifact templates
-  taskwarrior/setup.sh                     # UDA setup
+  taskwarrior/setup.sh                     # UDA setup (sources env.sh)
+  taskwarrior/env.sh                       # Sets TASKRC, creates .task/
+  taskwarrior/tw                           # Project-local task wrapper
   taskwarrior/recipes.md                   # Command patterns
 
 templates/cursor/.cursor/                  # Copied to downstream .cursor/

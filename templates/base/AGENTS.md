@@ -21,6 +21,15 @@ Agents in this project follow a strict hierarchy:
 
 See `ai-framework/LOGIC.md` for the full role descriptions and workflow rules.
 
+## Taskwarrior
+
+All Taskwarrior commands must use `taskwarrior/tw`, never bare `task`. The wrapper ensures per-project database isolation:
+
+- Config: `.taskrc` at project root (`data.location=.task`, `confirmation=off`)
+- Database: `.task/` directory (gitignored, never committed)
+- Wrapper: `taskwarrior/tw` sources `taskwarrior/env.sh` and sets `TASKRC`
+- Command patterns: see `taskwarrior/recipes.md`
+
 ## Key Rules
 
 1. Taskwarrior is the source of truth for execution state.
@@ -30,6 +39,7 @@ See `ai-framework/LOGIC.md` for the full role descriptions and workflow rules.
 5. If you cannot complete your task, write an escalation to `plan/escalations/` and exit.
 6. All templates are in `plan/templates/`. Use them for every artifact.
 7. Read the project profile before every task for language and convention details.
+8. All Taskwarrior commands use `taskwarrior/tw`, never bare `task`.
 
 ## Artifact Locations
 

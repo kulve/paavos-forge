@@ -35,8 +35,8 @@ Read these files from the prompt and Taskwarrior annotations:
    - Describe what each file will cover
    - Note which existing requirements may need updates
    - Flag any ambiguities in the story that should be resolved
-6. Annotate the task: `task <id> annotate "Plan: plan/requirement-plans/XXXXX-slug.md"`
-7. Advance state: `task <id> modify aistate:write`
+6. Annotate the task: `taskwarrior/tw <id> annotate "Plan: plan/requirement-plans/XXXXX-slug.md"`
+7. Advance state: `taskwarrior/tw <id> modify aistate:write`
 
 ## Output Specification
 
@@ -46,8 +46,8 @@ Read these files from the prompt and Taskwarrior annotations:
 ## Taskwarrior Protocol
 
 ```bash
-task <id> annotate "Plan: plan/requirement-plans/XXXXX-slug.md"
-task <id> modify aistate:write
+taskwarrior/tw <id> annotate "Plan: plan/requirement-plans/XXXXX-slug.md"
+taskwarrior/tw <id> modify aistate:write
 ```
 
 ## Quality Criteria

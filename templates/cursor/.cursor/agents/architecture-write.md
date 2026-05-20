@@ -36,14 +36,14 @@ Produce architecture artifacts that define public interfaces for all requirement
    - **C++:** write header files to `include/[domain]/` with declarations only. List requirement IDs in comments (e.g. `// REQ:XXXXX-name`).
    - **Python:** write ABC modules to the directory from the project profile. List requirement IDs in docstrings.
    - **Other:** follow project profile conventions.
-5. Annotate the task with each artifact path: `task <id> annotate "Artifact: include/core/player.h"`
-6. Advance: `task <id> modify aistate:review`
+5. Annotate the task with each artifact path: `taskwarrior/tw <id> annotate "Artifact: include/core/player.h"`
+6. Advance: `taskwarrior/tw <id> modify aistate:review`
 
 ### Re-do After Review
 
 1. Read the feedback file for specific issues.
 2. Fix ONLY what the review flagged. Do not rewrite from scratch.
-3. Annotate any new files. Advance: `task <id> modify aistate:review`
+3. Annotate any new files. Advance: `taskwarrior/tw <id> modify aistate:review`
 
 ## Output Specification
 
@@ -54,8 +54,8 @@ Produce architecture artifacts that define public interfaces for all requirement
 ## Taskwarrior Protocol
 
 ```bash
-task <id> annotate "Artifact: include/core/player.h"
-task <id> modify aistate:review
+taskwarrior/tw <id> annotate "Artifact: include/core/player.h"
+taskwarrior/tw <id> modify aistate:review
 ```
 
 ## Quality Criteria

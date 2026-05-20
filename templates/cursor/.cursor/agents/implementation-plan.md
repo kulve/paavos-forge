@@ -37,8 +37,8 @@ Produce a plan that specifies which files to create/modify, the implementation a
    - Expected order of implementation to get tests passing incrementally
    - Build steps to verify compilation
 7. Write the plan to `plan/implementation-plans/XXXXX-slug.md`.
-8. Annotate: `task <id> annotate "Plan: plan/implementation-plans/XXXXX-slug.md"`
-9. Advance: `task <id> modify aistate:write`
+8. Annotate: `taskwarrior/tw <id> annotate "Plan: plan/implementation-plans/XXXXX-slug.md"`
+9. Advance: `taskwarrior/tw <id> modify aistate:write`
 
 ## Output Specification
 
@@ -48,8 +48,8 @@ Produce a plan that specifies which files to create/modify, the implementation a
 ## Taskwarrior Protocol
 
 ```bash
-task <id> annotate "Plan: plan/implementation-plans/XXXXX-slug.md"
-task <id> modify aistate:write
+taskwarrior/tw <id> annotate "Plan: plan/implementation-plans/XXXXX-slug.md"
+taskwarrior/tw <id> modify aistate:write
 ```
 
 ## Quality Criteria

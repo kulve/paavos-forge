@@ -41,6 +41,20 @@ check_placeholder() {
     fi
 }
 
+check_gitignore_entry() {
+    if [ -f ".gitignore" ]; then
+        if grep -q "$1" .gitignore 2>/dev/null; then
+            true
+        else
+            echo "WARNING: .gitignore missing entry: $1"
+            WARNINGS=$((WARNINGS + 1))
+        fi
+    else
+        echo "WARNING: No .gitignore file found"
+        WARNINGS=$((WARNINGS + 1))
+    fi
+}
+
 echo "=== AI Execution Framework Deployment Validator ==="
 echo ""
 
@@ -63,9 +77,15 @@ check_file "plan/templates/review-feedback.md"
 check_file "plan/templates/escalation.md"
 
 echo "--- Taskwarrior ---"
+check_file ".taskrc"
 check_file "taskwarrior/setup.sh"
 check_executable "taskwarrior/setup.sh"
+check_file "taskwarrior/env.sh"
+check_executable "taskwarrior/env.sh"
+check_file "taskwarrior/tw"
+check_executable "taskwarrior/tw"
 check_file "taskwarrior/recipes.md"
+check_gitignore_entry ".task/"
 
 echo "--- Cursor Agents (16 required) ---"
 check_file ".cursor/agents/project-manager.md"
@@ -91,7 +111,19 @@ check_file ".cursor/commands/ai-status.md"
 check_file ".cursor/commands/ai-next.md"
 
 echo "--- Taskwarrior UDAs ---"
-if command -v task &> /dev/null; then
+if [ -x "taskwarrior/tw" ]; then
+    UDAS=$(taskwarrior/tw _udas 2>/dev/null || echo "")
+    for UDA in aiphase aistate aistory; do
+        if echo "$UDAS" | grep -q "$UDA"; then
+            true
+        else
+            echo "ERROR: Taskwarrior UDA '$UDA' not configured. Run: bash taskwarrior/setup.sh"
+            ERRORS=$((ERRORS + 1))
+        fi
+    done
+elif command -v task &> /dev/null; then
+    echo "WARNING: taskwarrior/tw not executable. Falling back to bare 'task' for UDA check."
+    WARNINGS=$((WARNINGS + 1))
     UDAS=$(task _udas 2>/dev/null || echo "")
     for UDA in aiphase aistate aistory; do
         if echo "$UDAS" | grep -q "$UDA"; then

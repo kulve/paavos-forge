@@ -28,12 +28,12 @@ Either approve the architecture (all criteria met) or reject with specific, acti
 2. Read each artifact and the requirements it should satisfy.
 3. Evaluate against all quality criteria.
 4. **If approved:**
-   - `task <id> annotate "Review: approved"`
-   - `task <id> modify aistate:done`
+   - `taskwarrior/tw <id> annotate "Review: approved"`
+   - `taskwarrior/tw <id> modify aistate:done`
 5. **If rejected:**
    - Write feedback to `plan/arch-review/XXXXX-feedback.md`
-   - `task <id> annotate "Feedback: plan/arch-review/XXXXX-feedback.md"`
-   - `task <id> modify aistate:write`
+   - `taskwarrior/tw <id> annotate "Feedback: plan/arch-review/XXXXX-feedback.md"`
+   - `taskwarrior/tw <id> modify aistate:write`
 
 ## Output Specification
 
@@ -45,14 +45,14 @@ Either approve the architecture (all criteria met) or reject with specific, acti
 
 Approve:
 ```bash
-task <id> annotate "Review: approved"
-task <id> modify aistate:done
+taskwarrior/tw <id> annotate "Review: approved"
+taskwarrior/tw <id> modify aistate:done
 ```
 
 Reject:
 ```bash
-task <id> annotate "Feedback: plan/arch-review/XXXXX-feedback.md"
-task <id> modify aistate:write
+taskwarrior/tw <id> annotate "Feedback: plan/arch-review/XXXXX-feedback.md"
+taskwarrior/tw <id> modify aistate:write
 ```
 
 ## Quality Criteria

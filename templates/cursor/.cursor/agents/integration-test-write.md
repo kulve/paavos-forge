@@ -40,14 +40,14 @@ Produce integration test files that thoroughly test the architecture's public in
    - Tests must compile/parse even before implementation exists:
      - **C++:** tests include the headers and call declared functions
      - **Python:** tests import ABCs and instantiate (will fail at runtime until implementation exists, but should parse)
-6. Annotate: `task <id> annotate "Artifact: tests/integration/test_XXXXX.cpp"`
-7. Advance: `task <id> modify aistate:review`
+6. Annotate: `taskwarrior/tw <id> annotate "Artifact: tests/integration/test_XXXXX.cpp"`
+7. Advance: `taskwarrior/tw <id> modify aistate:review`
 
 ### Re-do After Review
 
 1. Read the feedback for specific issues.
 2. Fix ONLY what was flagged. Do not rewrite tests from scratch.
-3. Annotate any new files. Advance: `task <id> modify aistate:review`
+3. Annotate any new files. Advance: `taskwarrior/tw <id> modify aistate:review`
 
 ## Output Specification
 
@@ -58,8 +58,8 @@ Produce integration test files that thoroughly test the architecture's public in
 ## Taskwarrior Protocol
 
 ```bash
-task <id> annotate "Artifact: tests/integration/test_player_movement.cpp"
-task <id> modify aistate:review
+taskwarrior/tw <id> annotate "Artifact: tests/integration/test_player_movement.cpp"
+taskwarrior/tw <id> modify aistate:review
 ```
 
 ## Quality Criteria

@@ -2,9 +2,14 @@
 # Idempotent Taskwarrior UDA setup for the AI execution framework.
 # Run this once after deploying the framework into a project.
 # Safe to re-run -- task config overwrites existing values.
+# Uses per-project .taskrc and .task/ (not ~/.taskrc).
 set -euo pipefail
 
-echo "Configuring AI execution framework UDAs..."
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=env.sh
+source "${SCRIPT_DIR}/env.sh"
+
+echo "Configuring AI execution framework UDAs (TASKRC=${TASKRC})..."
 
 # Phase: which pipeline stage this task belongs to
 task config uda.aiphase.type string
@@ -32,4 +37,4 @@ task config report.aistory.columns "id,aiphase,aistate,description,depends"
 task config report.aistory.filter "status:pending or status:completed"
 task config report.aistory.sort "aiphase+"
 
-echo "Done. Verify with: task _udas | grep -E 'aiphase|aistate|aistory'"
+echo "Done. Verify with: taskwarrior/tw _udas | grep -E 'aiphase|aistate|aistory'"

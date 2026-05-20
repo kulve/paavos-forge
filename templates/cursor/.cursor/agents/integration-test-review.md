@@ -29,12 +29,12 @@ Either approve the tests (all criteria met) or reject with specific, actionable 
 2. Read each test file, the architecture artifacts, and requirements.
 3. Evaluate against all quality criteria.
 4. **If approved:**
-   - `task <id> annotate "Review: approved"`
-   - `task <id> modify aistate:done`
+   - `taskwarrior/tw <id> annotate "Review: approved"`
+   - `taskwarrior/tw <id> modify aistate:done`
 5. **If rejected:**
    - Write feedback to `plan/integration-test-review/XXXXX-feedback.md`
-   - `task <id> annotate "Feedback: plan/integration-test-review/XXXXX-feedback.md"`
-   - `task <id> modify aistate:write`
+   - `taskwarrior/tw <id> annotate "Feedback: plan/integration-test-review/XXXXX-feedback.md"`
+   - `taskwarrior/tw <id> modify aistate:write`
 
 ## Output Specification
 
@@ -46,14 +46,14 @@ Either approve the tests (all criteria met) or reject with specific, actionable 
 
 Approve:
 ```bash
-task <id> annotate "Review: approved"
-task <id> modify aistate:done
+taskwarrior/tw <id> annotate "Review: approved"
+taskwarrior/tw <id> modify aistate:done
 ```
 
 Reject:
 ```bash
-task <id> annotate "Feedback: plan/integration-test-review/XXXXX-feedback.md"
-task <id> modify aistate:write
+taskwarrior/tw <id> annotate "Feedback: plan/integration-test-review/XXXXX-feedback.md"
+taskwarrior/tw <id> modify aistate:write
 ```
 
 ## Quality Criteria

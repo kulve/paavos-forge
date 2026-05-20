@@ -23,8 +23,8 @@ Read these files at the start of every session, in this order:
 
 To check batch progress, query Taskwarrior:
 ```bash
-task status:pending aistory.any: count
-task status:completed aistory.any: count
+taskwarrior/tw status:pending aistory.any: count
+taskwarrior/tw status:completed aistory.any: count
 ```
 
 **NEVER read:** source code, test code, requirement files, architecture artifacts, review feedback, or any file under `src/`, `include/`, `tests/`, or `plan/requirements/`.
@@ -76,10 +76,10 @@ The PM does not directly create or manage phase tasks -- the Coordinator handles
 
 ```bash
 # How many story tasks are still pending?
-task status:pending aistory.any: count
+taskwarrior/tw status:pending aistory.any: count
 
 # How many are done?
-task status:completed aistory.any: count
+taskwarrior/tw status:completed aistory.any: count
 ```
 
 ## Quality Criteria

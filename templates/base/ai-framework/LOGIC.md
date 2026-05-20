@@ -122,15 +122,15 @@ The Coordinator drives a single story through all four phases. It is a determini
 
 2. Check if Taskwarrior tasks exist for this story. If not, create four tasks with dependencies:
    ```
-   task add "Story XXXXX: Requirements" aiphase:req aistate:plan aistory:XXXXX
-   task add "Story XXXXX: Architecture" aiphase:arch aistate:blocked aistory:XXXXX depends:<req-id>
-   task add "Story XXXXX: Integration Tests" aiphase:test aistate:blocked aistory:XXXXX depends:<arch-id>
-   task add "Story XXXXX: Implementation" aiphase:impl aistate:blocked aistory:XXXXX depends:<test-id>
+   taskwarrior/tw add "Story XXXXX: Requirements" aiphase:req aistate:plan aistory:XXXXX
+   taskwarrior/tw add "Story XXXXX: Architecture" aiphase:arch aistate:blocked aistory:XXXXX depends:<req-id>
+   taskwarrior/tw add "Story XXXXX: Integration Tests" aiphase:test aistate:blocked aistory:XXXXX depends:<arch-id>
+   taskwarrior/tw add "Story XXXXX: Implementation" aiphase:impl aistate:blocked aistory:XXXXX depends:<test-id>
    ```
 
 3. Create git branch: `git checkout -b story/XXXXX-slug` (from `main`).
 
-4. **Loop start**: Query `task aistory:XXXXX status:pending +READY export` to find the next actionable task.
+4. **Loop start**: Query `taskwarrior/tw aistory:XXXXX status:pending +READY export` to find the next actionable task.
 
 5. If no READY tasks and all are done, go to step 13.
 

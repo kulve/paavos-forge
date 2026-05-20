@@ -27,14 +27,14 @@ Either approve the requirements (all criteria met) or reject with specific, acti
 2. Read each requirement file and the parent story.
 3. Evaluate against all quality criteria (see below).
 4. **If approved:**
-   - Annotate: `task <id> annotate "Review: approved"`
-   - Advance: `task <id> modify aistate:done`
+   - Annotate: `taskwarrior/tw <id> annotate "Review: approved"`
+   - Advance: `taskwarrior/tw <id> modify aistate:done`
 5. **If rejected:**
    - Write feedback to `plan/requirements-review/XXXXX-feedback.md` using the template from `plan/templates/review-feedback.md`
    - List every blocking issue with the exact file, the problem, and a concrete fix instruction
    - List any approved aspects so the Write agent knows what NOT to change
-   - Annotate: `task <id> annotate "Feedback: plan/requirements-review/XXXXX-feedback.md"`
-   - Set state: `task <id> modify aistate:write`
+   - Annotate: `taskwarrior/tw <id> annotate "Feedback: plan/requirements-review/XXXXX-feedback.md"`
+   - Set state: `taskwarrior/tw <id> modify aistate:write`
 
 ## Output Specification
 
@@ -46,14 +46,14 @@ Either approve the requirements (all criteria met) or reject with specific, acti
 
 Approve:
 ```bash
-task <id> annotate "Review: approved"
-task <id> modify aistate:done
+taskwarrior/tw <id> annotate "Review: approved"
+taskwarrior/tw <id> modify aistate:done
 ```
 
 Reject:
 ```bash
-task <id> annotate "Feedback: plan/requirements-review/XXXXX-feedback.md"
-task <id> modify aistate:write
+taskwarrior/tw <id> annotate "Feedback: plan/requirements-review/XXXXX-feedback.md"
+taskwarrior/tw <id> modify aistate:write
 ```
 
 ## Quality Criteria

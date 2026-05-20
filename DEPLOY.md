@@ -4,9 +4,10 @@ How to deploy the AI execution framework into a downstream project.
 
 ## Prerequisites
 
-- A git repository for your project (can be empty or existing)
-- [Taskwarrior](https://taskwarrior.org/) installed (`task --version` to verify)
-- [Cursor](https://cursor.com/) IDE (for the agent system; other IDE support is future work)
+- **Git** installed
+- **[Taskwarrior](https://taskwarrior.org/) 2.x+** installed -- verify with `task --version`
+- **[Cursor](https://cursor.com/) IDE** (for the agent system; other IDE support is future work)
+- System packages for your target language (e.g. C++: cmake, compiler; Python: python3, pip)
 
 ## Step 1: Copy Base Templates
 
@@ -14,15 +15,23 @@ Copy the base framework files into your project root:
 
 ```bash
 cp -r /path/to/ai-execution-framework/templates/base/* /path/to/your-project/
+cp /path/to/ai-execution-framework/templates/base/.taskrc /path/to/your-project/
+cp /path/to/ai-execution-framework/templates/base/.gitignore /path/to/your-project/
 ```
+
+> **Note:** `cp -r base/*` does not copy dotfiles. Copy `.taskrc` and `.gitignore` explicitly, or use `cp -r base/. project/` if your shell supports it.
 
 This creates:
 - `AGENTS.md` -- project-level AI instructions
 - `ARCHITECTURE.md` -- domain dependency policy registry (populated by agents as domains are introduced)
+- `.taskrc` -- per-project Taskwarrior config
+- `.gitignore` -- ignores `.task/` and `build/`
 - `ai-framework/LOGIC.md` -- the workflow specification
 - `ai-framework/project-profile.md` -- to be filled in by you
-- `plan/templates/` -- artifact templates used by agents
-- `taskwarrior/setup.sh` -- Taskwarrior configuration script
+- `plan/templates/` -- 6 artifact templates used by agents
+- `taskwarrior/setup.sh` -- Taskwarrior UDA configuration script
+- `taskwarrior/env.sh` -- environment setup (sets `TASKRC`, creates `.task/`)
+- `taskwarrior/tw` -- project-local Taskwarrior wrapper (executable)
 - `taskwarrior/recipes.md` -- command reference for agents
 
 ## Step 2: Copy Cursor Templates
@@ -38,9 +47,29 @@ This creates:
 - `.cursor/rules/ai-framework.mdc` -- always-on framework rules
 - `.cursor/commands/` -- `ai-status` and `ai-next` slash commands
 
-## Step 3: Configure Taskwarrior
+## Step 3: Initialize Git
 
-Run the setup script to create the required UDAs:
+If your project is not already a git repository:
+
+```bash
+cd /path/to/your-project
+git init
+git branch -m main
+```
+
+## Step 4: Configure Taskwarrior
+
+The framework uses **per-project Taskwarrior isolation** so each project has its own task database, independent of `~/.taskrc` and `~/.task/`.
+
+Three files make this work:
+
+| File | Purpose |
+|------|---------|
+| `.taskrc` | Project-local config: `data.location=.task`, `confirmation=off`, `news=off` |
+| `taskwarrior/env.sh` | Sets `TASKRC` to point at `.taskrc`, creates `.task/` directory |
+| `taskwarrior/tw` | Executable wrapper: sources `env.sh`, then runs `task` with correct config |
+
+Run the setup script to register the framework's UDAs in your project `.taskrc`:
 
 ```bash
 cd /path/to/your-project
@@ -49,12 +78,14 @@ bash taskwarrior/setup.sh
 
 Verify the UDAs exist:
 ```bash
-task _udas | grep -E 'aiphase|aistate|aistory'
+taskwarrior/tw _udas | grep -E 'aiphase|aistate|aistory'
 ```
 
 You should see `aiphase`, `aistate`, and `aistory` listed.
 
-## Step 4: Fill in the Project Profile
+> **Important:** All agents use `taskwarrior/tw`, never bare `task`. The wrapper ensures every Taskwarrior command reads from the project `.taskrc` and writes to `.task/`, not your global `~/.task/`.
+
+## Step 5: Fill in the Project Profile
 
 Open `ai-framework/project-profile.md` and answer every question. This is the most important customization step -- it tells all agents how your project works.
 
@@ -126,7 +157,13 @@ Open `ai-framework/project-profile.md` and answer every question. This is the mo
 - Domain tags: core, api, auth, storage
 ```
 
-## Step 5: Customize Agents (Optional)
+## Step 6: Create a README and Build Skeleton
+
+Before invoking the PM agent, create at least a brief `README.md` so the PM has context about your project. Also set up any minimal build skeleton your project needs (e.g. `CMakeLists.txt`, `pyproject.toml`).
+
+The PM reads `README.md` on its first run to understand the project scope.
+
+## Step 7: Customize Agents (Optional)
 
 The agent prompts are designed to be generic, but you may want to tune them for your project:
 
@@ -134,9 +171,9 @@ The agent prompts are designed to be generic, but you may want to tune them for 
 - **Anti-patterns:** add domain-specific mistakes to the Anti-Patterns sections (e.g. "never use raw SQL" for a web app)
 - **Architecture conventions:** if your project uses something unusual (e.g. protocol buffers as architecture artifacts), update the architecture agents
 
-## Step 6: Validate
+## Step 8: Validate
 
-You can run the automated validation script (copy it from the framework repo):
+Run the automated validation script (copy it from the framework repo):
 
 ```bash
 cp /path/to/ai-execution-framework/scripts/validate-deployment.sh ./
@@ -147,18 +184,22 @@ Or verify manually:
 
 - [ ] `AGENTS.md` exists at project root
 - [ ] `ARCHITECTURE.md` exists at project root
+- [ ] `.taskrc` exists at project root
+- [ ] `.gitignore` contains `.task/`
 - [ ] `ai-framework/LOGIC.md` exists
 - [ ] `ai-framework/project-profile.md` exists and is filled in
 - [ ] `plan/templates/` contains 6 template files (milestone, story, requirement, phase-plan, review-feedback, escalation)
-- [ ] `taskwarrior/setup.sh` exists
+- [ ] `taskwarrior/setup.sh` exists and is executable
+- [ ] `taskwarrior/env.sh` exists and is executable
+- [ ] `taskwarrior/tw` exists and is executable
 - [ ] `taskwarrior/recipes.md` exists
 - [ ] `.cursor/agents/` contains 16 agent files
 - [ ] `.cursor/rules/ai-framework.mdc` exists
 - [ ] `.cursor/commands/` contains `ai-status.md` and `ai-next.md`
-- [ ] Taskwarrior UDAs are configured: `task _udas | grep aiphase`
+- [ ] Taskwarrior UDAs are configured: `taskwarrior/tw _udas | grep aiphase`
 - [ ] Project profile is filled in completely
 
-## Step 7: First Run
+## Step 9: First Run
 
 1. Open your project in Cursor.
 2. Start a new chat and invoke the `project-manager` agent.
@@ -175,14 +216,25 @@ If the upstream framework template is updated, you can selectively merge changes
 - `.cursor/rules/ai-framework.mdc` -- compare and merge rule changes
 - `plan/templates/` -- compare and merge template changes
 
-Your `ai-framework/project-profile.md` and any agent customizations should be preserved during updates.
+Preserve during updates:
+- `ai-framework/project-profile.md` -- your project-specific settings
+- `.taskrc` -- contains UDA definitions added by `setup.sh` and `data.location`
+- `taskwarrior/tw` and `taskwarrior/env.sh` -- unless you haven't customized them
+- `.task/` -- never overwrite or delete the Taskwarrior database
+- Any agent customizations you've made
+
+After updating templates, re-run `bash taskwarrior/setup.sh` to pick up any new UDAs.
 
 ## Troubleshooting
 
-**Taskwarrior UDAs not recognized:** re-run `bash taskwarrior/setup.sh`
-
-**Agent not found:** verify `.cursor/agents/` contains the agent `.md` files
-
-**Coordinator stuck:** run `/ai-next` to see the current state and manually advance if needed
-
-**Escalation loop:** check `plan/escalations/` for reports. The escalation file will describe what went wrong and propose a recovery path.
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| Setup hangs on "Would you like a sample .taskrc" | No `.taskrc` at project root | Ensure `.taskrc` was copied from templates (Step 1 dotfiles) |
+| Setup hangs on "Are you sure you want to add" | `confirmation=off` missing | Check `.taskrc` has `confirmation=off` |
+| UDAs missing in project but `task _udas` works | Verified wrong database (global `~/.taskrc`) | Use `taskwarrior/tw _udas`, not bare `task` |
+| Tasks from project A appear in project B | Shared `~/.task` | Per-project `data.location=.task` in `.taskrc` |
+| PM has no context on first run | No `README.md` | Create a brief README before invoking PM (Step 6) |
+| Coordinator fails on git merge/reset | Command wrapper blocking local git | Allow local git merge, reset, checkout in wrapper config |
+| Agent not found | Missing `.cursor/agents/` files | Verify Step 2 copied `.cursor/` directory |
+| Coordinator stuck | State machine confusion | Run `/ai-next` to see the current state and manually advance if needed |
+| Escalation loop | Recurring failures | Check `plan/escalations/` for reports describing root cause and recovery |

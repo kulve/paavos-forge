@@ -10,8 +10,8 @@ Query Taskwarrior and summarize the current state of the AI execution pipeline.
 
 2. Query Taskwarrior for all AI tasks:
    ```bash
-   task status:pending aistory.any: export
-   task status:completed aistory.any: export
+   taskwarrior/tw status:pending aistory.any: export
+   taskwarrior/tw status:completed aistory.any: export
    ```
 
 3. Summarize in a table:
