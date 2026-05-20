@@ -1,0 +1,7 @@
+# Editor and OS
+.DS_Store
+*.swp
+*~
+
+# Cursor IDE local config at repo root only (not deployable templates)
+/.cursor/

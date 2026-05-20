@@ -1,0 +1,52 @@
+---
+description: "AI execution framework invariants -- always-on rules for all agents"
+alwaysApply: true
+---
+
+# AI Execution Framework Rules
+
+These rules apply to ALL agents working in this project. They are non-negotiable invariants.
+
+## Source of Truth
+
+- `ai-framework/LOGIC.md` is the authoritative workflow specification. Follow it exactly.
+- `ai-framework/project-profile.md` defines language-specific conventions. Read it before any work.
+- `ARCHITECTURE.md` at the project root defines the domain dependency policy. All agents must respect the domain dependency DAG. Circular cross-domain dependencies are strictly prohibited.
+- Taskwarrior state is the source of truth for execution progress, not filesystem layout or git status.
+
+## State Discipline
+
+- Agents must never advance more than one state transition per invocation (e.g. plan -> write, not plan -> done).
+- Every artifact written must be annotated on the corresponding Taskwarrior task with its file path.
+- The Coordinator is the only agent that creates Taskwarrior tasks, marks tasks done, or manages git branches.
+
+## Review Standards
+
+- Review agents must cite specific files and issues. "Looks good" without evidence is forbidden.
+- Review agents must not nitpick formatting or style. Focus on correctness, completeness, and structural integrity.
+- After 3 rejections of the same phase, write an escalation instead of continuing the review loop.
+
+## Implementation Standards
+
+- Implementation agents must never: hardcode test values, write empty stubs, use mocks in production code, skip error handling, or silently deviate from the architecture.
+- If implementation is impossible given the architecture, escalate. Do not silently work around it.
+
+## Context Discipline
+
+- The PM never reads source code, tests, or plan artifacts below the story level.
+- The Coordinator never reads code, requirements, architecture, tests, or review content. It only reads Taskwarrior annotations for file paths.
+- Phase agents read only what their role specifies. Save context window for the work that matters.
+
+## Escalation
+
+- If an agent cannot complete its task, it must write an escalation file to `plan/escalations/` and exit. Never silently fail.
+- Escalation files use the template from `plan/templates/escalation.md`.
+
+## Git
+
+- Never commit to git unless the current phase has passed review (except PM committing planning artifacts to main).
+- Never force-push or rebase shared branches.
+
+## Forbidden
+
+- Read and respect the "Forbidden" section in `ai-framework/project-profile.md`.

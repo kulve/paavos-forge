@@ -1,0 +1,142 @@
+
+# AI execution framework
+
+## Goal
+
+Implement an AI framework for Cursor, Claude Code, Codex, etc. that can implement high level goals (100 M or so tokens) in one go for the user in large projects.
+
+## Open questions/concerns/topics
+
+- Define: "story", "req". These are md files but needs a template.
+- Directory hierarchy
+  * plan/stories/00000-template.md (Goal, scope, trigger conditions, Definition of Done)
+  * plan/milestones/00000-template.md (high level description of a milestone)
+  * plan/requirements/00000-template.md (explains domains, dependencies)
+  * plan/escalations/00000-template.md (Detailed description of the escalation)
+- Add an escalation Subagent. If plans/escalation/ directory has any files after any subagent, the Coordinator should trigger the Escalation Subagent that can fix anything
+  * Fix how? Maybe Escalation is a more generic Subagent that will use a lot of context window to figure out the issue and fix it.
+  * Escaltion agents figures out how to fix, fixes what needs fixing and explains to Coordinator how to continue.
+
+## Agents and subagents
+
+- Top-level Project Manager agent
+  * Goal: Define milestones and get the next milestone implemented autonomously after the initial brainstorming.
+  * Manage the context window (i.e. keep it small) by delegating the bulk of the work to the Coordinator. Never go through the code.
+  * Reads top level README.md, AGENTS.md, etc. files to understand the scope.
+  * Asks clarifications from the user.
+  * Based on above, together with the user, defines the next milestone by describing it in a high level file, e.g. plan/milestones/01-mvp.md
+    * Git commit this always right after being done with the definition for the time being.
+  * Writes stories for the milestone by writing files to plan/stories/ directory
+    - Trigger the Story Review Subagent for each story. It might make sense to review multiple stories in one go. I.e. write several of them and then let the subagent go through all of them.
+      - Address the review feedback and update the stories accordingly, don't trigger the review subagent again
+  * After each few stories, trigger the Coordinator Subagent for a story, one at the time
+
+- Story Review Subagent
+  * Review the listed stories and provide feedback, if any.
+
+- Coordinator Subagent
+  * Goal: Drive a story to a working code.
+  * Coordinator should not read any of the subagents' work products to save tokens. Coordinator only tracks work.
+  * Taskwarrior is used to track the progress.
+  * Subagents are run strickly serialised.
+  * For each story, add "Story 00000: [item]" tasks for each of these:
+    - Requirements
+    - Architecture
+    - Integration tests
+    - Implementation
+  * Each task has these states: blocked, plan, implement, review, done.
+  * Initially each task is at "blocked" state.
+  * Mark tasks depending on each other in that order, i.e. Headers can not be started until Requirements is done.
+  * Each task go through the states in that order, except it's possible to go from review back to implement.
+    * If redoing implementation or review steps, resume the same subagent with the existing context.
+  * There's a named Subagent for each category and each action state (plan, implement, review), e.g. "Requirements Review Subagent".
+  * Each Subagent is strictly run in foreground, i.e. everything is serialized.
+  * Each Subagent will write its status to its task as a comment. Read the status to know which Subagent trigger next.
+  * Any Subagent can escalate by writing to plan/escalations/ and adding a comment to the task.
+    - Trigger the Escalation Subagent to fix it.
+
+- Escalation Subagent
+  * Goal fix an escalation.
+  * Each subagent can escalate by writing to plan/escalations/
+  * Read the escalations and fix them by any means necessary.
+
+- Requirement Plan Subagent:
+  * Goal: Provides a plan to write requirements based on story number in the task.
+  * Requirement Subagent can read other reqs and stories to understand the scope. It should not read code.
+  * Plans are written to plan/requirement-plans/plan-name.md
+  * The file name as added as a comment to the task.
+
+- Requirement Writing Subagent:
+  * Goal: Implements requirements based on the plan mentioned in the task.
+  * Requirement Subagent can read other reqs and stories to understand the scope. It should not read code.
+  * Requirements are written to plan/requirements/[domain]/00001-req-name.md
+  * Requirements Subagent will decide the domain based on the requirement.
+  * Requirement files are in md syntax and lists the stories (file names) they relate to.
+  * Adds a comment to the task notifying that the requirements are added.
+
+- Requirement Review Subagent:
+  * Goal: Ensure requirements are meaningful and cover the story in the given task.
+  * Go through all the reqs in the plan/requirements directory that mentions the story's number in the task, or in general all uncommitted requirements.
+    * There might be a lot of them.
+  * If there are requirements without link to the story, it will be reported as feedback.
+  * Accepts the requirements by adding "review approved" comment to the task.
+  * Feedback is written to plan/requirements-review/filename.md files and the file names are added as a comment to the task.
+
+- Arch Plan Subagent
+  * Goal: Provides a plan to define architecture by assigning reqs to classes and implementing the header files for the classes.
+  * Each class is defined by its header and each header lists the requirements that define it.
+  * The subagent writes the plan to plan/arch-plans/plan-name.md
+  * Adds a comment to the task listing the plan.
+
+- Arch Writing Subagent
+  * Goal: Defines architecture by assigning reqs to classes and implementing the header files for the classes.
+  * Check the plan or the review feedback from the task.
+  * Each class is defined by its header and each header lists the requirements that define it.
+    - The reqs should be listed per class method where meaningful, or generically for the whole header.
+    - TODO: define a syntax that allows grepping to mapping.
+  * The subagent writes the header files to include/ directory
+  * Adds a comment to the task notifying that the headers are added.
+
+- Arch Review Subagent
+  * Goal: Ensure the headers are of high quality and covers the listed requirements.
+  * Go through the uncommitted header files. They should list requirements that point to a story that is mentioned in the task.
+  * Accepts the headers by adding "review approved" comment to the task.
+  * Feedback is written to plan/arch-review/filename.md files and the file names are added as a comment to the task.
+
+- Integration Test Plan Subagent:
+  * Goal: Write a plan for tests that cover the requirements as extensively as possibly.
+  * The tests should cover the uncommited header files and the requirements listed in them.
+  * The subagent writes the plan to plan/integration-test-plans/plan-name.md
+  * Adds a comment to the task listing the plan.
+
+- Integration Test Implementation Subagent:
+  * Goal: Write tests to cover the requirements as extensively as possibly.
+  * Check the plan or the review feedback from the task.
+  * The tests should cover the uncommited header files and the requirements listed in them.
+  * Tests are written to tests/integration/ directory.
+
+- Integration Test Review Subagent
+  * Goal: Review that tests really do test what they imply and cover the requirements.
+  * Check the uncommited header changes.
+  * Do a code review on uncommitted test changes.
+  * Be thorough. List all the actual flaws or gaps but no need to nitpick. If it works, that's good enough, even if it could be "more beautiful".
+  * Feedback is written to plan/integration-test-review/filename.md files and the file names are added as a comment to the task.
+
+- Implementation Plan Subgent
+  * Goal: Write a plan to implement/update the classes for the updated headers.
+  * The subagent writes the plan to plan/implementation-plans/plan-name.md
+  * Adds a comment to the task listing the plan.
+
+- Implementation Writing Subgent
+  * Goal: Write a solid implementation (or update) for the headers and ensure integration tests pass.
+  * Check the plan or the review feedback from the task.
+  * Write/update class implementations to src/
+  * If tests fail and it seems to be a test issue, the Implementation Subgent can fix the test.
+
+- Implementation Review Subagent
+  * Goal: Review that the new implementation is good
+    - No mockups, no shortcuts, no faking, high quality, follow good sw engineering habits, no code just to pass a test.
+  * Check the uncommited code in src/ for the code changes to review.
+  * Check the uncommited headers in include/ to figure out header changes, related requirements, tests, and the overall goal.
+  * Be thorough. List all the actual flaws or gaps but no need to nitpick. If it works, that's good enough, even if it could be "more beautiful".
+  * Feedback is written to plan/implementaion-review/filename.md files and the file names are added as a comment to the task.

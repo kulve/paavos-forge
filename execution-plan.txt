@@ -1,0 +1,161 @@
+
+# AI execution framework
+
+## Goal
+
+Implement an AI framework for Cursor, Claude Code, Codex, etc. that can implement high level goals (100 M or so tokens) in one go for the user in large projects.
+
+## Open questions/concerns/topics
+
+
+- Most if not all subagents might need to be be based on a skill. I.e. there's a skill to do a certain thing, and the subagent executes that skill.
+- Define: "story", "req". These are likely md files but needs a template that supports review feedback.
+- Currently the subagents can both do the initial job and to cover the review feedback. Should there be instead a separate "review feedback fix" subagents for this?
+- Need to specify how Project Manager agent works. Probably needs to have top level AGENTS.md, LORE.md, etc. files, ask feedback from the user, update the top level guidance md files and then split the work to user stories and execute in pieces. And don't stop until some major goal as has been implemented. 
+- Directory hierarchy open (components, etc.)
+- Add an escalation Subagent. If plans/escalation/ directory has any files after any subagent, the Coordinator should trigger the Escalation Subagent that can fix anything
+  * Fix how? Maybe Escalation is a more generic Subagent that will use a lot of context window to figure out the issue and fix it.
+  * But how to continue? The escalation should go only one level up, as that subagent didn't escalate. Although it may after this escalation.
+
+
+## Agents and subagents
+
+- Top-level Project Manager agent
+  * Manage the context window (i.e. keep it small) by delegating the bulk of the work to subagents. Never go through the code.
+  * Writes story files to plan/stories/dev directory
+    - Each story in a directory hierarchy
+    - Trigger the Story Review Subagent for each story. It might make sense to review multiple stories in one go. I.e. write several of them and then let the subagent go through all the "dev" stories.
+    - Orchestrator Agent must wait for the Story Review Subagent to finish to ensure serialized file access
+  * If there's a story in plan/stories/fix directory
+    - Address the review feedback
+    - It might make sense to wait that the Story Review Subagent is idle and do all the review fixes in one go.
+    - Move the file to plan/stories/prod directory
+    - The file must not be touch by Orchestrator anymore    
+  * Defines milestones by grouping stories under them
+    - Milestones are directories, links to stories
+      - plan/milestones/01-mvp/
+  * Once a milestone is ready:
+    - Git commit the stories and the milestone links
+    - Trigger the Coordinator subagent update reqs/arch/tests/code for the story
+    - Orchestrator Agent must wait for the Coordinator to finish to ensure serialized file access
+
+- Story Review Subagent
+  * The story can be approved as-is by moving it to the plan/stories/prod directory
+  * If the story requires fixing, move it to plan/stories/fix/ folder
+    - Add the review feedback to the story file
+
+
+- Coordinator Subagent
+  * Coordinator must understand how subagests use files in different directories to track status so that it can resume work, or clean up, if something goes wrong.
+  * Coordinator should not read any of the subagents' work products to save token. Coordinator only tracks work.
+  * Orchestrator Agent must wait for the Subagent to finish to ensure serialized file access. Files can be read to check status but files absolutely can not be changed while subagents run.
+  * Triggers Requirement Subagent for the stories touched in the Orchestrator git commit
+  * Once the Requirement Subagent is done, trigger Requirement Review Subagent
+  * Once the Requirement Review Subagent is done:
+    - If there are files in plan/reqs/fix directory, trigger Requirement Agent and wait for it to complete
+    - Ensure requirements are done (no files in plan/reqs/dev, etc.)
+    - Git commit requirements in prod 
+    - Trigger Arch Subagent for the git commit
+  * Once the Arch Subagent is done, trigger Arch Review Subagent 
+  * Once the Arch Review Subagent is done:
+    - If there are files in plan/arch/fix directory, trigger Arch Subagent and wait for it to complete
+    - Ensure arch is done (no files in plan/arch/dev, etc.)
+    - Git commit the headers in plan/headers/dev
+    - Trigger Header Subagent for the git commit
+  * Once the Header Subagent is done, trigger Header Review Subagent 
+  * Once the Header Review Subagent is done:
+    - If there are files in plan/header/fix directory, trigger Header Subagent and wait for it to complete
+    - Ensure header step is done (no files in plan/header/dev, etc.)
+    - Git commit the headers in include/
+    - Trigger Unit Test Subagent for the git commit
+  * Once the Unit Test Subagent is done, trigger Unit Test Review Subagent 
+  * Once the Unit Test Review Subagent is done:
+    - If there are files in /plan/unittests/fix directory, trigger Unit Test Subagent and wait for it to complete
+    - Ensure header step is done (no files in /plan/unittests/fix)
+    - Git commit the tests in tests/unit/
+    - Trigger Implementation Subagent for the git commit
+  * Once the Implementation Subagent is done, trigger Implementation Review Subagent 
+  * Once the Implementation Review Subagent is done:
+    - If there are files in /plan/impl/fix directory, trigger Implementation Subagent and wait for it to complete
+    - Ensure implementation step is done (no files in /plan/impl/fix)
+    - Git commit the tests in src/
+  * Double check that all unit tests pass
+    - TODO: need to have also integration tests
+
+- Requirement Subagent:
+  * Implements requirements based on stories in the updated milestone git commit as instructed by the Coordinator Subagent
+    - Requirement Subagents can read other reqs and stories to understand the scope. It should not read code to save on context window.
+    - Requirements are written to plan/reqs/dev directory
+    - Requirements follow a directory hierarchy
+    - If existing requirement files are modified, they are moved from prod to the dev directory
+    - Req files are in md syntax and lists the stories (file names) they relate to
+  * If there requirement are files in plan/reqs/fix from the review agent:
+    - Address the feedback in the requirement file and move it to the prod directory.
+
+- Requirement Review Subagent:
+  * Go through all the reqs in the plan/reqs/dev directory
+    - Accepts the reqs by moving them to plan/reqs/prod directory
+    - Add review feedback to the requirement file and move it to plan/reqs/fix
+  * It may be beneficial to review multiple reqs in one go to get a better sense of the scope.
+
+
+- Arch Subagent
+  * Defines architecture by assigning reqs to classes
+  * Each class is defined by its header and each header lists the requirements that define it.
+    - The reqs should be listed per class method where feasible, or generically for the whole header.
+    - TODO: define a syntax that allows grepping to mapping.
+  * The subagent writes the header file to plan/arch/dev directory
+    - If it's a modification to the existing header, move it from include/ to plan/arch/dev directory
+  * If there are headers in plan/arch/fix from the review agent, fix those and move to plan/header/dev directory.
+
+- Arch Review Subagent
+  * Accepts the header by moving the file to plan/header/dev directory
+  * Adds review feedback (TODO: define syntax/template) to the header file and move it to plan/header/fix directory
+
+- Header Subagent
+  * Check the related git commit
+  * Implement/update the headers based on requirement changes.
+
+- Header Review Subagent
+  * Check the related git commits.
+  * Review headers in plans/header/dev and either:
+    - Approve by moving to include/
+    - Provide feedback by updating the header (TODO: define a syntax at the start of the header) and move to plan/header/fix 
+
+- Unit Test Subagent:
+  * Goal: Ensure tests cover each function and each parameter of the headers. The implementation will be done based on the tests passing (and headers), so the tests need to be extensive.
+  * Check the header changes from the related git commits.
+  * If there are feedback files in /plan/unittests/fix (and uncommitted test changes), assume previously written tests need fixing and address the feedback.
+  * Else, write a plan to implement new tests, or test updates that cover the header changes, and implement the plan
+    - TODO: Hopefully it's possible for a single subagent to have automatic plan+implementation steps
+  * Tests are in tests/unit/ directory, leave new changes uncommitted.
+
+- Unit Test Review Subagent
+  * Goal: Review that tests really do test what they imply
+  * Check the header changes from the related git commits.
+  * Do a code review on uncommitted test changes.
+  * If there are review feeback, write an md file (or many) to /plan/unittests/fix/
+    - Be thorough. List all the flaws but no need to nitpick. If it works, that's good enough, even if it could be "more beautiful". 
+
+- Implementation Subgent
+  * Goal: Ensure headers have a solid implementation and unit tests pass.
+  * Write class implementations to src/
+  * If there are feedback files in /plan/impl/fix (and uncommitted code changes), assume previously written implementation need fixing and address the feedback.
+  * Else, write a plan to implement the new functionality that cover the header changes and pass the tests, and implement the plan
+    - TODO: Hopefully it's possible for a single subagent to have automatic plan+implementation steps
+  * If tests fail and it seems to be a test issue, the Implementation Subgent can fix the test.
+  * 
+
+- Implementation Review Subagent
+  * Goal: Review that the new implementation is good
+    - TODO: define a skill. No mockups, no shortcuts, no faking, high quality, follow good sw engineering habits
+  * Check the related git commits to figure out header changes, related requirements, tests, and the overall goal.
+    - Aim to implement the header with the intended functionality, not just passing the tests
+  * Do a code review on uncommitted implementation changes.
+  * If there is review feeback, write an md file (or many) to /plan/implementation/fix/
+    - Be thorough. List all the flaws but no need to nitpick. If it works, that's good enough, even if it could be "more beautiful". 
+
+- Technical deep dive Subagent
+  * Goal: Help main agents to analyze, search the internet and in general do a deep dive on a specific topic.
+  * Any Subagent can trigger this
+  * Provides an md file as a reponse, write to plans/deepdive/
