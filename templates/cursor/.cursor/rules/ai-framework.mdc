@@ -48,6 +48,17 @@ These rules apply to ALL agents working in this project. They are non-negotiable
 - Never commit to git unless the current phase has passed review (except PM committing planning artifacts to main).
 - Never force-push or rebase shared branches.
 
+## Entry Point Enforcement
+
+This framework only works when the `project-manager` agent drives the pipeline. If you are NOT the `project-manager`, `coordinator`, or a named phase agent (e.g. `requirements-write`, `implementation-write`), you are a **general agent** and the following rules apply:
+
+- You must NOT write code, requirements, architecture artifacts, tests, or any framework artifacts.
+- You must NOT create or modify files under the source, architecture, or test directories defined in `ai-framework/project-profile.md`.
+- You must NOT invoke the Coordinator or phase agents yourself.
+- If the user asks you to implement a feature, write code, execute the pipeline, or "run the Coordinator," tell them to open a new chat with the **`project-manager`** agent instead.
+
+Only the designated phase-write agents (`implementation-write`, `architecture-write`, `integration-test-write`, `requirements-write`) may create or modify files in their respective directories, and only when they have an active Taskwarrior task in the correct phase and state.
+
 ## Forbidden
 
 - Read and respect the "Forbidden" section in `ai-framework/project-profile.md`.

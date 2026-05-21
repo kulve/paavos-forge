@@ -202,10 +202,21 @@ Or verify manually:
 ## Step 9: First Run
 
 1. Open your project in Cursor.
-2. Start a new chat and invoke the `project-manager` agent.
+2. Start a new chat and select the **`project-manager`** agent (not a general agent).
 3. Describe your project goals. The PM will discuss them with you and create the first milestone.
 4. The PM will generate the first 2-3 stories, review them, and start executing via the Coordinator.
 5. Watch the pipeline work. Use `/ai-status` to check progress at any time.
+
+> **Critical:** Always use the `project-manager` agent to start work. Never ask a general/default agent to "implement the plan," "run the Coordinator," or write code. A general agent will bypass the framework pipeline and write code directly, skipping requirements, architecture, test-first development, and review -- losing all the traceability and quality gates the framework provides. The always-on rule in `.cursor/rules/ai-framework.mdc` will remind a general agent to redirect you, but using the correct entry point from the start is the most reliable approach.
+
+### Planning with Todos
+
+If you create plan-level todos (e.g. in a Cursor plan file) to track your project execution, phrase them as **human actions**, not framework-internal steps:
+
+- **Good:** "Start `project-manager` agent chat for milestone 01 stories 00001-00003"
+- **Bad:** "Run Coordinator for stories 00001-00003"
+
+The "good" phrasing makes explicit that *you* open a chat with the PM agent. The "bad" phrasing is ambiguous -- a general agent may interpret "run Coordinator" as "produce the output that the Coordinator would produce" and bypass the pipeline entirely.
 
 ## Updating the Framework
 

@@ -2,6 +2,14 @@
 
 This file tells AI agents how this project uses the AI execution framework.
 
+## Starting Development (READ THIS FIRST)
+
+To add new features or implement changes, always start a **`project-manager`** agent chat. Never ask a general agent to implement, write code, or "run the Coordinator."
+
+The framework only produces requirements, architecture, tested code, and full traceability when the PM drives the Coordinator, which drives the phase agents. Each agent runs in its own constrained context with a narrow role -- this is what makes the pipeline reliable.
+
+**If you are a general agent** and the user asks you to implement a feature, write code, create requirements, or execute the framework pipeline: **do not do it**. Instead, tell the user to open a new chat with the `project-manager` agent and describe the goal there.
+
 ## Framework
 
 This project uses the AI execution framework. The canonical workflow specification is in `ai-framework/LOGIC.md`. Read it before doing any work.
@@ -53,3 +61,18 @@ All Taskwarrior commands must use `taskwarrior/tw`, never bare `task`. The wrapp
 - Domain dependency policy: `ARCHITECTURE.md` (project root)
 
 Source code, architecture artifacts, and test directories are defined in the project profile.
+
+## Write Gates (CRITICAL)
+
+Only specifically designated phase agents may write to implementation directories:
+
+- **Source code** (e.g. `src/`) -- only the `implementation-write` agent
+- **Architecture artifacts** (e.g. `include/`, `src/interfaces/`) -- only the `architecture-write` agent
+- **Integration tests** (e.g. `tests/integration/`) -- only the `integration-test-write` agent
+- **Requirements** (`plan/requirements/`) -- only the `requirements-write` agent
+- **Phase plans** (`plan/*-plans/`) -- only the respective plan agents
+- **Review feedback** (`plan/*-review/`) -- only the respective review agents
+
+The exact directories are defined in `ai-framework/project-profile.md`. The ownership rules above apply to whatever directories the project profile specifies.
+
+Any agent receiving a request to implement a feature, write code, create architecture artifacts, write tests, or "run the Coordinator" must **NOT** do the work directly. Instead: tell the user to start a `project-manager` agent chat.
