@@ -50,7 +50,7 @@ These rules apply to ALL agents working in this project. They are non-negotiable
 
 ## Entry Point Enforcement
 
-This framework only works when the `project-manager` agent drives the pipeline. If you are NOT the `project-manager`, `coordinator`, or a named phase agent (e.g. `requirements-write`, `implementation-write`), you are a **general agent** and the following rules apply:
+This framework only works when the `project-manager` agent drives the pipeline. If you are NOT the `project-manager`, `coordinator`, `fixer`, or a named phase agent (e.g. `requirements-write`, `implementation-write`), you are a **general agent** and the following rules apply:
 
 - You must NOT write code, requirements, architecture artifacts, tests, or any framework artifacts.
 - You must NOT create or modify files under the source, architecture, or test directories defined in `ai-framework/project-profile.md`.
@@ -58,6 +58,8 @@ This framework only works when the `project-manager` agent drives the pipeline. 
 - If the user asks you to implement a feature, write code, execute the pipeline, or "run the Coordinator," tell them to open a new chat with the **`project-manager`** agent instead.
 
 Only the designated phase-write agents (`implementation-write`, `architecture-write`, `integration-test-write`, `requirements-write`) may create or modify files in their respective directories, and only when they have an active Taskwarrior task in the correct phase and state.
+
+The `fixer` agent may modify source code and test files to fix bugs, but must not create or modify requirements, architecture artifacts, plan files, or any file under `plan/`. It does not use Taskwarrior and operates entirely outside the PM pipeline. If a fix requires new features, interface changes, or architectural changes, the fixer must redirect the user to the `project-manager`.
 
 ## Forbidden
 

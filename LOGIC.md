@@ -36,6 +36,10 @@ Twelve specialized agents (4 phases x 3 states: plan, write, review) that produc
 
 Story Review and Escalation Analysis agents that assist the PM and Coordinator with quality assurance and failure diagnosis.
 
+### 2.5 Fixer
+
+A lightweight bug-fix agent that operates entirely outside the PM pipeline. The user invokes it directly to fix bugs in existing code. It may modify source files and tests, but must not add features, change public interfaces, create framework artifacts, or use Taskwarrior. It is not part of the Coordinator's dispatch table. If a fix exceeds its scope (architectural changes, new interfaces, new requirements), it redirects the user to the PM.
+
 ---
 
 ## 3. State Machine

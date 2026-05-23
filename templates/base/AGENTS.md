@@ -26,6 +26,7 @@ Agents in this project follow a strict hierarchy:
 - **Coordinator** (`coordinator`): drives stories through phases, manages Taskwarrior and git
 - **Phase Agents**: specialized agents for each phase (requirements, architecture, tests, implementation) and state (plan, write, review)
 - **Support Agents**: story review, escalation analysis
+- **Fixer** (`fixer`): fixes bugs in existing code outside the PM pipeline; invoked directly by the user
 
 See `ai-framework/LOGIC.md` for the full role descriptions and workflow rules.
 
@@ -74,5 +75,7 @@ Only specifically designated phase agents may write to implementation directorie
 - **Review feedback** (`plan/*-review/`) -- only the respective review agents
 
 The exact directories are defined in `ai-framework/project-profile.md`. The ownership rules above apply to whatever directories the project profile specifies.
+
+The `fixer` agent has limited write access to source and test directories for bug fixes only. It must not create or modify framework artifacts (`plan/`, requirements, architecture), add features, or change public interfaces. If a fix exceeds this scope, the fixer redirects the user to the PM pipeline.
 
 Any agent receiving a request to implement a feature, write code, create architecture artifacts, write tests, or "run the Coordinator" must **NOT** do the work directly. Instead: tell the user to start a `project-manager` agent chat.

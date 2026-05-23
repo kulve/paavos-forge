@@ -43,7 +43,7 @@ cp -r /path/to/ai-execution-framework/templates/cursor/.cursor /path/to/your-pro
 ```
 
 This creates:
-- `.cursor/agents/` -- 16 agent prompt files
+- `.cursor/agents/` -- 17 agent prompt files (16 pipeline agents + fixer)
 - `.cursor/rules/ai-framework.mdc` -- always-on framework rules
 - `.cursor/commands/` -- `ai-status` and `ai-next` slash commands
 
@@ -193,7 +193,7 @@ Or verify manually:
 - [ ] `taskwarrior/env.sh` exists and is executable
 - [ ] `taskwarrior/tw` exists and is executable
 - [ ] `taskwarrior/recipes.md` exists
-- [ ] `.cursor/agents/` contains 16 agent files
+- [ ] `.cursor/agents/` contains 17 agent files
 - [ ] `.cursor/rules/ai-framework.mdc` exists
 - [ ] `.cursor/commands/` contains `ai-status.md` and `ai-next.md`
 - [ ] Taskwarrior UDAs are configured: `taskwarrior/tw _udas | grep aiphase`
@@ -208,6 +208,8 @@ Or verify manually:
 5. Watch the pipeline work. Use `/ai-status` to check progress at any time.
 
 > **Critical:** Always use the `project-manager` agent to start work. Never ask a general/default agent to "implement the plan," "run the Coordinator," or write code. A general agent will bypass the framework pipeline and write code directly, skipping requirements, architecture, test-first development, and review -- losing all the traceability and quality gates the framework provides. The always-on rule in `.cursor/rules/ai-framework.mdc` will remind a general agent to redirect you, but using the correct entry point from the start is the most reliable approach.
+>
+> **For bug fixes:** you can use the `fixer` agent directly instead of the full PM pipeline. The fixer can modify source code and tests to fix bugs, but cannot add features, change interfaces, or create framework artifacts. Start a chat with the `fixer` agent and describe the bug.
 
 ### Planning with Todos
 
