@@ -28,7 +28,7 @@ This creates:
 - `.gitignore` -- ignores `.task/` and `build/`
 - `ai-framework/LOGIC.md` -- the workflow specification
 - `ai-framework/project-profile.md` -- to be filled in by you
-- `plan/templates/` -- 6 artifact templates used by agents
+- `plan/templates/` -- 7 artifact templates used by agents
 - `taskwarrior/setup.sh` -- Taskwarrior UDA configuration script
 - `taskwarrior/env.sh` -- environment setup (sets `TASKRC`, creates `.task/`)
 - `taskwarrior/tw` -- project-local Taskwarrior wrapper (executable)
@@ -43,7 +43,7 @@ cp -r /path/to/ai-execution-framework/templates/cursor/.cursor /path/to/your-pro
 ```
 
 This creates:
-- `.cursor/agents/` -- 17 agent prompt files (16 pipeline agents + fixer)
+- `.cursor/agents/` -- 21 agent prompt files (20 pipeline agents + fixer)
 - `.cursor/rules/ai-framework.mdc` -- always-on framework rules
 - `.cursor/commands/` -- `ai-status` and `ai-next` slash commands
 
@@ -188,12 +188,12 @@ Or verify manually:
 - [ ] `.gitignore` contains `.task/`
 - [ ] `ai-framework/LOGIC.md` exists
 - [ ] `ai-framework/project-profile.md` exists and is filled in
-- [ ] `plan/templates/` contains 6 template files (milestone, story, requirement, phase-plan, review-feedback, escalation)
+- [ ] `plan/templates/` contains 7 template files (milestone, story, requirement, phase-plan, plan-review-feedback, review-feedback, escalation)
 - [ ] `taskwarrior/setup.sh` exists and is executable
 - [ ] `taskwarrior/env.sh` exists and is executable
 - [ ] `taskwarrior/tw` exists and is executable
 - [ ] `taskwarrior/recipes.md` exists
-- [ ] `.cursor/agents/` contains 17 agent files
+- [ ] `.cursor/agents/` contains 21 agent files
 - [ ] `.cursor/rules/ai-framework.mdc` exists
 - [ ] `.cursor/commands/` contains `ai-status.md` and `ai-next.md`
 - [ ] Taskwarrior UDAs are configured: `taskwarrior/tw _udas | grep aiphase`

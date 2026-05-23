@@ -25,20 +25,21 @@ Produce a plan that specifies which files to create/modify, the implementation a
 ## Procedure
 
 1. Read the task ID and annotations.
-2. Read architecture artifacts to understand the interfaces to implement.
-3. Read integration tests to understand what the code must pass.
-4. Read requirements for business logic, error handling, and edge cases.
-5. Read existing source code in affected directories.
-6. Plan the implementation:
+2. Check task annotations for a `Plan-feedback:` annotation. If present, read the feedback file -- this is a re-plan after plan review rejection. Address every blocking issue raised.
+3. Read architecture artifacts to understand the interfaces to implement.
+4. Read integration tests to understand what the code must pass.
+5. Read requirements for business logic, error handling, and edge cases.
+6. Read existing source code in affected directories.
+7. Plan the implementation:
    - Which files to create or modify, with full paths
    - Implementation approach for each interface/class
    - Dependency injection or construction strategy
    - How to handle error cases from requirements
    - Expected order of implementation to get tests passing incrementally
    - Build steps to verify compilation
-7. Write the plan to `plan/implementation-plans/XXXXX-slug.md`.
-8. Annotate: `taskwarrior/tw <id> annotate "Plan: plan/implementation-plans/XXXXX-slug.md"`
-9. Advance: `taskwarrior/tw <id> modify aistate:write`
+8. Write (or revise) the plan to `plan/implementation-plans/XXXXX-slug.md`.
+9. Annotate: `taskwarrior/tw <id> annotate "Plan: plan/implementation-plans/XXXXX-slug.md"`
+10. Advance: `taskwarrior/tw <id> modify aistate:plan-review`
 
 ## Output Specification
 
@@ -49,7 +50,7 @@ Produce a plan that specifies which files to create/modify, the implementation a
 
 ```bash
 taskwarrior/tw <id> annotate "Plan: plan/implementation-plans/XXXXX-slug.md"
-taskwarrior/tw <id> modify aistate:write
+taskwarrior/tw <id> modify aistate:plan-review
 ```
 
 ## Quality Criteria

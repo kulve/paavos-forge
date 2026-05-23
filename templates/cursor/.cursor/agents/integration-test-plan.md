@@ -25,18 +25,19 @@ Produce a test plan that specifies which interface contracts to test, what scena
 ## Procedure
 
 1. Read the task ID and annotations.
-2. Read architecture artifacts to understand the public interfaces.
-3. Read requirements to understand the expected behavior.
-4. Read the project profile for test conventions and mock boundaries.
-5. Plan the tests:
+2. Check task annotations for a `Plan-feedback:` annotation. If present, read the feedback file -- this is a re-plan after plan review rejection. Address every blocking issue raised.
+3. Read architecture artifacts to understand the public interfaces.
+4. Read requirements to understand the expected behavior.
+5. Read the project profile for test conventions and mock boundaries.
+6. Plan the tests:
    - Which interface contracts to test
    - What end-to-end scenarios to cover (happy path, error cases, edge cases from requirements)
    - Which real objects to instantiate (Detroit/Chicago school -- use real collaborators)
    - What the mock boundary is (only system boundaries from the project profile)
    - How tests should be organized (by feature, by interface, by scenario)
-6. Write the plan to `plan/integration-test-plans/XXXXX-slug.md`.
-7. Annotate: `taskwarrior/tw <id> annotate "Plan: plan/integration-test-plans/XXXXX-slug.md"`
-8. Advance: `taskwarrior/tw <id> modify aistate:write`
+7. Write (or revise) the plan to `plan/integration-test-plans/XXXXX-slug.md`.
+8. Annotate: `taskwarrior/tw <id> annotate "Plan: plan/integration-test-plans/XXXXX-slug.md"`
+9. Advance: `taskwarrior/tw <id> modify aistate:plan-review`
 
 ## Output Specification
 
@@ -47,7 +48,7 @@ Produce a test plan that specifies which interface contracts to test, what scena
 
 ```bash
 taskwarrior/tw <id> annotate "Plan: plan/integration-test-plans/XXXXX-slug.md"
-taskwarrior/tw <id> modify aistate:write
+taskwarrior/tw <id> modify aistate:plan-review
 ```
 
 ## Quality Criteria

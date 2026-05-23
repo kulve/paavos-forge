@@ -17,7 +17,7 @@ These rules apply to ALL agents working in this project. They are non-negotiable
 
 ## State Discipline
 
-- Agents must never advance more than one state transition per invocation (e.g. plan -> write, not plan -> done).
+- Agents must never advance more than one state transition per invocation (e.g. plan -> plan-review, not plan -> write).
 - Every artifact written must be annotated on the corresponding Taskwarrior task with its file path.
 - The Coordinator is the only agent that creates Taskwarrior tasks, marks tasks done, or manages git branches.
 

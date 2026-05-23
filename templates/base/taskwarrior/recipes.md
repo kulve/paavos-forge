@@ -34,9 +34,19 @@ taskwarrior/tw ainext
 
 ## State Transitions
 
-Advance from plan to write:
+Advance from plan to plan-review:
+```bash
+taskwarrior/tw <id> modify aistate:plan-review
+```
+
+Approve plan (plan-review passed, advance to write):
 ```bash
 taskwarrior/tw <id> modify aistate:write
+```
+
+Reject plan (plan-review failed, back to plan):
+```bash
+taskwarrior/tw <id> modify aistate:plan
 ```
 
 Advance from write to review:
@@ -65,6 +75,16 @@ taskwarrior/tw <id> annotate "Plan: plan/requirement-plans/XXXXX-auth.md"
 Link an artifact:
 ```bash
 taskwarrior/tw <id> annotate "Artifact: plan/requirements/core/XXXXX-auth.md"
+```
+
+Approve a plan review:
+```bash
+taskwarrior/tw <id> annotate "Plan-review: approved"
+```
+
+Link plan review feedback:
+```bash
+taskwarrior/tw <id> annotate "Plan-feedback: plan/requirement-plan-review/XXXXX-feedback.md"
 ```
 
 Approve a review:

@@ -24,7 +24,7 @@ Agents in this project follow a strict hierarchy:
 
 - **Project Manager** (`project-manager`): defines milestones and stories, invokes the Coordinator
 - **Coordinator** (`coordinator`): drives stories through phases, manages Taskwarrior and git
-- **Phase Agents**: specialized agents for each phase (requirements, architecture, tests, implementation) and state (plan, write, review)
+- **Phase Agents**: specialized agents for each phase (requirements, architecture, tests, implementation) and state (plan, plan-review, write, review)
 - **Support Agents**: story review, escalation analysis
 - **Fixer** (`fixer`): fixes bugs in existing code outside the PM pipeline; invoked directly by the user
 
@@ -43,7 +43,7 @@ All Taskwarrior commands must use `taskwarrior/tw`, never bare `task`. The wrapp
 
 1. Taskwarrior is the source of truth for execution state.
 2. Every artifact written must be annotated on the corresponding Taskwarrior task.
-3. Agents follow the phase state machine: `plan -> write -> review -> done`.
+3. Agents follow the phase state machine: `plan -> plan-review -> write -> review -> done`.
 4. Reviews focus on blocking issues, not style nits.
 5. If you cannot complete your task, write an escalation to `plan/escalations/` and exit.
 6. All templates are in `plan/templates/`. Use them for every artifact.
@@ -56,6 +56,7 @@ All Taskwarrior commands must use `taskwarrior/tw`, never bare `task`. The wrapp
 - Stories: `plan/stories/`
 - Requirements: `plan/requirements/[domain]/`
 - Phase plans: `plan/*-plans/`
+- Plan review feedback: `plan/*-plan-review/`
 - Review feedback: `plan/*-review/`
 - Escalations: `plan/escalations/`
 - Templates: `plan/templates/`
@@ -72,6 +73,7 @@ Only specifically designated phase agents may write to implementation directorie
 - **Integration tests** (e.g. `tests/integration/`) -- only the `integration-test-write` agent
 - **Requirements** (`plan/requirements/`) -- only the `requirements-write` agent
 - **Phase plans** (`plan/*-plans/`) -- only the respective plan agents
+- **Plan review feedback** (`plan/*-plan-review/`) -- only the respective plan-review agents
 - **Review feedback** (`plan/*-review/`) -- only the respective review agents
 
 The exact directories are defined in `ai-framework/project-profile.md`. The ownership rules above apply to whatever directories the project profile specifies.

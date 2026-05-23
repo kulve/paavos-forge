@@ -8,7 +8,7 @@ You give a high-level milestone (e.g. "implement a simple game"). The framework:
 
 1. Breaks it into vertical feature stories (2-3 at a time, no waterfall)
 2. For each story, runs four phases in sequence: **requirements -> architecture -> integration tests -> implementation**
-3. Each phase goes through **plan -> write -> review** with specialized agents
+3. Each phase goes through **plan -> plan-review -> write -> review** with specialized agents
 4. Taskwarrior tracks execution state; git manages code via ephemeral story branches
 5. Failed reviews loop back; unresolvable issues escalate to upstream phases
 6. Completed stories squash-merge to `main`
@@ -46,7 +46,7 @@ The framework has a layered agent hierarchy:
 
 - **Project Manager**: talks to the user, defines milestones, generates stories in rolling batches
 - **Coordinator**: deterministic state machine that drives one story through all four phases
-- **Phase Agents** (12 total): 4 phases x 3 states (plan/write/review), each with narrow context
+- **Phase Agents** (16 total): 4 phases x 4 states (plan/plan-review/write/review), each with narrow context
 - **Support Agents**: story review, escalation analysis
 
 All context passes through Taskwarrior annotations (file paths only). Agents never talk to each other directly, keeping context windows small and focused.

@@ -26,17 +26,18 @@ Read these files from the prompt and Taskwarrior annotations:
 ## Procedure
 
 1. Read the task ID from the prompt.
-2. Read the story file to understand the feature, acceptance criteria, and domain tags.
-3. Read existing requirements in the relevant domains to understand what already exists.
-4. Determine which domains need new requirement files and which existing requirements need updates.
-5. Write a plan file to `plan/requirement-plans/XXXXX-slug.md` using the template from `plan/templates/phase-plan.md`:
+2. Check task annotations for a `Plan-feedback:` annotation. If present, read the feedback file -- this is a re-plan after plan review rejection. Address every blocking issue raised.
+3. Read the story file to understand the feature, acceptance criteria, and domain tags.
+4. Read existing requirements in the relevant domains to understand what already exists.
+5. Determine which domains need new requirement files and which existing requirements need updates.
+6. Write (or revise) the plan file at `plan/requirement-plans/XXXXX-slug.md` using the template from `plan/templates/phase-plan.md`:
    - List which domains will get new requirement files
    - Estimate the number of requirement files needed
    - Describe what each file will cover
    - Note which existing requirements may need updates
    - Flag any ambiguities in the story that should be resolved
-6. Annotate the task: `taskwarrior/tw <id> annotate "Plan: plan/requirement-plans/XXXXX-slug.md"`
-7. Advance state: `taskwarrior/tw <id> modify aistate:write`
+7. Annotate the task: `taskwarrior/tw <id> annotate "Plan: plan/requirement-plans/XXXXX-slug.md"`
+8. Advance state: `taskwarrior/tw <id> modify aistate:plan-review`
 
 ## Output Specification
 
@@ -47,7 +48,7 @@ Read these files from the prompt and Taskwarrior annotations:
 
 ```bash
 taskwarrior/tw <id> annotate "Plan: plan/requirement-plans/XXXXX-slug.md"
-taskwarrior/tw <id> modify aistate:write
+taskwarrior/tw <id> modify aistate:plan-review
 ```
 
 ## Quality Criteria

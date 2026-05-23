@@ -30,7 +30,7 @@ A deterministic state machine that drives a single story through all four phases
 
 ### 2.3 Phase Agents
 
-Twelve specialized agents (4 phases x 3 states: plan, write, review) that produce and verify artifacts. Each has a narrow context window and strict input/output contracts.
+Twenty specialized agents (4 phases x 5 roles: plan, plan-review, write, review) that produce and verify artifacts. Each has a narrow context window and strict input/output contracts. Plan-review agents verify plans before execution begins; review agents verify the artifacts produced by write agents.
 
 ### 2.4 Support Agents
 
@@ -59,18 +59,19 @@ The dependency chain means architecture cannot start until requirements are done
 Each task transitions through states:
 
 ```
-blocked -> plan -> write -> review -> done
-                     ^         |
-                     +--reject-+
+blocked -> plan -> plan-review -> write -> review -> done
+             ^         |            ^         |
+             +--reject-+            +--reject-+
 ```
 
 - **blocked**: waiting for upstream phase to complete (managed by Taskwarrior dependencies)
 - **plan**: the Plan agent reads context and writes a plan file
-- **write**: the Write agent executes the plan or addresses review feedback
-- **review**: the Review agent evaluates the artifacts
+- **plan-review**: the Plan Review agent evaluates the plan for completeness and feasibility
+- **write**: the Write agent executes the approved plan or addresses review feedback
+- **review**: the Review agent evaluates the produced artifacts
 - **done**: the phase passed review; artifacts are committed
 
-Review can return to write (rejection). After 3 rejections of the same phase, the Coordinator writes an escalation instead of retrying.
+Plan-review can return to plan (rejection). Review can return to write (rejection). After 3 rejections of either review loop, the Coordinator writes an escalation instead of retrying.
 
 ### 3.3 Taskwarrior UDAs
 
@@ -81,7 +82,7 @@ uda.aiphase.values=req,arch,test,impl
 
 uda.aistate.type=string
 uda.aistate.label=AI State
-uda.aistate.values=blocked,plan,write,review,done
+uda.aistate.values=blocked,plan,plan-review,write,review,done
 
 uda.aistory.type=string
 uda.aistory.label=AI Story ID
@@ -92,6 +93,7 @@ uda.aistory.label=AI Story ID
 Agents never talk to each other directly. All context passes through Taskwarrior annotations containing file paths:
 
 - Plan agents annotate: `Plan: plan/requirement-plans/XXXXX-slug.md`
+- Plan-review agents annotate: `Plan-review: approved` or `Plan-feedback: plan/requirement-plan-review/XXXXX-feedback.md`
 - Write agents annotate: `Artifact: plan/requirements/core/XXXXX-name.md`
 - Review agents annotate: `Review: approved` or `Feedback: plan/requirements-review/XXXXX-feedback.md`
 - Escalating agents annotate: `Escalation: plan/escalations/XXXXX-phase-slug.md`
@@ -142,15 +144,19 @@ The Coordinator drives a single story through all four phases. It is a determini
 
 7. Determine subagent from the mapping:
    - `(req, plan)` -> `requirements-plan`
+   - `(req, plan-review)` -> `requirements-plan-review`
    - `(req, write)` -> `requirements-write`
    - `(req, review)` -> `requirements-review`
    - `(arch, plan)` -> `architecture-plan`
+   - `(arch, plan-review)` -> `architecture-plan-review`
    - `(arch, write)` -> `architecture-write`
    - `(arch, review)` -> `architecture-review`
    - `(test, plan)` -> `integration-test-plan`
+   - `(test, plan-review)` -> `integration-test-plan-review`
    - `(test, write)` -> `integration-test-write`
    - `(test, review)` -> `integration-test-review`
    - `(impl, plan)` -> `implementation-plan`
+   - `(impl, plan-review)` -> `implementation-plan-review`
    - `(impl, write)` -> `implementation-write`
    - `(impl, review)` -> `implementation-review`
 
@@ -159,13 +165,15 @@ The Coordinator drives a single story through all four phases. It is a determini
 9. Invoke the subagent in foreground and wait for completion.
 
 10. After the subagent completes, query Taskwarrior for updated state:
+    - If plan-review approved (annotation says `Plan-review: approved`): state is already `write`, continue loop
+    - If plan-review rejected (annotation says `Plan-feedback:`): state is already `plan`, continue loop; increment plan-review reject counter
     - If review approved (annotation says `Review: approved`): set `aistate:done`, mark task done, commit phase artifacts: `git commit -am "phase(PHASE): XXXXX"`
     - If review rejected (feedback file annotated): set `aistate:write`; the feedback path is already annotated for the next write invocation
     - If escalation annotated: block the task, roll back git to the last phase commit (`git reset --hard`), reopen the upstream phase task to `write` state with the escalation file as context
 
 11. **Loop end**: go to step 4.
 
-12. If stuck in a reject loop (same phase rejected 3+ times): write an escalation report and return control to the PM.
+12. If stuck in a reject loop (same phase rejected 3+ times in plan-review or review): write an escalation report and return control to the PM.
 
 13. All four tasks done. Run the full test suite from the project profile.
 
@@ -238,15 +246,19 @@ Shift-left tests written BEFORE implementation. They enforce interface contracts
 
 Written by Plan agents. Specify what the Write agent should do: which files to create/modify, the approach, risks, and verification steps.
 
-### 8.7 Review Feedback (`plan/*-review/XXXXX-feedback.md`)
+### 8.7 Plan Review Feedback (`plan/*-plan-review/XXXXX-feedback.md`)
+
+Written by Plan Review agents when rejecting plans. Must contain: verdict, specific blocking issues referencing plan sections with fix instructions, missing coverage of acceptance criteria, and approved aspects (so the Plan agent knows what not to change on revision).
+
+### 8.8 Review Feedback (`plan/*-review/XXXXX-feedback.md`)
 
 Written by Review agents when rejecting artifacts. Must contain: verdict, specific blocking issues with file paths and fix instructions, missed requirements, and approved aspects (so the Write agent knows what not to change).
 
-### 8.8 Escalation Reports (`plan/escalations/XXXXX-phase-slug.md`)
+### 8.9 Escalation Reports (`plan/escalations/XXXXX-phase-slug.md`)
 
 Written by any agent that cannot complete its task. Must contain: blocked task ID, failure description with exact errors, reproduction steps, root cause analysis pointing to the upstream artifact, and proposed recovery action.
 
-### 8.9 Architecture Policy (`ARCHITECTURE.md`)
+### 8.10 Architecture Policy (`ARCHITECTURE.md`)
 
 A living document at the project root maintained by the Architecture Plan agent. It acts as a domain dependency policy registry: it lists domain definitions and their strict dependency rules as a directed acyclic graph (DAG).
 
@@ -268,9 +280,10 @@ You are the [Role] agent. Your task:
 - Task ID: <taskwarrior-id>
 - Story: plan/stories/XXXXX-slug.md
 - Phase: <req|arch|test|impl>
-- State: <plan|write|review>
+- State: <plan|plan-review|write|review>
 - Plan file: <path from annotation, if applicable>
-- Feedback: <path from annotation, if re-doing after review>
+- Plan feedback: <path from Plan-feedback annotation, if re-doing after plan-review rejection>
+- Feedback: <path from Feedback annotation, if re-doing after review rejection>
 - Escalation context: <path, if re-doing after escalation>
 
 Follow your role instructions. Read the files listed above. Write your outputs.
@@ -285,7 +298,7 @@ The subagent reads its own agent definition file for role instructions, then rea
 
 ### 10.1 Review Principles
 
-All review agents follow these principles:
+All review agents (plan-review and review) follow these principles:
 - Focus on blocking issues: logic errors, missed requirements, incorrect contracts, test gaps
 - Do NOT nitpick formatting, naming conventions, or style unless they cause actual confusion
 - If it works and is structurally sound, approve it

@@ -27,24 +27,25 @@ Read these files:
 ## Procedure
 
 1. Read the task ID from the prompt and query Taskwarrior for annotations.
-2. Read the story and all linked requirements.
-3. Read the project profile to determine architecture artifact type and conventions.
-4. Examine existing architecture artifacts in the target directory.
-5. Read `ARCHITECTURE.md` to understand the current domain structure and dependency DAG.
-6. Plan the architecture:
+2. Check task annotations for a `Plan-feedback:` annotation. If present, read the feedback file -- this is a re-plan after plan review rejection. Address every blocking issue raised.
+3. Read the story and all linked requirements.
+4. Read the project profile to determine architecture artifact type and conventions.
+5. Examine existing architecture artifacts in the target directory.
+6. Read `ARCHITECTURE.md` to understand the current domain structure and dependency DAG.
+7. Plan the architecture:
    - Which existing files need modification
    - Which new files need creation
    - How requirements map to classes/modules/interfaces
    - Dependency relationships between modules
    - Requirement-to-code traceability annotations (per project profile conventions)
-7. Check if this story introduces new domains or new cross-domain dependencies. If so, include `ARCHITECTURE.md` updates in the plan:
+8. Check if this story introduces new domains or new cross-domain dependencies. If so, include `ARCHITECTURE.md` updates in the plan:
    - New domain definitions to add (one-line description per domain)
    - New dependency rules to add (which domain may depend on which)
    - Verify the updated DAG has no cycles
    - NEVER add classes, methods, or internal design patterns to `ARCHITECTURE.md`
-8. Write the plan to `plan/arch-plans/XXXXX-slug.md` using the template from `plan/templates/phase-plan.md`.
-9. Annotate: `taskwarrior/tw <id> annotate "Plan: plan/arch-plans/XXXXX-slug.md"`
-10. Advance: `taskwarrior/tw <id> modify aistate:write`
+9. Write (or revise) the plan to `plan/arch-plans/XXXXX-slug.md` using the template from `plan/templates/phase-plan.md`.
+10. Annotate: `taskwarrior/tw <id> annotate "Plan: plan/arch-plans/XXXXX-slug.md"`
+11. Advance: `taskwarrior/tw <id> modify aistate:plan-review`
 
 ## Output Specification
 
@@ -56,7 +57,7 @@ Read these files:
 
 ```bash
 taskwarrior/tw <id> annotate "Plan: plan/arch-plans/XXXXX-slug.md"
-taskwarrior/tw <id> modify aistate:write
+taskwarrior/tw <id> modify aistate:plan-review
 ```
 
 ## Quality Criteria

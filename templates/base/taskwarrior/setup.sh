@@ -19,7 +19,7 @@ task config uda.aiphase.values "req,arch,test,impl"
 # State: current progress within a phase
 task config uda.aistate.type string
 task config uda.aistate.label "AI State"
-task config uda.aistate.values "blocked,plan,write,review,done"
+task config uda.aistate.values "blocked,plan,plan-review,write,review,done"
 
 # Story ID: links task to its parent story
 task config uda.aistory.type string
