@@ -10,7 +10,7 @@ You give a high-level milestone (e.g. "implement a simple game"). The framework:
 2. For each story, runs four phases in sequence: **requirements -> architecture -> integration tests -> implementation**
 3. Each phase goes through **plan -> plan-review -> write -> review** with specialized agents
 4. Taskwarrior tracks execution state; git manages code via ephemeral story branches
-5. Failed reviews loop back; unresolvable issues escalate to upstream phases
+5. Failed reviews loop back (max 3 rounds); unresolvable issues halt execution and escalate to the user via the PM
 6. Completed stories squash-merge to `main`
 
 ## What It Is Not

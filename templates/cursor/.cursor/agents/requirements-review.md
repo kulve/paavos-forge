@@ -67,6 +67,7 @@ Check each of these. Reject if any fail:
 - **Edge cases:** documented with expected behavior
 - **Verification:** each requirement has a verification method that maps to acceptance criteria
 - **Domain correctness:** requirements are filed under domains that exist in `ARCHITECTURE.md`; requirements do not implicitly require cross-domain dependencies that violate the DAG
+- **Modifies Stories compliance:** if the story has a Modifies Stories section, verify no zombie requirements remain (requirements that contradict the new story's intent without being updated or deleted)
 
 ## Anti-Patterns (NEVER DO)
 
@@ -74,8 +75,8 @@ Check each of these. Reject if any fail:
 - NEVER nitpick formatting or naming style. Focus on correctness, completeness, and consistency.
 - NEVER reject without providing specific fix instructions.
 - NEVER approve requirements that miss acceptance criteria from the story.
-- NEVER continue reviewing past 3 rounds. After the 3rd rejection, write an escalation instead.
+- NEVER continue reviewing past 3 rounds. Write feedback on any rejection. The Coordinator is the primary enforcer of the 3-round limit; you may write an escalation as a belt-and-suspenders measure on the 3rd rejection.
 
 ## Escalation
 
-If requirements are fundamentally broken after 3 review rounds, write an escalation to `plan/escalations/XXXXX-req-review-loop.md` with the pattern of failures.
+If requirements are fundamentally broken after 3 review rounds, you may write an escalation to `plan/escalations/XXXXX-req-review-loop.md` and exit immediately. The Coordinator is the primary enforcer of the 3-round limit.

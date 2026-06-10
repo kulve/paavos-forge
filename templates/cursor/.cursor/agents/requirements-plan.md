@@ -29,15 +29,16 @@ Read these files from the prompt and Taskwarrior annotations:
 2. Check task annotations for a `Plan-feedback:` annotation. If present, read the feedback file -- this is a re-plan after plan review rejection. Address every blocking issue raised.
 3. Read the story file to understand the feature, acceptance criteria, and domain tags.
 4. Read existing requirements in the relevant domains to understand what already exists.
-5. Determine which domains need new requirement files and which existing requirements need updates.
-6. Write (or revise) the plan file at `plan/requirement-plans/XXXXX-slug.md` using the template from `plan/templates/phase-plan.md`:
+5. If the story has a **Modifies Stories** section, find all requirements linked to those old stories. Classify each as: (a) update in place (add new story as parent, revise rules), (b) delete (fully superseded), or (c) leave alone. Include this classification in the plan.
+6. Determine which domains need new requirement files and which existing requirements need updates.
+7. Write (or revise) the plan file at `plan/requirement-plans/XXXXX-slug.md` using the template from `plan/templates/phase-plan.md`:
    - List which domains will get new requirement files
    - Estimate the number of requirement files needed
    - Describe what each file will cover
    - Note which existing requirements may need updates
    - Flag any ambiguities in the story that should be resolved
-7. Annotate the task: `taskwarrior/tw <id> annotate "Plan: plan/requirement-plans/XXXXX-slug.md"`
-8. Advance state: `taskwarrior/tw <id> modify aistate:plan-review`
+8. Annotate the task: `taskwarrior/tw <id> annotate "Plan: plan/requirement-plans/XXXXX-slug.md"`
+9. Advance state: `taskwarrior/tw <id> modify aistate:plan-review`
 
 ## Output Specification
 

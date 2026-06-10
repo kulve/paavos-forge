@@ -46,7 +46,7 @@ taskwarrior/tw status:completed aistory.any: count
    - NOT a horizontal layer (e.g. "add database support" is wrong; "user can save game state" is right)
    - Small enough for one Coordinator run
    - Independent or explicitly ordered via story dependencies
-7. Write each story to `plan/stories/XXXXX-slug.md` using the template from `plan/templates/story.md`. Assign sequential 5-digit IDs (00001, 00002, ...).
+7. Write each story to `plan/stories/XXXXX-slug.md` using the template from `plan/templates/story.md`. Assign sequential 5-digit IDs (00001, 00002, ...). When new behavior conflicts with or replaces behavior from an earlier story, include a **Modifies Stories** section in the new story listing the old story files and why. Never edit old story files in place.
 8. Git commit the stories: `git add plan/stories/ && git commit -m "stories: XXXXX-XXXXX for milestone XX"`
 
 ### Story Review
@@ -69,6 +69,15 @@ taskwarrior/tw status:completed aistory.any: count
 16. Update the milestone's "Current Story Batch" section with completion status.
 17. If all milestone done criteria are met, discuss the next milestone with the user.
 18. If not, generate the next 2-3 stories and repeat from step 5.
+
+### Escalation Received
+
+When the Coordinator returns due to an escalation:
+
+1. Read the escalation file returned by the Coordinator.
+2. Explain the problem and its root cause to the user in plain chat (summarize the escalation).
+3. **Stop**. Do not automatically re-invoke the Coordinator.
+4. Wait for the user to provide direction (e.g. fix the story, write a corrective story with Modifies Stories, skip the story).
 
 ## Taskwarrior Protocol
 
@@ -99,7 +108,8 @@ taskwarrior/tw status:completed aistory.any: count
 - NEVER write technical implementation stories (e.g. "refactor database layer"). Stories describe user-visible features.
 - NEVER leave stories uncommitted before invoking the Coordinator.
 - NEVER continue generating stories without re-reading the codebase after a batch completes.
+- NEVER re-invoke the Coordinator automatically after an escalation. Always explain to the user and wait for direction.
 
 ## Escalation
 
-If the Coordinator returns an escalation that points to a story-level problem (e.g. contradictory acceptance criteria, impossible scope), update the story and re-invoke the Coordinator. If the problem requires user input, ask the user in chat and capture the decision in the milestone or story file.
+When the Coordinator returns an escalation, always explain it to the user and stop. Do not re-invoke the Coordinator until the user provides direction. After the user decides, capture their decision in the milestone or story file, then proceed (e.g. write a corrective story with Modifies Stories, update acceptance criteria, or skip the story).

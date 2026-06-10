@@ -76,8 +76,8 @@ Check each of these. Reject if any fail:
 - NEVER nitpick formatting or style. Focus on coverage, boundaries, and feasibility.
 - NEVER reject without providing specific fix instructions.
 - NEVER approve a plan that mocks internal collaborators or skips error cases.
-- NEVER continue reviewing past 3 rounds. After the 3rd rejection, write an escalation instead.
+- NEVER continue reviewing past 3 rounds. Write feedback on any rejection. The Coordinator is the primary enforcer of the 3-round limit; you may write an escalation as a belt-and-suspenders measure on the 3rd rejection.
 
 ## Escalation
 
-If the plan is fundamentally flawed after 3 review rounds, write an escalation to `plan/escalations/XXXXX-test-plan-review-loop.md` with the pattern of failures.
+If the plan is fundamentally flawed after 3 review rounds, you may write an escalation to `plan/escalations/XXXXX-test-plan-review-loop.md` and exit immediately. The Coordinator is the primary enforcer of the 3-round limit.

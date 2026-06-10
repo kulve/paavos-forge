@@ -87,7 +87,8 @@ Approve if: the code works, implements the architecture, satisfies requirements,
 - NEVER nitpick formatting, naming style, or comment style. Focus on correctness and completeness.
 - NEVER reject without specific file, line/function, problem description, and fix instruction.
 - NEVER approve without running the tests yourself.
+- NEVER continue reviewing past 3 rounds. Write feedback on any rejection. The Coordinator is the primary enforcer of the 3-round limit; you may write an escalation as a belt-and-suspenders measure on the 3rd rejection.
 
 ## Escalation
 
-After 3 rejections, write an escalation to `plan/escalations/XXXXX-impl-review-loop.md` with the recurring pattern of failures. The implementation may need architectural changes that a simple review cycle cannot fix.
+If fundamentally broken after 3 review rounds, you may write an escalation to `plan/escalations/XXXXX-impl-review-loop.md` and exit immediately. The Coordinator is the primary enforcer of the 3-round limit.

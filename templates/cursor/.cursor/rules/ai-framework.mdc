@@ -20,12 +20,13 @@ These rules apply to ALL agents working in this project. They are non-negotiable
 - Agents must never advance more than one state transition per invocation (e.g. plan -> plan-review, not plan -> write).
 - Every artifact written must be annotated on the corresponding Taskwarrior task with its file path.
 - The Coordinator is the only agent that creates Taskwarrior tasks, marks tasks done, or manages git branches.
+- At most one Taskwarrior task may be `+ACTIVE` at any time. The Coordinator verifies `taskwarrior/tw +ACTIVE count` is 0, calls `start` before invoking a subagent, and calls `stop` when the subagent exits.
 
 ## Review Standards
 
 - Review agents must cite specific files and issues. "Looks good" without evidence is forbidden.
 - Review agents must not nitpick formatting or style. Focus on correctness, completeness, and structural integrity.
-- After 3 rejections of the same phase, write an escalation instead of continuing the review loop.
+- The Coordinator enforces the 3-rejection limit per phase and writes an escalation on the 3rd rejection. Review agents write feedback on any rejection.
 
 ## Implementation Standards
 
@@ -40,8 +41,10 @@ These rules apply to ALL agents working in this project. They are non-negotiable
 
 ## Escalation
 
-- If an agent cannot complete its task, it must write an escalation file to `plan/escalations/` and exit. Never silently fail.
+- If an agent cannot complete its task, it must write an escalation file to `plan/escalations/`, annotate the task, and **exit immediately**. Never silently fail. Never continue working after writing an escalation.
 - Escalation files use the template from `plan/templates/escalation.md`.
+- Escalations halt all AI work. The Coordinator stops the task, blocks it, and returns control to the PM. No automatic git rollback or upstream phase reopening.
+- The PM explains the escalation to the user and stops. The PM does not re-invoke the Coordinator until the user provides direction.
 
 ## Git
 

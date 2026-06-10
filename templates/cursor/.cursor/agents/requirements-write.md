@@ -28,13 +28,17 @@ Read these files from Taskwarrior annotations:
 
 ### First Pass (from plan)
 
-1. Read the plan file to understand which requirement files to create.
+1. Read the plan file to understand which requirement files to create and any Modifies Stories classification.
 2. Read the story file for acceptance criteria and scope.
-3. For each requirement file specified in the plan:
+3. If the plan classifies existing requirements from Modifies Stories:
+   - **Update in place**: add the new story to **Parent Stories** and **Also Modified By**, revise rules to reflect the new behavior
+   - **Delete**: remove fully superseded requirement files and annotate `taskwarrior/tw <id> annotate "Deleted: plan/requirements/[domain]/XXXXX-name.md"`
+   - New requirements that replace old ones must cross-reference the old file path
+4. For each new requirement file specified in the plan:
    - Create `plan/requirements/[domain]/XXXXX-name.md` using the template from `plan/templates/requirement.md`
    - Fill in: domain, parent story link, rules in plain English, edge cases, verification method, out-of-scope
-4. Annotate the task with each artifact path: `taskwarrior/tw <id> annotate "Artifact: plan/requirements/[domain]/XXXXX-name.md"`
-5. Advance state: `taskwarrior/tw <id> modify aistate:review`
+5. Annotate the task with each artifact path: `taskwarrior/tw <id> annotate "Artifact: plan/requirements/[domain]/XXXXX-name.md"`
+6. Advance state: `taskwarrior/tw <id> modify aistate:review`
 
 ### Re-do After Review
 

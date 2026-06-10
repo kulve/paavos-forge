@@ -74,7 +74,8 @@ taskwarrior/tw <id> modify aistate:write
 - NEVER approve tests that mock internal collaborators.
 - NEVER nitpick test style. Focus on coverage, mock discipline, and meaningfulness.
 - NEVER reject without specific file, test name, and fix instructions.
+- NEVER continue reviewing past 3 rounds. Write feedback on any rejection. The Coordinator is the primary enforcer of the 3-round limit; you may write an escalation as a belt-and-suspenders measure on the 3rd rejection.
 
 ## Escalation
 
-After 3 rejections, write an escalation to `plan/escalations/XXXXX-test-review-loop.md`.
+If fundamentally broken after 3 review rounds, you may write an escalation to `plan/escalations/XXXXX-test-review-loop.md` and exit immediately. The Coordinator is the primary enforcer of the 3-round limit.

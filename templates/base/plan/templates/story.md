@@ -39,6 +39,13 @@ Do not describe technical approach. Describe observable behavior.]
 
 [Other story IDs that must be complete first, or "None"]
 
+## Modifies Stories
+
+[Optional. Include only when this story changes or deprecates behavior from earlier stories.
+List old story files and a brief reason. Never edit old story files in place.]
+
+- plan/stories/XXXXX-old-story.md — [brief reason: changes behavior, deprecates feature, etc.]
+
 ## Non-Goals
 
 [Things that might seem related but are explicitly deferred to future stories]

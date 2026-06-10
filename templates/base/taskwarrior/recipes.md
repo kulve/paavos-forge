@@ -32,6 +32,21 @@ Use the custom report:
 taskwarrior/tw ainext
 ```
 
+## Active Task Guard
+
+The Coordinator must ensure at most one task is `+ACTIVE` at any time. Use these commands around every subagent invocation:
+
+```bash
+# Check nothing is currently active (must be 0 before starting a subagent)
+taskwarrior/tw +ACTIVE count
+
+# Mark a task active (call before invoking a subagent)
+taskwarrior/tw <id> start
+
+# Clear active status (call after subagent completes or is stopped)
+taskwarrior/tw <id> stop
+```
+
 ## State Transitions
 
 Advance from plan to plan-review:
@@ -99,14 +114,10 @@ taskwarrior/tw <id> annotate "Feedback: plan/requirements-review/XXXXX-feedback.
 
 ## Escalation
 
-Block a task and link the escalation report:
+Halt execution and return control to the PM. No automatic recovery.
+
 ```bash
+taskwarrior/tw <id> stop
 taskwarrior/tw <id> modify +blocked
 taskwarrior/tw <id> annotate "Escalation: plan/escalations/XXXXX-req-auth.md"
-```
-
-Reopen an upstream phase after escalation:
-```bash
-taskwarrior/tw <upstream-id> modify aistate:write
-taskwarrior/tw <upstream-id> annotate "Escalation context: plan/escalations/XXXXX-req-auth.md"
 ```

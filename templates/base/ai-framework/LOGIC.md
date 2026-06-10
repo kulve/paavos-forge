@@ -13,6 +13,7 @@ This framework enables AI agents to autonomously implement large projects from h
 - **Ephemeral git branching**: each story gets its own branch; commits happen only after review
 - **Rolling batch execution**: no waterfall; stories are generated and executed in small batches
 - **Shift-left testing**: integration tests are written before implementation to constrain AI behavior
+- **Single active subagent**: at most one Taskwarrior task may be `+ACTIVE` at any time; the Coordinator enforces this via `start`/`stop` around every subagent invocation
 
 The framework is optimized for C++ projects but supports other languages (Python, TypeScript, etc.) through the project profile.
 
@@ -26,7 +27,7 @@ The top-level orchestrator. Talks to the user, defines milestones, generates sto
 
 ### 2.2 Coordinator
 
-A deterministic state machine that drives a single story through all four phases. The Coordinator is not creative -- it reads Taskwarrior state, decides which subagent to invoke next, manages git branches, and handles escalations. It never reads code or artifact content directly.
+A deterministic state machine that drives a single story through all four phases. The Coordinator is not creative -- it reads Taskwarrior state, decides which subagent to invoke next, manages git branches, and halts on escalations. It never reads code or artifact content directly. It invokes exactly one subagent at a time: before each invocation it verifies `taskwarrior/tw +ACTIVE count` is 0, calls `start` on the task, invokes the subagent in foreground, then calls `stop` when the subagent exits.
 
 ### 2.3 Phase Agents
 
@@ -108,7 +109,7 @@ The PM does not generate all stories for a milestone upfront. It works in rollin
 
 1. **Milestone definition**: PM writes `plan/milestones/XX-name.md` containing high-level goals, epics, boundaries, and done criteria. PM discusses goals with user in chat; important decisions are captured in the milestone file.
 
-2. **Story generation**: PM reads the milestone, existing stories, and codebase README, then writes the next 2-3 stories to `plan/stories/XXXXX-slug.md`. Stories are vertical feature slices, not horizontal technical layers.
+2. **Story generation**: PM reads the milestone, existing stories, and codebase README, then writes the next 2-3 stories to `plan/stories/XXXXX-slug.md`. Stories are vertical feature slices, not horizontal technical layers. When new behavior conflicts with or replaces behavior from an earlier story, the new story must include a **Modifies Stories** section listing the old story files and why -- never edit old story files in place.
 
 3. **Story review**: PM invokes the story-review subagent for the batch. PM addresses feedback by updating story files directly. No re-review unless the reviewer flagged fundamental scope problems.
 
@@ -117,6 +118,8 @@ The PM does not generate all stories for a milestone upfront. It works in rollin
 5. **Re-evaluation**: After stories merge to `main`, PM re-reads the codebase and milestone file. If milestone goals are met, PM discusses the next milestone with the user. If not, PM generates the next 2-3 stories and repeats.
 
 6. **Git for planning artifacts**: PM commits milestone and story files to `main` directly, before invoking the Coordinator.
+
+7. **Escalation received**: when the Coordinator returns due to an escalation, the PM reads the escalation file, explains the problem to the user in chat, and **stops**. The PM does not re-invoke the Coordinator until the user provides direction (e.g. update a story, change requirements, skip the story).
 
 ---
 
@@ -138,7 +141,7 @@ The Coordinator drives a single story through all four phases. It is a determini
 
 4. **Loop start**: Query `taskwarrior/tw aistory:XXXXX status:pending +READY export` to find the next actionable task.
 
-5. If no READY tasks and all are done, go to step 13.
+5. If no READY tasks and all are done, go to step 15.
 
 6. Read the READY task's `aiphase` and `aistate`.
 
@@ -162,24 +165,40 @@ The Coordinator drives a single story through all four phases. It is a determini
 
 8. Construct the subagent prompt with: task ID, story file path, phase, current state, and relevant file paths from task annotations.
 
-9. Invoke the subagent in foreground and wait for completion.
+9. **Active task guard** -- before invoking a subagent:
+   ```
+   taskwarrior/tw +ACTIVE count    # must be 0; if not, stop and investigate
+   taskwarrior/tw <id> start       # marks task +ACTIVE
+   ```
 
-10. After the subagent completes, query Taskwarrior for updated state:
-    - If plan-review approved (annotation says `Plan-review: approved`): state is already `write`, continue loop
-    - If plan-review rejected (annotation says `Plan-feedback:`): state is already `plan`, continue loop; increment plan-review reject counter
-    - If review approved (annotation says `Review: approved`): set `aistate:done`, mark task done, commit phase artifacts: `git commit -am "phase(PHASE): XXXXX"`
-    - If review rejected (feedback file annotated): set `aistate:write`; the feedback path is already annotated for the next write invocation
-    - If escalation annotated: block the task, roll back git to the last phase commit (`git reset --hard`), reopen the upstream phase task to `write` state with the escalation file as context
+10. Invoke the subagent in foreground and wait for completion.
 
-11. **Loop end**: go to step 4.
+11. After the subagent completes:
+    ```
+    taskwarrior/tw <id> stop        # clears +ACTIVE
+    ```
 
-12. If stuck in a reject loop (same phase rejected 3+ times in plan-review or review): write an escalation report and return control to the PM.
+12. Query Taskwarrior for updated state. Track a reject counter per phase (plan-review rejections and review rejections counted separately):
+    - If plan-review approved (annotation says `Plan-review: approved`): state is already `write`, continue loop; reset plan-review reject counter for this phase
+    - If plan-review rejected (annotation says `Plan-feedback:`): state is already `plan`, continue loop; increment plan-review reject counter; if counter reaches 3, go to step 14
+    - If review approved (annotation says `Review: approved`): set `aistate:done`, mark task done, commit phase artifacts: `git commit -am "phase(PHASE): XXXXX"`; reset review reject counter for this phase
+    - If review rejected (feedback file annotated): set `aistate:write`; increment review reject counter; if counter reaches 3, go to step 14; otherwise continue loop
+    - If escalation annotated: go to step 14
 
-13. All four tasks done. Run the full test suite from the project profile.
+13. **Loop end**: go to step 4.
 
-14. If tests pass: `git checkout main && git merge --squash story/XXXXX-slug && git commit -m "story: XXXXX-slug"`
+14. **Escalation halt** (reject limit reached or subagent wrote escalation):
+    - If reject limit: write `plan/escalations/XXXXX-<phase>-reject-loop.md` using the escalation template and annotate the task
+    - `taskwarrior/tw <id> stop` (if still active)
+    - `taskwarrior/tw <id> modify +blocked`
+    - `taskwarrior/tw <id> annotate "Escalation: plan/escalations/XXXXX-<phase>-slug.md"` (if not already annotated)
+    - Return control to the PM with the escalation file path. Do not roll back git. Do not reopen upstream phases. Do not continue the loop.
 
-15. If tests fail: write an escalation for the implementation phase and re-enter the loop.
+15. All four tasks done. Run the full test suite from the project profile.
+
+16. If tests pass: `git checkout main && git merge --squash story/XXXXX-slug && git commit -m "story: XXXXX-slug"`
+
+17. If tests fail: write an escalation for the implementation phase, block the task, and return control to the PM (same halt behavior as step 14).
 
 ---
 
@@ -187,7 +206,7 @@ The Coordinator drives a single story through all four phases. It is a determini
 
 - **One branch per story**: `story/XXXXX-slug`, created from `main`.
 - **Commit after each reviewed phase**: `git commit -am "phase(req): XXXXX"`, `phase(arch): XXXXX`, `phase(test): XXXXX`, `phase(impl): XXXXX`.
-- **Rollback on catastrophic failure**: `git reset --hard` to the last phase commit.
+- **No automatic rollback on escalation**: escalations halt execution and return control to the PM; git state is preserved for human review.
 - **Squash-merge to main**: when all four phases are done and the full test suite passes.
 - **Planning artifacts on main**: PM commits milestone and story files to `main` directly.
 
@@ -195,19 +214,17 @@ The Coordinator drives a single story through all four phases. It is a determini
 
 ## 7. Escalation Protocol
 
-There is no omnipotent escalation agent with global write access. Escalations are handled via state reversal:
+Escalations halt all AI work and surface the problem to the user. There is no automatic recovery loop.
 
-1. **Trigger**: a downstream agent (e.g. implementation) hits an impossible constraint, a contradiction between requirements and architecture, or a loop it cannot resolve.
+1. **Trigger**: a subagent hits an impossible constraint, a contradiction it cannot resolve, or the Coordinator detects the 3rd plan-review or review rejection for the same phase.
 
-2. **Report**: the agent writes `plan/escalations/XXXXX-phase-slug.md` using the escalation template, annotates the task, and exits.
+2. **Report**: the subagent (or Coordinator on reject limit) writes `plan/escalations/XXXXX-phase-slug.md` using the escalation template, annotates the task with `Escalation: <path>`, and exits immediately. The subagent does not continue working after writing the escalation.
 
-3. **Analysis**: the Coordinator optionally invokes the escalation-analysis subagent for a read-only diagnosis. This agent analyzes the report and adds recovery recommendations but never modifies code or requirements.
+3. **Coordinator halt**: the Coordinator detects the `Escalation:` annotation or reject limit, calls `taskwarrior/tw <id> stop`, marks the task `+blocked`, and returns control to the PM with the escalation file path. No git rollback. No upstream phase reopening. No further subagent invocations.
 
-4. **Reversal**: the Coordinator rolls back the git branch to the last good phase commit.
+4. **PM escalation**: the PM reads the escalation file, explains the situation and root cause to the user in chat, and **stops**. The PM waits for user direction before taking any further action (e.g. updating a story, writing a corrective story with Modifies Stories, or skipping the story).
 
-5. **Recovery**: the Coordinator reopens the upstream phase task to `write` state, attaching the escalation file as primary context. The upstream agent re-runs with knowledge of what went wrong downstream.
-
-6. **PM escalation**: if the Coordinator cannot resolve the escalation (e.g. the escalation points to a story-level problem), it returns control to the PM with the escalation report.
+The escalation-analysis subagent remains available for manual invocation by the user or PM when deeper diagnosis is needed. It is not part of the automatic Coordinator loop.
 
 ---
 
@@ -221,9 +238,17 @@ High-level planning documents. Contain vision, goals, boundaries, epics, and don
 
 Problem-space documents describing vertical feature slices. Must include: goal (what and why), scope boundaries (in-scope and out-of-scope), trigger conditions, binary acceptance criteria, domain tags, dependencies, and non-goals. Stories describe user-facing behavior, not technical tasks.
 
+Optional **Modifies Stories** section: when a new story changes or deprecates behavior from earlier stories, list the old story file paths and a brief reason. Old story files are never edited in place -- the new story carries the change intent. Downstream phase agents use this section to update or delete affected requirements, architecture artifacts, tests, and implementation.
+
 ### 8.3 Requirements (`plan/requirements/[domain]/XXXXX-name.md`)
 
-Problem-space rules organized by domain. Translate the vertical story into categorized logic, constraints, and business rules. Must backlink to parent story IDs. Contain no code, no class names -- only plain English descriptions of what the system must do.
+Problem-space rules organized by domain. Translate the vertical story into categorized logic, constraints, and business rules. Must backlink to parent story IDs in **Parent Stories**. Contain no code, no class names -- only plain English descriptions of what the system must do.
+
+When a later story modifies behavior covered by an existing requirement, the Requirements Write agent must either:
+- **Update in place**: add the new story to **Parent Stories** (and **Also Modified By**), revise rules to reflect the new behavior
+- **Delete**: remove the requirement file entirely when fully superseded (annotate the task with `Deleted: <path>`)
+
+Updated or deleted requirements must remain traceable: surviving requirements list all stories that modified them in **Also Modified By**. Downstream architecture, test, and implementation phases must update artifacts to match.
 
 ### 8.4 Architecture Artifacts
 
@@ -284,7 +309,6 @@ You are the [Role] agent. Your task:
 - Plan file: <path from annotation, if applicable>
 - Plan feedback: <path from Plan-feedback annotation, if re-doing after plan-review rejection>
 - Feedback: <path from Feedback annotation, if re-doing after review rejection>
-- Escalation context: <path, if re-doing after escalation>
 
 Follow your role instructions. Read the files listed above. Write your outputs.
 Update Taskwarrior when done.
@@ -304,7 +328,7 @@ All review agents (plan-review and review) follow these principles:
 - If it works and is structurally sound, approve it
 - Every rejection must include exact file paths, line references, and concrete fix instructions
 - Never rubber-stamp -- actually read and verify each artifact
-- Limit to 3 review rounds per artifact; after 3 rejections, escalate
+- Limit to 3 review rounds per artifact; the Coordinator enforces this by counting rejections and writing an escalation on the 3rd rejection. Review agents write feedback on any rejection; they may also write an escalation as a belt-and-suspenders measure, but the Coordinator is the primary enforcer
 
 ### 10.2 Implementation Standards
 

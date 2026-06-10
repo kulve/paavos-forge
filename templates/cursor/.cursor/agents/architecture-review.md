@@ -73,7 +73,8 @@ taskwarrior/tw <id> modify aistate:write
 - NEVER reject without specific file paths and fix instructions.
 - NEVER approve architecture with missing requirement coverage.
 - NEVER approve architecture that violates the domain dependency DAG in `ARCHITECTURE.md`.
+- NEVER continue reviewing past 3 rounds. Write feedback on any rejection. The Coordinator is the primary enforcer of the 3-round limit; you may write an escalation as a belt-and-suspenders measure on the 3rd rejection.
 
 ## Escalation
 
-After 3 rejections, write an escalation to `plan/escalations/XXXXX-arch-review-loop.md`.
+If fundamentally broken after 3 review rounds, you may write an escalation to `plan/escalations/XXXXX-arch-review-loop.md` and exit immediately. The Coordinator is the primary enforcer of the 3-round limit.

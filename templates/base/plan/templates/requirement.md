@@ -8,6 +8,12 @@
 
 - [plan/stories/XXXXX-slug.md]
 
+## Also Modified By
+
+[Optional. List later stories that updated or superseded this requirement, and how.]
+
+- [plan/stories/YYYYY-new-story.md — how it changes or replaces this requirement]
+
 ## Rules
 
 1. [Plain English logic rule. No code, no class names.]
