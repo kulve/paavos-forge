@@ -119,7 +119,7 @@ check_file ".cursor/commands/ai-next.md"
 echo "--- Taskwarrior UDAs ---"
 if [ -x "taskwarrior/tw" ]; then
     UDAS=$(taskwarrior/tw _udas 2>/dev/null || echo "")
-    for UDA in aiphase aistate aistory; do
+    for UDA in aiphase aistate aistory airole; do
         if echo "$UDAS" | grep -q "$UDA"; then
             true
         else
@@ -127,11 +127,22 @@ if [ -x "taskwarrior/tw" ]; then
             ERRORS=$((ERRORS + 1))
         fi
     done
+    # Check that the two singleton lock tasks exist
+    PM_LOCK=$(taskwarrior/tw +AI_LOCK airole:pm count 2>/dev/null || echo "0")
+    if [ "$PM_LOCK" -lt 1 ]; then
+        echo "ERROR: PM singleton lock task missing. Run: bash taskwarrior/setup.sh"
+        ERRORS=$((ERRORS + 1))
+    fi
+    COORD_LOCK=$(taskwarrior/tw +AI_LOCK airole:coordinator count 2>/dev/null || echo "0")
+    if [ "$COORD_LOCK" -lt 1 ]; then
+        echo "ERROR: Coordinator singleton lock task missing. Run: bash taskwarrior/setup.sh"
+        ERRORS=$((ERRORS + 1))
+    fi
 elif command -v task &> /dev/null; then
     echo "WARNING: taskwarrior/tw not executable. Falling back to bare 'task' for UDA check."
     WARNINGS=$((WARNINGS + 1))
     UDAS=$(task _udas 2>/dev/null || echo "")
-    for UDA in aiphase aistate aistory; do
+    for UDA in aiphase aistate aistory airole; do
         if echo "$UDAS" | grep -q "$UDA"; then
             true
         else

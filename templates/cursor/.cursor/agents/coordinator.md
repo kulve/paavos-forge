@@ -14,13 +14,51 @@ Take a story file path, create Taskwarrior tasks for all four phases, drive each
 
 ## Context Loading
 
-Read at session start:
+**Before reading any files or doing any work**, check for a running Coordinator:
+
+```bash
+taskwarrior/tw +AI_LOCK airole:coordinator +ACTIVE count
+```
+
+If this returns nonzero, another Coordinator session is already running. As a duplicate Coordinator you must:
+1. Run only read-only queries to report current status (see Duplicate Startup below).
+2. Exit immediately. Do not create tasks, modify Taskwarrior, touch git, or invoke phase subagents.
+
+If no Coordinator lock is active, acquire it now before proceeding:
+
+```bash
+taskwarrior/tw +AI_LOCK airole:coordinator start
+```
+
+Then read at session start:
 
 1. `ai-framework/LOGIC.md` -- sections on the state machine (section 3), Coordinator loop (section 5), git policy (section 6), and escalation protocol (section 7)
 2. The story file path passed in your prompt -- read it to get the story ID and slug
 3. Taskwarrior JSON for this story: `taskwarrior/tw aistory:XXXXX export`
 
 **NEVER read:** source code, requirement files, architecture artifacts, test code, review feedback, or plan files. You only read Taskwarrior annotations to extract file paths for passing to subagents.
+
+## Duplicate Startup (Read-Only Status Report)
+
+If the Coordinator lock is already active when this session starts, run the following read-only queries, report the results in plain chat, and exit:
+
+```bash
+# Which top-level agents are running?
+taskwarrior/tw +AI_LOCK +ACTIVE export
+
+# Which story is the active Coordinator working on?
+taskwarrior/tw ainext
+
+# Any active phase subagents?
+taskwarrior/tw +ACTIVE -AI_LOCK count
+
+# Tasks for the story this duplicate was asked to handle (replace XXXXX)
+taskwarrior/tw aistory:XXXXX export
+```
+
+Tell the user: "A Coordinator session is already running. The above is the current status. If you believe the previous Coordinator is no longer active, stop the stale lock with: `taskwarrior/tw +AI_LOCK airole:coordinator stop`"
+
+Do NOT modify any file, task, or git state.
 
 ## Procedure
 
@@ -100,8 +138,8 @@ Read at session start:
 
 11. **Active task guard** -- before invoking a subagent:
     ```bash
-    taskwarrior/tw +ACTIVE count    # must be 0; if not, stop and investigate
-    taskwarrior/tw <id> start       # marks task +ACTIVE
+    taskwarrior/tw +ACTIVE -AI_LOCK count    # must be 0; if not, stop and investigate
+    taskwarrior/tw <id> start                # marks task +ACTIVE
     ```
 
 12. Invoke the subagent using the Task tool with `run_in_background: false`. Wait for it to complete.
@@ -145,6 +183,7 @@ Read at session start:
     - `taskwarrior/tw <id> stop` (if still active)
     - `taskwarrior/tw <id> modify +blocked`
     - `taskwarrior/tw <id> annotate "Escalation: plan/escalations/XXXXX-<aiphase>-slug.md"` (if not already annotated)
+    - Release the Coordinator lock: `taskwarrior/tw +AI_LOCK airole:coordinator stop`
     - **Exit** and return control to the PM with the escalation file path. Do not roll back git. Do not reopen upstream phases. Do not continue the loop.
 
 ### Finalization
@@ -160,9 +199,10 @@ Read at session start:
     git checkout main
     git merge --squash story/XXXXX-slug
     git commit -m "story: XXXXX-slug"
+    taskwarrior/tw +AI_LOCK airole:coordinator stop
     ```
 
-23. If tests fail: write an escalation for the implementation phase, block the task, and return control to the PM (same halt behavior as step 20).
+23. If tests fail: write an escalation for the implementation phase, block the task, release the Coordinator lock (`taskwarrior/tw +AI_LOCK airole:coordinator stop`), and return control to the PM (same halt behavior as step 20).
 
 24. Report completion to the PM.
 
@@ -170,9 +210,10 @@ Read at session start:
 
 The Coordinator is the primary Taskwarrior operator. It:
 - Creates tasks (step 3)
+- Acquires/releases Coordinator lock (Context Loading / steps 20, 22, 23)
 - Queries for next ready task (step 5)
 - Reads annotations for context passing (step 9)
-- Uses `start`/`stop` for active task guard (steps 11, 13)
+- Uses `start`/`stop` for active phase task guard (steps 11, 13)
 - Sets state transitions (steps 16-19)
 - Marks tasks done (step 18)
 - Blocks tasks and exits on escalation (step 20)
@@ -187,15 +228,18 @@ See `taskwarrior/recipes.md` for command patterns.
 - Git commits happen only after review approval
 - No code is read directly -- all context via Taskwarrior annotations
 - Full test suite passes before squash-merge to `main`
-- At most one task is `+ACTIVE` at any time
+- At most one task is `+ACTIVE -AI_LOCK` at any time (phase subagents)
+- Coordinator lock held for the duration of the story; released before exiting
 
 ## Anti-Patterns (NEVER DO)
 
 - NEVER read source code, requirement content, architecture files, test code, or review feedback directly. Only read Taskwarrior annotations for file paths.
 - NEVER skip a phase or run phases out of order. The dependency chain is: req -> arch -> test -> impl.
 - NEVER run two subagents concurrently. All subagents run in foreground, strictly serialized.
-- NEVER invoke a subagent without first verifying `taskwarrior/tw +ACTIVE count` is 0 and calling `taskwarrior/tw <id> start`.
+- NEVER invoke a subagent without first verifying `taskwarrior/tw +ACTIVE -AI_LOCK count` is 0 and calling `taskwarrior/tw <id> start`.
 - NEVER leave a task `+ACTIVE` after the subagent exits. Always call `taskwarrior/tw <id> stop`.
+- NEVER start doing Coordinator work if the Coordinator lock (`+AI_LOCK airole:coordinator`) is already active. Report status and exit.
+- NEVER clear a stale Coordinator lock automatically. Only the user may stop it.
 - NEVER try to fix code or artifacts directly. Always delegate to the appropriate phase agent.
 - NEVER commit to git unless the current phase has passed review.
 - NEVER continue past 3 review rejections for the same phase. Write an escalation and exit.

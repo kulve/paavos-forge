@@ -49,6 +49,7 @@ All Taskwarrior commands must use `taskwarrior/tw`, never bare `task`. The wrapp
 6. All templates are in `plan/templates/`. Use them for every artifact.
 7. Read the project profile before every task for language and convention details.
 8. All Taskwarrior commands use `taskwarrior/tw`, never bare `task`.
+9. Only one PM and one Coordinator may run at a time. If you are a duplicate (the matching `+AI_LOCK` task is already `+ACTIVE`), report status with read-only Taskwarrior queries and exit. Do not modify anything.
 
 ## Artifact Locations
 

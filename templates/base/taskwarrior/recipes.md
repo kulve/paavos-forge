@@ -34,17 +34,64 @@ taskwarrior/tw ainext
 
 ## Active Task Guard
 
-The Coordinator must ensure at most one task is `+ACTIVE` at any time. Use these commands around every subagent invocation:
+The Coordinator must ensure at most one phase task is `+ACTIVE` at any time. The `-AI_LOCK` filter excludes PM/Coordinator lock tasks so they do not interfere with this check:
 
 ```bash
-# Check nothing is currently active (must be 0 before starting a subagent)
-taskwarrior/tw +ACTIVE count
+# Check no phase subagent is currently active (must be 0 before starting a subagent)
+taskwarrior/tw +ACTIVE -AI_LOCK count
 
-# Mark a task active (call before invoking a subagent)
+# Mark a phase task active (call before invoking a subagent)
 taskwarrior/tw <id> start
 
 # Clear active status (call after subagent completes or is stopped)
 taskwarrior/tw <id> stop
+```
+
+## Top-Level Role Locks
+
+PM and Coordinator are singleton agents. Each has a permanent `+AI_LOCK` Taskwarrior task (created by `taskwarrior/setup.sh`) that is `start`ed when the agent begins and `stop`ped when it exits.
+
+Check whether a top-level agent is currently running:
+```bash
+taskwarrior/tw +AI_LOCK +ACTIVE export
+```
+
+Acquire PM lock (call at PM session start, before any reads or writes):
+```bash
+taskwarrior/tw +AI_LOCK airole:pm +ACTIVE count    # must be 0
+taskwarrior/tw +AI_LOCK airole:pm start
+```
+
+Release PM lock (call when PM is intentionally done or stopped):
+```bash
+taskwarrior/tw +AI_LOCK airole:pm stop
+```
+
+Acquire Coordinator lock (call before creating tasks, touching git, or invoking subagents):
+```bash
+taskwarrior/tw +AI_LOCK airole:coordinator +ACTIVE count    # must be 0
+taskwarrior/tw +AI_LOCK airole:coordinator start
+```
+
+Release Coordinator lock (call on story completion, escalation halt, or clean exit):
+```bash
+taskwarrior/tw +AI_LOCK airole:coordinator stop
+```
+
+View all lock tasks and their active status:
+```bash
+taskwarrior/tw ailocks
+```
+
+View active phase tasks (excludes lock tasks):
+```bash
+taskwarrior/tw aiactive
+```
+
+Manual stale-lock recovery (user only, after confirming the original agent is gone):
+```bash
+taskwarrior/tw +AI_LOCK airole:pm stop
+taskwarrior/tw +AI_LOCK airole:coordinator stop
 ```
 
 ## State Transitions

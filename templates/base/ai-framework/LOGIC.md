@@ -14,6 +14,7 @@ This framework enables AI agents to autonomously implement large projects from h
 - **Rolling batch execution**: no waterfall; stories are generated and executed in small batches
 - **Shift-left testing**: integration tests are written before implementation to constrain AI behavior
 - **Single active subagent**: at most one Taskwarrior task may be `+ACTIVE` at any time; the Coordinator enforces this via `start`/`stop` around every subagent invocation
+- **Top-level singleton locks**: only one PM and one Coordinator may run at any time; duplicates are read-only status reporters that exit without modifying state
 
 The framework is optimized for C++ projects but supports other languages (Python, TypeScript, etc.) through the project profile.
 
@@ -27,7 +28,7 @@ The top-level orchestrator. Talks to the user, defines milestones, generates sto
 
 ### 2.2 Coordinator
 
-A deterministic state machine that drives a single story through all four phases. The Coordinator is not creative -- it reads Taskwarrior state, decides which subagent to invoke next, manages git branches, and halts on escalations. It never reads code or artifact content directly. It invokes exactly one subagent at a time: before each invocation it verifies `taskwarrior/tw +ACTIVE count` is 0, calls `start` on the task, invokes the subagent in foreground, then calls `stop` when the subagent exits.
+A deterministic state machine that drives a single story through all four phases. The Coordinator is not creative -- it reads Taskwarrior state, decides which subagent to invoke next, manages git branches, and halts on escalations. It never reads code or artifact content directly. It invokes exactly one subagent at a time: before each invocation it verifies `taskwarrior/tw +ACTIVE -AI_LOCK count` is 0, calls `start` on the task, invokes the subagent in foreground, then calls `stop` when the subagent exits.
 
 ### 2.3 Phase Agents
 
@@ -40,6 +41,25 @@ Story Review and Escalation Analysis agents that assist the PM and Coordinator w
 ### 2.5 Fixer
 
 A lightweight bug-fix agent that operates entirely outside the PM pipeline. The user invokes it directly to fix bugs in existing code. It may modify source files and tests, but must not add features, change public interfaces, create framework artifacts, or use Taskwarrior. It is not part of the Coordinator's dispatch table. If a fix exceeds its scope (architectural changes, new interfaces, new requirements), it redirects the user to the PM.
+
+### 2.6 Top-Level Singleton Locks
+
+Only one PM and one Coordinator may run at any time. Locks are Taskwarrior tasks tagged `+AI_LOCK` that are created once by `taskwarrior/setup.sh` and never completed -- they are `start`ed and `stop`ped to track liveness:
+
+- `+AI_LOCK airole:pm` -- held by the PM for the duration of its session
+- `+AI_LOCK airole:coordinator` -- held by the Coordinator for the duration of one story
+
+**Duplicate agent startup rule**: when a PM or Coordinator agent starts, it first checks whether its lock is `+ACTIVE`. If the lock is already active, the duplicate agent must:
+1. Run only read-only Taskwarrior queries to report what is currently running.
+2. Exit immediately without modifying Taskwarrior, git, plan files, source, tests, or architecture artifacts.
+
+**Phase subagent guard**: the Coordinator checks `+ACTIVE -AI_LOCK count` (not plain `+ACTIVE count`) so that the Coordinator's own lock task does not appear to block legitimate phase-subagent starts.
+
+**Stale lock recovery**: agents must never auto-clear stale locks. If the user confirms the original agent is gone, the user manually stops the lock:
+```
+taskwarrior/tw +AI_LOCK airole:pm stop
+taskwarrior/tw +AI_LOCK airole:coordinator stop
+```
 
 ---
 
@@ -87,7 +107,13 @@ uda.aistate.values=blocked,plan,plan-review,write,review,done
 
 uda.aistory.type=string
 uda.aistory.label=AI Story ID
+
+uda.airole.type=string
+uda.airole.label=AI Role Lock
+uda.airole.values=pm,coordinator
 ```
+
+Lock tasks carry `+AI_LOCK` and an `airole` value. They are never completed.
 
 ### 3.4 Context Passing
 
@@ -167,8 +193,8 @@ The Coordinator drives a single story through all four phases. It is a determini
 
 9. **Active task guard** -- before invoking a subagent:
    ```
-   taskwarrior/tw +ACTIVE count    # must be 0; if not, stop and investigate
-   taskwarrior/tw <id> start       # marks task +ACTIVE
+   taskwarrior/tw +ACTIVE -AI_LOCK count    # must be 0; if not, stop and investigate
+   taskwarrior/tw <id> start                # marks task +ACTIVE
    ```
 
 10. Invoke the subagent in foreground and wait for completion.

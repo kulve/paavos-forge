@@ -20,7 +20,11 @@ These rules apply to ALL agents working in this project. They are non-negotiable
 - Agents must never advance more than one state transition per invocation (e.g. plan -> plan-review, not plan -> write).
 - Every artifact written must be annotated on the corresponding Taskwarrior task with its file path.
 - The Coordinator is the only agent that creates Taskwarrior tasks, marks tasks done, or manages git branches.
-- At most one Taskwarrior task may be `+ACTIVE` at any time. The Coordinator verifies `taskwarrior/tw +ACTIVE count` is 0, calls `start` before invoking a subagent, and calls `stop` when the subagent exits.
+- At most one Taskwarrior task may be `+ACTIVE -AI_LOCK` at any time (phase subagents). The Coordinator verifies this count is 0, calls `start` before invoking a subagent, and calls `stop` when the subagent exits.
+- Only one PM may run at a time. At session start the PM checks `taskwarrior/tw +AI_LOCK airole:pm +ACTIVE count`. If nonzero, it is a duplicate: report status and exit without modifying anything.
+- Only one Coordinator may run at a time. At session start the Coordinator checks `taskwarrior/tw +AI_LOCK airole:coordinator +ACTIVE count`. If nonzero, it is a duplicate: report status and exit without modifying anything.
+- Duplicate PM/Coordinator agents must not modify Taskwarrior, git, plan files, source, tests, or architecture artifacts. They may only run read-only queries and exit.
+- Stale locks (`+AI_LOCK`) must only be cleared by the user, not by any agent.
 
 ## Review Standards
 

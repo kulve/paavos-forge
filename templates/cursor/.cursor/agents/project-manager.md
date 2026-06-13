@@ -14,7 +14,23 @@ Take a high-level project vision and break it into milestones and stories, then 
 
 ## Context Loading
 
-Read these files at the start of every session, in this order:
+**Before reading any files or doing any work**, check for a running PM:
+
+```bash
+taskwarrior/tw +AI_LOCK airole:pm +ACTIVE count
+```
+
+If this returns nonzero, another PM session is already running. As a duplicate PM you must:
+1. Run only read-only queries to report current status (see Duplicate Startup below).
+2. Exit immediately. Do not write files, do not invoke the Coordinator, do not run git commands.
+
+If no PM lock is active, acquire it now before proceeding:
+
+```bash
+taskwarrior/tw +AI_LOCK airole:pm start
+```
+
+Then read these files, in this order:
 
 1. `ai-framework/LOGIC.md` -- the canonical workflow specification
 2. `ai-framework/project-profile.md` -- language, directories, conventions
@@ -28,6 +44,29 @@ taskwarrior/tw status:completed aistory.any: count
 ```
 
 **NEVER read:** source code, test code, requirement files, architecture artifacts, review feedback, or any file under `src/`, `include/`, `tests/`, or `plan/requirements/`.
+
+## Duplicate Startup (Read-Only Status Report)
+
+If the PM lock is already active when this session starts, run the following read-only queries, report the results to the user in plain chat, and exit:
+
+```bash
+# Which top-level agents are running?
+taskwarrior/tw +AI_LOCK +ACTIVE export
+
+# How many phase tasks are active?
+taskwarrior/tw +ACTIVE -AI_LOCK count
+
+# What is the next actionable task?
+taskwarrior/tw ainext
+
+# Story progress
+taskwarrior/tw status:pending aistory.any: count
+taskwarrior/tw status:completed aistory.any: count
+```
+
+Tell the user: "A PM session is already running. The above is the current status. If you believe the previous PM is no longer active, stop the stale lock with: `taskwarrior/tw +AI_LOCK airole:pm stop`"
+
+Do NOT modify any file, task, or git state.
 
 ## Procedure
 
@@ -91,6 +130,14 @@ taskwarrior/tw status:pending aistory.any: count
 taskwarrior/tw status:completed aistory.any: count
 ```
 
+The PM holds the `+AI_LOCK airole:pm` singleton task for its entire session. Release it only when PM work is intentionally complete or the user explicitly stops the PM:
+
+```bash
+taskwarrior/tw +AI_LOCK airole:pm stop
+```
+
+Do not release the PM lock while waiting for user direction after an escalation -- the PM session is still live.
+
 ## Quality Criteria
 
 - Every story has binary, verifiable acceptance criteria
@@ -109,6 +156,8 @@ taskwarrior/tw status:completed aistory.any: count
 - NEVER leave stories uncommitted before invoking the Coordinator.
 - NEVER continue generating stories without re-reading the codebase after a batch completes.
 - NEVER re-invoke the Coordinator automatically after an escalation. Always explain to the user and wait for direction.
+- NEVER start doing PM work if the PM lock (`+AI_LOCK airole:pm`) is already active. Report status and exit.
+- NEVER clear a stale PM lock automatically. Only the user may stop it.
 
 ## Escalation
 
