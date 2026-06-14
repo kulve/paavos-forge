@@ -28,7 +28,7 @@ This creates:
 - `.gitignore` -- ignores `.task/` and `build/`
 - `ai-framework/LOGIC.md` -- the workflow specification
 - `ai-framework/project-profile.md` -- to be filled in by you
-- `plan/templates/` -- 7 artifact templates used by agents
+- `plan/templates/` -- 8 artifact templates used by agents
 - `taskwarrior/setup.sh` -- Taskwarrior UDA configuration script
 - `taskwarrior/env.sh` -- environment setup (sets `TASKRC`, creates `.task/`)
 - `taskwarrior/tw` -- project-local Taskwarrior wrapper (executable)
@@ -188,7 +188,7 @@ Or verify manually:
 - [ ] `.gitignore` contains `.task/`
 - [ ] `ai-framework/LOGIC.md` exists
 - [ ] `ai-framework/project-profile.md` exists and is filled in
-- [ ] `plan/templates/` contains 7 template files (milestone, story, requirement, phase-plan, plan-review-feedback, review-feedback, escalation)
+- [ ] `plan/templates/` contains 8 template files (milestone, story, requirement, phase-plan, plan-review-feedback, review-feedback, escalation, discovery)
 - [ ] `taskwarrior/setup.sh` exists and is executable
 - [ ] `taskwarrior/env.sh` exists and is executable
 - [ ] `taskwarrior/tw` exists and is executable

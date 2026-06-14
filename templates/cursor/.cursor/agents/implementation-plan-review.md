@@ -72,6 +72,7 @@ Check each of these. Reject if any fail:
 
 ## Anti-Patterns (NEVER DO)
 
+- NEVER read, list, search, modify, deduplicate, or delete existing discovery files under `plan/discoveries/`. You may only create a new discovery file for a significant out-of-scope finding, then continue your assigned task.
 - NEVER rubber-stamp. Actually verify the plan against architecture, tests, and requirements.
 - NEVER nitpick formatting or style. Focus on compliance, coverage, and feasibility.
 - NEVER reject without providing specific fix instructions.

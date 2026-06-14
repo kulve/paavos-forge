@@ -39,7 +39,7 @@ These rules apply to ALL agents working in this project. They are non-negotiable
 
 ## Context Discipline
 
-- The PM never reads source code, tests, or plan artifacts below the story level.
+- The PM never reads source code, tests, or plan artifacts below the story level, except `plan/discoveries/` during Discovery Triage after a milestone is otherwise complete.
 - The Coordinator never reads code, requirements, architecture, tests, or review content. It only reads Taskwarrior annotations for file paths.
 - Phase agents read only what their role specifies. Save context window for the work that matters.
 
@@ -49,6 +49,14 @@ These rules apply to ALL agents working in this project. They are non-negotiable
 - Escalation files use the template from `plan/templates/escalation.md`.
 - Escalations halt all AI work. The Coordinator stops the task, blocks it, and returns control to the PM. No automatic git rollback or upstream phase reopening.
 - The PM explains the escalation to the user and stops. The PM does not re-invoke the Coordinator until the user provides direction.
+
+## Discoveries
+
+- If any agent notices a significant out-of-scope bug, gap, stub, design flaw, or risk while doing its assigned task, it may write exactly one new discovery file under `plan/discoveries/` using `plan/templates/discovery.md`, then continue the current task.
+- Discovery filenames must use `YYYYMMDD-HHMMSS-slug.md` so agents can create unique files without inspecting the directory.
+- Subagents must NEVER read, list, search, deduplicate, modify, or delete existing discovery files. The PM is the only agent that may read and triage discoveries, and only after the milestone is otherwise complete.
+- Do not act on discoveries during the current task. They must not expand scope, trigger implementation work, or replace escalation for blockers in the current task.
+- Only record discoveries that meaningfully affect functionality, correctness, security, or performance. Do not record minor typos, trivial documentation gaps, cosmetic issues, or micro-optimizations.
 
 ## Git
 

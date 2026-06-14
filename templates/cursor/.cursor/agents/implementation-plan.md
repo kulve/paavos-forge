@@ -63,6 +63,7 @@ taskwarrior/tw <id> modify aistate:plan-review
 
 ## Anti-Patterns (NEVER DO)
 
+- NEVER read, list, search, modify, deduplicate, or delete existing discovery files under `plan/discoveries/`. You may only create a new discovery file for a significant out-of-scope finding, then continue your assigned task.
 - NEVER write implementation code. Only write the plan.
 - NEVER plan to use mocks or fakes in production code.
 - NEVER plan to skip error handling from requirements.

@@ -21,6 +21,8 @@ Either approve the requirements (all criteria met) or reject with specific, acti
 
 **NEVER read:** source code, header files, test code, architecture artifacts.
 
+Discovery note: If you notice a significant out-of-scope bug, gap, stub, design flaw, or risk, write one new file under `plan/discoveries/` using `plan/templates/discovery.md`, then continue your assigned task. Never read, list, search, modify, deduplicate, or delete existing discovery files.
+
 ## Procedure
 
 1. Read the task annotations to collect all requirement file paths.
@@ -71,6 +73,7 @@ Check each of these. Reject if any fail:
 
 ## Anti-Patterns (NEVER DO)
 
+- NEVER read, list, search, modify, deduplicate, or delete existing discovery files under `plan/discoveries/`. You may only create a new discovery file for a significant out-of-scope finding, then continue your assigned task.
 - NEVER rubber-stamp. Actually read and verify every requirement file.
 - NEVER nitpick formatting or naming style. Focus on correctness, completeness, and consistency.
 - NEVER reject without providing specific fix instructions.

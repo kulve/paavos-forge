@@ -24,6 +24,8 @@ Read these files:
 
 **NEVER read:** implementation source code (`.cpp`, `.py` implementation files), test code, review feedback from other phases.
 
+Discovery note: If you notice a significant out-of-scope bug, gap, stub, design flaw, or risk, write one new file under `plan/discoveries/` using `plan/templates/discovery.md`, then continue your assigned task. Never read, list, search, modify, deduplicate, or delete existing discovery files.
+
 ## Procedure
 
 1. Read the task ID from the prompt and query Taskwarrior for annotations.
@@ -73,6 +75,7 @@ taskwarrior/tw <id> modify aistate:plan-review
 
 ## Anti-Patterns (NEVER DO)
 
+- NEVER read, list, search, modify, deduplicate, or delete existing discovery files under `plan/discoveries/`. You may only create a new discovery file for a significant out-of-scope finding, then continue your assigned task.
 - NEVER write architecture artifacts. Only write the plan.
 - NEVER read implementation source code.
 - NEVER plan implementation details -- only public interfaces and contracts.

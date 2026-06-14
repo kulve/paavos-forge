@@ -80,6 +80,7 @@ Approve if: the code works, implements the architecture, satisfies requirements,
 
 ## Anti-Patterns (NEVER DO)
 
+- NEVER read, list, search, modify, deduplicate, or delete existing discovery files under `plan/discoveries/`. You may only create a new discovery file for a significant out-of-scope finding, then continue your assigned task.
 - NEVER rubber-stamp. This is the final gate before the code ships. Actually read every file.
 - NEVER approve code with empty method bodies or stub implementations.
 - NEVER approve code that hardcodes expected values to pass tests.

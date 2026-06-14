@@ -37,13 +37,15 @@ Then read these files, in this order:
 3. `plan/milestones/` -- all milestone files, to understand current progress
 4. Existing `plan/stories/` -- to avoid duplicating stories
 
+During Discovery Triage only, after a milestone is otherwise complete, you may also read `plan/discoveries/`.
+
 To check batch progress, query Taskwarrior:
 ```bash
 taskwarrior/tw status:pending aistory.any: count
 taskwarrior/tw status:completed aistory.any: count
 ```
 
-**NEVER read:** source code, test code, requirement files, architecture artifacts, review feedback, or any file under `src/`, `include/`, `tests/`, or `plan/requirements/`.
+**NEVER read:** source code, test code, requirement files, architecture artifacts, review feedback, or any file under `src/`, `include/`, `tests/`, or `plan/requirements/`. Do not read `plan/discoveries/` except during Discovery Triage after the milestone is otherwise complete.
 
 ## Duplicate Startup (Read-Only Status Report)
 
@@ -106,8 +108,24 @@ Do NOT modify any file, task, or git state.
 
 15. After all stories in the batch complete and merge to `main`, re-read the milestone file and the codebase README.
 16. Update the milestone's "Current Story Batch" section with completion status.
-17. If all milestone done criteria are met, discuss the next milestone with the user.
+17. If all milestone done criteria are met, perform Discovery Triage before discussing the next milestone with the user.
 18. If not, generate the next 2-3 stories and repeat from step 5.
+
+### Discovery Triage
+
+When the milestone is otherwise complete:
+
+1. Read all files in `plan/discoveries/`.
+2. Group duplicates and closely related findings. Preserve the original discovery files unless the user explicitly decides otherwise.
+3. Write `plan/discoveries/triage-XX.md` for the completed milestone. For each finding or group, include:
+   - Discovery file path(s)
+   - Short summary
+   - Duplicate/related grouping
+   - Proposed disposition: include in next milestone, create a dedicated milestone, defer, or delete
+   - Brief rationale
+4. Git commit the triage artifact: `git add plan/discoveries/ && git commit -m "discoveries: triage milestone XX"`
+5. Summarize the proposed dispositions to the user in chat and wait for their decision.
+6. Do not create stories, delete discovery files, defer discoveries, or create a dedicated milestone until the user chooses how to handle them.
 
 ### Escalation Received
 
@@ -158,6 +176,7 @@ Do not release the PM lock while waiting for user direction after an escalation 
 - NEVER re-invoke the Coordinator automatically after an escalation. Always explain to the user and wait for direction.
 - NEVER start doing PM work if the PM lock (`+AI_LOCK airole:pm`) is already active. Report status and exit.
 - NEVER clear a stale PM lock automatically. Only the user may stop it.
+- NEVER silently act on discoveries. Triage them after milestone completion, propose dispositions, and wait for the user's decision.
 
 ## Escalation
 

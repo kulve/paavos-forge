@@ -50,6 +50,7 @@ All Taskwarrior commands must use `taskwarrior/tw`, never bare `task`. The wrapp
 7. Read the project profile before every task for language and convention details.
 8. All Taskwarrior commands use `taskwarrior/tw`, never bare `task`.
 9. Only one PM and one Coordinator may run at a time. If you are a duplicate (the matching `+AI_LOCK` task is already `+ACTIVE`), report status with read-only Taskwarrior queries and exit. Do not modify anything.
+10. Agents may record significant out-of-scope findings as new discovery files, but only the PM may read and triage discoveries.
 
 ## Artifact Locations
 
@@ -60,6 +61,7 @@ All Taskwarrior commands must use `taskwarrior/tw`, never bare `task`. The wrapp
 - Plan review feedback: `plan/*-plan-review/`
 - Review feedback: `plan/*-review/`
 - Escalations: `plan/escalations/`
+- Discoveries: `plan/discoveries/`
 - Templates: `plan/templates/`
 - Domain dependency policy: `ARCHITECTURE.md` (project root)
 
@@ -76,6 +78,8 @@ Only specifically designated phase agents may write to implementation directorie
 - **Phase plans** (`plan/*-plans/`) -- only the respective plan agents
 - **Plan review feedback** (`plan/*-plan-review/`) -- only the respective plan-review agents
 - **Review feedback** (`plan/*-review/`) -- only the respective review agents
+
+Any agent may create one new discovery file under `plan/discoveries/` for a significant out-of-scope finding, using `plan/templates/discovery.md`, then continue its assigned task. Subagents must never read, list, modify, deduplicate, or delete existing discoveries; the PM triages them after milestone completion.
 
 The exact directories are defined in `ai-framework/project-profile.md`. The ownership rules above apply to whatever directories the project profile specifies.
 

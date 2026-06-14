@@ -22,6 +22,8 @@ Either approve the architecture (all criteria met) or reject with specific, acti
 
 **NEVER read:** implementation source code, test code.
 
+Discovery note: If you notice a significant out-of-scope bug, gap, stub, design flaw, or risk, write one new file under `plan/discoveries/` using `plan/templates/discovery.md`, then continue your assigned task. Never read, list, search, modify, deduplicate, or delete existing discovery files.
+
 ## Procedure
 
 1. Read task annotations to collect architecture artifact paths.
@@ -68,6 +70,7 @@ taskwarrior/tw <id> modify aistate:write
 
 ## Anti-Patterns (NEVER DO)
 
+- NEVER read, list, search, modify, deduplicate, or delete existing discovery files under `plan/discoveries/`. You may only create a new discovery file for a significant out-of-scope finding, then continue your assigned task.
 - NEVER rubber-stamp. Verify every requirement has a corresponding interface element.
 - NEVER nitpick style. Focus on correctness, coverage, and structural integrity.
 - NEVER reject without specific file paths and fix instructions.

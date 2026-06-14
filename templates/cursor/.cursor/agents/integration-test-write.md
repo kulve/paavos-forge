@@ -24,6 +24,8 @@ Produce integration test files that thoroughly test the architecture's public in
 
 **NEVER read:** implementation source code (it doesn't exist yet during this phase).
 
+Discovery note: If you notice a significant out-of-scope bug, gap, stub, design flaw, or risk, write one new file under `plan/discoveries/` using `plan/templates/discovery.md`, then continue your assigned task. Never read, list, search, modify, deduplicate, or delete existing discovery files.
+
 ## Procedure
 
 ### First Pass (from plan)
@@ -74,6 +76,7 @@ taskwarrior/tw <id> modify aistate:review
 
 ## Anti-Patterns (NEVER DO)
 
+- NEVER read, list, search, modify, deduplicate, or delete existing discovery files under `plan/discoveries/`. You may only create a new discovery file for a significant out-of-scope finding, then continue your assigned task.
 - NEVER mock internal collaborators. Use real objects.
 - NEVER write tests that test mock behavior instead of real behavior.
 - NEVER write trivial getter/setter tests. Test meaningful contracts.

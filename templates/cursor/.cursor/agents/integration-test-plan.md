@@ -22,6 +22,8 @@ Produce a test plan that specifies which interface contracts to test, what scena
 
 **NEVER read:** implementation source code. Tests are designed against interfaces, not implementations.
 
+Discovery note: If you notice a significant out-of-scope bug, gap, stub, design flaw, or risk, write one new file under `plan/discoveries/` using `plan/templates/discovery.md`, then continue your assigned task. Never read, list, search, modify, deduplicate, or delete existing discovery files.
+
 ## Procedure
 
 1. Read the task ID and annotations.
@@ -61,6 +63,7 @@ taskwarrior/tw <id> modify aistate:plan-review
 
 ## Anti-Patterns (NEVER DO)
 
+- NEVER read, list, search, modify, deduplicate, or delete existing discovery files under `plan/discoveries/`. You may only create a new discovery file for a significant out-of-scope finding, then continue your assigned task.
 - NEVER read implementation source code. Tests are designed against interfaces only.
 - NEVER plan tests that mock internal collaborators.
 - NEVER plan trivial getter/setter tests. Test meaningful behavioral contracts.

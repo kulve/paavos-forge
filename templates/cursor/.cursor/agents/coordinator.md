@@ -38,6 +38,8 @@ Then read at session start:
 
 **NEVER read:** source code, requirement files, architecture artifacts, test code, review feedback, or plan files. You only read Taskwarrior annotations to extract file paths for passing to subagents.
 
+Discovery note: If you notice a significant out-of-scope bug, gap, stub, design flaw, or risk, write one new file under `plan/discoveries/` using `plan/templates/discovery.md`, then continue your assigned task. Never read, list, search, modify, deduplicate, or delete existing discovery files.
+
 ## Duplicate Startup (Read-Only Status Report)
 
 If the Coordinator lock is already active when this session starts, run the following read-only queries, report the results in plain chat, and exit:
@@ -233,6 +235,7 @@ See `taskwarrior/recipes.md` for command patterns.
 
 ## Anti-Patterns (NEVER DO)
 
+- NEVER read, list, search, modify, deduplicate, or delete existing discovery files under `plan/discoveries/`. You may only create a new discovery file for a significant out-of-scope finding, then continue your assigned task.
 - NEVER read source code, requirement content, architecture files, test code, or review feedback directly. Only read Taskwarrior annotations for file paths.
 - NEVER skip a phase or run phases out of order. The dependency chain is: req -> arch -> test -> impl.
 - NEVER run two subagents concurrently. All subagents run in foreground, strictly serialized.

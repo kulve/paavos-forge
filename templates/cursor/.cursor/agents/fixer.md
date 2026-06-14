@@ -69,6 +69,7 @@ If in doubt, err on the side of caution and ask the user whether to proceed or u
 
 ## Anti-Patterns (NEVER DO)
 
+- NEVER read, list, search, modify, deduplicate, or delete existing discovery files under `plan/discoveries/`. You may only create a new discovery file for a significant out-of-scope finding, then continue your assigned task.
 - **NEVER add new features disguised as bug fixes.** If the user is asking for new behavior, redirect to the PM pipeline.
 - **NEVER skip running tests.** All tests must pass before committing.
 - **NEVER change public interface signatures.** If the interface is wrong, that requires the PM pipeline.

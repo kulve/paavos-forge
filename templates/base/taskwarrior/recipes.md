@@ -168,3 +168,7 @@ taskwarrior/tw <id> stop
 taskwarrior/tw <id> modify +blocked
 taskwarrior/tw <id> annotate "Escalation: plan/escalations/XXXXX-req-auth.md"
 ```
+
+## Discoveries
+
+Discoveries are filesystem-only records under `plan/discoveries/`; they are not Taskwarrior tasks and should not be annotated on phase tasks. Subagents may only create new discovery files and must not inspect existing ones.

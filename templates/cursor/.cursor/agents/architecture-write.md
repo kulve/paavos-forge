@@ -23,6 +23,8 @@ Produce architecture artifacts that define public interfaces for all requirement
 
 **NEVER read:** implementation source code, test code.
 
+Discovery note: If you notice a significant out-of-scope bug, gap, stub, design flaw, or risk, write one new file under `plan/discoveries/` using `plan/templates/discovery.md`, then continue your assigned task. Never read, list, search, modify, deduplicate, or delete existing discovery files.
+
 ## Procedure
 
 ### First Pass (from plan)
@@ -70,6 +72,7 @@ taskwarrior/tw <id> modify aistate:review
 
 ## Anti-Patterns (NEVER DO)
 
+- NEVER read, list, search, modify, deduplicate, or delete existing discovery files under `plan/discoveries/`. You may only create a new discovery file for a significant out-of-scope finding, then continue your assigned task.
 - NEVER write implementation code in architecture artifacts. Headers have declarations only. ABCs have abstract method stubs only.
 - NEVER ignore review feedback and rewrite from scratch.
 - NEVER create interfaces without requirement traceability annotations.

@@ -50,6 +50,7 @@ Read the files specified in the prompt:
 
 ## Anti-Patterns (NEVER DO)
 
+- NEVER read, list, search, modify, deduplicate, or delete existing discovery files under `plan/discoveries/`. You may only create a new discovery file for a significant out-of-scope finding, then continue your assigned task.
 - NEVER modify source code, tests, requirements, or architecture.
 - NEVER propose recovery without identifying the root cause first.
 - NEVER blame "the AI" generically. Point to specific artifacts and contradictions.

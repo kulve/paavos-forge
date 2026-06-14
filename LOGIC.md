@@ -141,7 +141,7 @@ The PM does not generate all stories for a milestone upfront. It works in rollin
 
 4. **Execution**: PM invokes the Coordinator subagent for each story, one at a time, in foreground. Stories are processed strictly in serial.
 
-5. **Re-evaluation**: After stories merge to `main`, PM re-reads the codebase and milestone file. If milestone goals are met, PM discusses the next milestone with the user. If not, PM generates the next 2-3 stories and repeats.
+5. **Re-evaluation**: After stories merge to `main`, PM re-reads the codebase and milestone file. If milestone goals are met, PM performs discovery triage before discussing the next milestone with the user. If not, PM generates the next 2-3 stories and repeats.
 
 6. **Git for planning artifacts**: PM commits milestone and story files to `main` directly, before invoking the Coordinator.
 
@@ -320,6 +320,18 @@ Rules:
 - All architecture and implementation artifacts must comply with the dependency DAG. The Architecture Review and Implementation Review agents are the primary enforcement points.
 - All agents read `ARCHITECTURE.md` to understand the domain structure and dependency constraints.
 
+### 8.11 Discoveries (`plan/discoveries/YYYYMMDD-HHMMSS-slug.md`)
+
+Discoveries are short records of significant out-of-scope findings noticed while an agent performs its assigned task. A discovery may describe a bug, gap, stub, design flaw, or risk that is not part of the current task and should be considered later.
+
+Rules:
+- Any subagent may write a new discovery file using `plan/templates/discovery.md`, then continue its current task.
+- Subagents must never read, list, modify, deduplicate, delete, or act on existing discovery files. They are write-only for subagents.
+- A discovery must not expand the current task scope, trigger implementation work, or replace the escalation protocol for blockers in the current task.
+- Record only clear, obvious, significant, or otherwise worthy findings that meaningfully affect functionality, correctness, security, or performance. Do not record minor typos, trivial documentation gaps, cosmetic issues, or micro-optimizations.
+- Discovery filenames use a timestamp plus a short slug, e.g. `20260614-151530-save-load-stub.md`, so agents can create unique files without reading the discovery directory.
+- Only the PM reads and triages discoveries, and only after the milestone is otherwise complete.
+
 ---
 
 ## 9. Agent Invocation Contract
@@ -402,3 +414,19 @@ The framework is designed to be extended via the project profile. Downstream pro
 - **Domain tags**: valid categories for organizing requirements
 
 Agent prompts read the project profile to adapt their behavior. The core workflow (phases, states, Taskwarrior protocol, git policy) remains fixed.
+
+---
+
+## 12. Discovery Protocol
+
+Discoveries preserve important out-of-scope observations without derailing the current task.
+
+1. **Trigger**: while performing its assigned task, any subagent notices a clear and significant bug, gap, stub, design flaw, or risk that is outside the current task scope.
+
+2. **Record**: the subagent writes exactly one new file under `plan/discoveries/` using `plan/templates/discovery.md`. The filename must be `YYYYMMDD-HHMMSS-slug.md`.
+
+3. **Do not inspect existing discoveries**: the subagent must not read, list, search, deduplicate, modify, or delete existing files in `plan/discoveries/`. Timestamp filenames avoid collisions without requiring a directory read.
+
+4. **Continue current task**: after writing the discovery, the subagent continues its assigned task. It must not implement, plan, review, or otherwise act on the discovery unless the user later brings it into scope through the PM.
+
+5. **PM triage**: once a milestone is otherwise complete, the PM reads all files in `plan/discoveries/`, groups duplicates and related findings, writes `plan/discoveries/triage-XX.md`, and summarizes proposed handling options for the user. The PM must wait for user direction before creating stories, deleting discoveries, deferring them, or creating a dedicated milestone.

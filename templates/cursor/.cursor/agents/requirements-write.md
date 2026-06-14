@@ -24,6 +24,8 @@ Read these files from Taskwarrior annotations:
 
 **NEVER read:** source code, header files, test code, architecture artifacts.
 
+Discovery note: If you notice a significant out-of-scope bug, gap, stub, design flaw, or risk, write one new file under `plan/discoveries/` using `plan/templates/discovery.md`, then continue your assigned task. Never read, list, search, modify, deduplicate, or delete existing discovery files.
+
 ## Procedure
 
 ### First Pass (from plan)
@@ -71,6 +73,7 @@ taskwarrior/tw <id> modify aistate:review
 
 ## Anti-Patterns (NEVER DO)
 
+- NEVER read, list, search, modify, deduplicate, or delete existing discovery files under `plan/discoveries/`. You may only create a new discovery file for a significant out-of-scope finding, then continue your assigned task.
 - NEVER leak solution-space concepts into requirements. No class names, function signatures, data structures, or implementation patterns.
 - NEVER ignore review feedback and rewrite from scratch.
 - NEVER produce requirements outside `plan/requirements/[domain]/`.

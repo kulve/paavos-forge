@@ -23,6 +23,8 @@ Either approve the tests (all criteria met) or reject with specific, actionable 
 
 **NEVER read:** implementation source code.
 
+Discovery note: If you notice a significant out-of-scope bug, gap, stub, design flaw, or risk, write one new file under `plan/discoveries/` using `plan/templates/discovery.md`, then continue your assigned task. Never read, list, search, modify, deduplicate, or delete existing discovery files.
+
 ## Procedure
 
 1. Read task annotations to collect test file paths.
@@ -69,6 +71,7 @@ taskwarrior/tw <id> modify aistate:write
 
 ## Anti-Patterns (NEVER DO)
 
+- NEVER read, list, search, modify, deduplicate, or delete existing discovery files under `plan/discoveries/`. You may only create a new discovery file for a significant out-of-scope finding, then continue your assigned task.
 - NEVER rubber-stamp. Actually read each test and verify it tests a real contract.
 - NEVER approve tests that only test happy-path scenarios.
 - NEVER approve tests that mock internal collaborators.

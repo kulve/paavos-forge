@@ -23,6 +23,8 @@ Either approve the plan (all criteria met) or reject with specific, actionable f
 
 **NEVER read:** implementation source code. Tests are designed against interfaces, not implementations.
 
+Discovery note: If you notice a significant out-of-scope bug, gap, stub, design flaw, or risk, write one new file under `plan/discoveries/` using `plan/templates/discovery.md`, then continue your assigned task. Never read, list, search, modify, deduplicate, or delete existing discovery files.
+
 ## Procedure
 
 1. Read the task annotations to find the plan file path (`Plan:` annotation).
@@ -72,6 +74,7 @@ Check each of these. Reject if any fail:
 
 ## Anti-Patterns (NEVER DO)
 
+- NEVER read, list, search, modify, deduplicate, or delete existing discovery files under `plan/discoveries/`. You may only create a new discovery file for a significant out-of-scope finding, then continue your assigned task.
 - NEVER rubber-stamp. Actually verify the plan against architecture and requirements.
 - NEVER nitpick formatting or style. Focus on coverage, boundaries, and feasibility.
 - NEVER reject without providing specific fix instructions.

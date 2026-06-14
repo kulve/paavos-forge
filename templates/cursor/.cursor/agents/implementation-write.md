@@ -83,6 +83,7 @@ taskwarrior/tw <id> annotate "Test fix: [description of the test bug and why it 
 
 ## Anti-Patterns (NEVER DO)
 
+- NEVER read, list, search, modify, deduplicate, or delete existing discovery files under `plan/discoveries/`. You may only create a new discovery file for a significant out-of-scope finding, then continue your assigned task.
 These are the most critical anti-patterns in the entire framework. Implementation is where LLMs fail most:
 
 - **NEVER hardcode expected test values** to make tests pass. Implement the actual logic.
