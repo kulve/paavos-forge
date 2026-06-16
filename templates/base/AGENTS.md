@@ -50,7 +50,9 @@ All Taskwarrior commands must use `taskwarrior/tw`, never bare `task`. The wrapp
 7. Read the project profile before every task for language and convention details.
 8. All Taskwarrior commands use `taskwarrior/tw`, never bare `task`.
 9. Only one PM and one Coordinator may run at a time. If you are a duplicate (the matching `+AI_LOCK` task is already `+ACTIVE`), report status with read-only Taskwarrior queries and exit. Do not modify anything.
-10. Agents may record significant out-of-scope findings as new discovery files, but only the PM may read and triage discoveries.
+10. The PM must not invoke, resume, or prompt a Coordinator while a Coordinator lock is active. Duplicate Coordinators must never be resumed or treated as legitimate lock holders.
+11. Stale locks and orphaned active phase tasks are recovered only by manual user action after confirming no agents/subagents are running. Agents may point users to `ccmd bash taskwarrior/cleanup-ai-state.sh`, but must not run it automatically.
+12. Agents may record significant out-of-scope findings as new discovery files, but only the PM may read and triage discoveries.
 
 ## Artifact Locations
 

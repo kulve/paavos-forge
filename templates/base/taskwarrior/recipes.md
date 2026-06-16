@@ -88,11 +88,13 @@ View active phase tasks (excludes lock tasks):
 taskwarrior/tw aiactive
 ```
 
-Manual stale-lock recovery (user only, after confirming the original agent is gone):
+Manual stale-lock and orphaned-active recovery (user only, after confirming no Cursor agents/subagents are running for this workspace):
 ```bash
-taskwarrior/tw +AI_LOCK airole:pm stop
-taskwarrior/tw +AI_LOCK airole:coordinator stop
+ccmd bash taskwarrior/cleanup-ai-state.sh
+ccmd bash taskwarrior/cleanup-ai-state.sh --apply
 ```
+
+The cleanup script defaults to dry-run. In apply mode it stops active PM/Coordinator lock tasks and active phase tasks, optionally scoped with `--story XXXXX` or limited to locks with `--locks-only`. It does not mark tasks done, modify `aistate`, delete tasks, or touch git. Agents must not run this automatically; they may only point the user to it after reporting read-only status.
 
 ## State Transitions
 

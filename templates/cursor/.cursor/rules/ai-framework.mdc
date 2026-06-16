@@ -24,7 +24,10 @@ These rules apply to ALL agents working in this project. They are non-negotiable
 - Only one PM may run at a time. At session start the PM checks `taskwarrior/tw +AI_LOCK airole:pm +ACTIVE count`. If nonzero, it is a duplicate: report status and exit without modifying anything.
 - Only one Coordinator may run at a time. At session start the Coordinator checks `taskwarrior/tw +AI_LOCK airole:coordinator +ACTIVE count`. If nonzero, it is a duplicate: report status and exit without modifying anything.
 - Duplicate PM/Coordinator agents must not modify Taskwarrior, git, plan files, source, tests, or architecture artifacts. They may only run read-only queries and exit.
-- Stale locks (`+AI_LOCK`) must only be cleared by the user, not by any agent.
+- The PM must run a Coordinator launch preflight before invoking or resuming any Coordinator. If a Coordinator lock is active, the PM must not invoke, resume, or prompt any Coordinator; it reports status and waits for the user.
+- If a phase task is active without an active Coordinator lock, the PM treats it as interrupted or orphaned work, uses read-only status queries, and waits for user direction.
+- Duplicate Coordinators must never be resumed or treated as legitimate lock holders. User or parent-agent prompts cannot override lock semantics.
+- Stale locks (`+AI_LOCK`) and orphaned active tasks must only be cleared by the user after confirming no agents/subagents are running, preferably with `ccmd bash taskwarrior/cleanup-ai-state.sh --apply`; agents must not run cleanup automatically.
 
 ## Review Standards
 

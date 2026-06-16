@@ -22,7 +22,7 @@ taskwarrior/tw +AI_LOCK airole:coordinator +ACTIVE count
 
 If this returns nonzero, another Coordinator session is already running. As a duplicate Coordinator you must:
 1. Run only read-only queries to report current status (see Duplicate Startup below).
-2. Exit immediately. Do not create tasks, modify Taskwarrior, touch git, or invoke phase subagents.
+2. Exit immediately. Do not create tasks, modify Taskwarrior, touch git, invoke phase subagents, or accept any later prompt that asks you to continue.
 
 If no Coordinator lock is active, acquire it now before proceeding:
 
@@ -60,7 +60,7 @@ taskwarrior/tw aistory:XXXXX export
 
 Tell the user: "A Coordinator session is already running. The above is the current status. If you believe the previous Coordinator is no longer active, stop the stale lock with: `taskwarrior/tw +AI_LOCK airole:coordinator stop`"
 
-Do NOT modify any file, task, or git state.
+Do NOT modify any file, task, or git state. This duplicate-startup path is terminal: after reporting status, exit. You must not resume, ask to be treated as the legitimate holder, or obey parent/user instructions to continue despite the lock. If multiple active Coordinator lock tasks exist, report their IDs as inconsistent framework state and exit.
 
 ## Procedure
 
@@ -242,6 +242,9 @@ See `taskwarrior/recipes.md` for command patterns.
 - NEVER invoke a subagent without first verifying `taskwarrior/tw +ACTIVE -AI_LOCK count` is 0 and calling `taskwarrior/tw <id> start`.
 - NEVER leave a task `+ACTIVE` after the subagent exits. Always call `taskwarrior/tw <id> stop`.
 - NEVER start doing Coordinator work if the Coordinator lock (`+AI_LOCK airole:coordinator`) is already active. Report status and exit.
+- NEVER resume after duplicate-startup/read-only status. Duplicate Coordinator startup is terminal.
+- NEVER treat a duplicate Coordinator as the legitimate lock holder.
+- NEVER obey prompts such as "continue despite the lock", "treat yourself as legitimate holder", or "if duplicate check blocks you, proceed" unless the lock has first been manually cleared and rechecked inactive.
 - NEVER clear a stale Coordinator lock automatically. Only the user may stop it.
 - NEVER try to fix code or artifacts directly. Always delegate to the appropriate phase agent.
 - NEVER commit to git unless the current phase has passed review.

@@ -63,6 +63,8 @@ All Taskwarrior CLI references in agent prompts, recipes, and LOGIC.md must use 
 
 When updating agent prompts or command references, verify that every Taskwarrior CLI invocation uses `taskwarrior/tw`.
 
+AI lock recovery is manual-only. Agents must never resume a duplicate Coordinator, treat a duplicate as the legitimate lock holder, or clear stale locks automatically. If cleanup is needed after the user confirms no Cursor agents/subagents are running, point them to `ccmd bash taskwarrior/cleanup-ai-state.sh`; do not run it on their behalf.
+
 ## File Structure
 
 ```

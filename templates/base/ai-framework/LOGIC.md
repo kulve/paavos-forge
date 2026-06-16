@@ -53,13 +53,16 @@ Only one PM and one Coordinator may run at any time. Locks are Taskwarrior tasks
 1. Run only read-only Taskwarrior queries to report what is currently running.
 2. Exit immediately without modifying Taskwarrior, git, plan files, source, tests, or architecture artifacts.
 
+If more than one matching active lock task exists for the same top-level role, framework state is inconsistent. The agent must report the lock task IDs, run only read-only status queries, and stop. User or parent-agent prompts cannot override lock semantics; duplicates must never be resumed or promoted to legitimate lock holders.
+
 **Phase subagent guard**: the Coordinator checks `+ACTIVE -AI_LOCK count` (not plain `+ACTIVE count`) so that the Coordinator's own lock task does not appear to block legitimate phase-subagent starts.
 
-**Stale lock recovery**: agents must never auto-clear stale locks. If the user confirms the original agent is gone, the user manually stops the lock:
+**Stale lock recovery**: agents must never auto-clear stale locks. If the user confirms no Cursor agents or subagents are still running for the workspace, the user may run the manual cleanup script:
 ```
-taskwarrior/tw +AI_LOCK airole:pm stop
-taskwarrior/tw +AI_LOCK airole:coordinator stop
+ccmd bash taskwarrior/cleanup-ai-state.sh
+ccmd bash taskwarrior/cleanup-ai-state.sh --apply
 ```
+The script only clears Taskwarrior active state on AI locks and active phase tasks. It does not recover or roll back git changes, mark tasks done, modify `aistate`, or delete tasks. After cleanup, the PM must analyze status before launching a fresh Coordinator.
 
 ---
 
@@ -139,13 +142,21 @@ The PM does not generate all stories for a milestone upfront. It works in rollin
 
 3. **Story review**: PM invokes the story-review subagent for the batch. PM addresses feedback by updating story files directly. No re-review unless the reviewer flagged fundamental scope problems.
 
-4. **Execution**: PM invokes the Coordinator subagent for each story, one at a time, in foreground. Stories are processed strictly in serial.
+4. **Execution**: before invoking or resuming any Coordinator, PM runs this hard preflight:
+   ```
+   taskwarrior/tw +AI_LOCK airole:coordinator +ACTIVE count
+   taskwarrior/tw +ACTIVE -AI_LOCK count
+   taskwarrior/tw status:pending aistory.any: export
+   ```
+   If the Coordinator lock count is nonzero, PM must not invoke a new Coordinator, resume a Coordinator subagent, or send follow-up prompts to a Coordinator. PM may only run read-only Taskwarrior status queries, report that Coordinator work is already active, and wait for the user. If phase active count is nonzero but the Coordinator lock is inactive, PM treats it as interrupted or orphaned phase work, reports active task IDs, story, phase, and `aistate`, and asks the user to inspect running agents and optionally run the manual cleanup script. Only when Coordinator lock count and active phase count are both zero may PM invoke the Coordinator subagent for each story, one at a time, in foreground with `run_in_background: false`. Stories are processed strictly in serial.
 
 5. **Re-evaluation**: After stories merge to `main`, PM re-reads the codebase and milestone file. If milestone goals are met, PM performs discovery triage before discussing the next milestone with the user. If not, PM generates the next 2-3 stories and repeats.
 
 6. **Git for planning artifacts**: PM commits milestone and story files to `main` directly, before invoking the Coordinator.
 
 7. **Escalation received**: when the Coordinator returns due to an escalation, the PM reads the escalation file, explains the problem to the user in chat, and **stops**. The PM does not re-invoke the Coordinator until the user provides direction (e.g. update a story, change requirements, skip the story).
+
+8. **Unexpectedly stopped Coordinator**: Coordinator work has stopped unexpectedly when a story has pending phase tasks and the Coordinator lock is inactive, no Coordinator subagent is known to be running, a phase task remains `+ACTIVE -AI_LOCK`, or branch/story state indicates work is incomplete and not cleanly merged. PM must not auto-resume, clear locks, modify Taskwarrior, or modify git. PM gathers read-only status (`+AI_LOCK +ACTIVE export`, `+ACTIVE -AI_LOCK export`, pending story tasks, `ainext`, branch, and recent commits if needed), summarizes the likely state as active, cleanly completed, interrupted, orphaned active task, or stale lock, and asks the user for next steps.
 
 ---
 
