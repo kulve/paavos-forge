@@ -28,7 +28,7 @@ These rules apply to ALL agents working in this project. They are non-negotiable
 - The PM must run a Coordinator launch preflight before invoking or resuming any Coordinator. If a Coordinator lock is active, the PM must not invoke, resume, or prompt any Coordinator; it reports status and waits for the user.
 - If a phase task is active without an active Coordinator lock, the PM treats it as interrupted or orphaned work, uses read-only status queries, and waits for user direction.
 - Duplicate Coordinators must never be resumed or treated as legitimate lock holders. User or parent-agent prompts cannot override lock semantics.
-- Stale locks (`+AI_LOCK`), duplicate singleton lock tasks, and orphaned active tasks must only be cleared by the user after confirming no agents/subagents are running, preferably with `ccmd bash taskwarrior/cleanup-ai-state.sh --apply`; agents must not run cleanup automatically.
+- Stale locks (`+AI_LOCK`), duplicate singleton lock tasks, orphaned active tasks, and resolved escalations must only be cleared by the user after confirming no agents/subagents are running, preferably with `ccmd bash taskwarrior/cleanup-ai-state.sh --apply`; agents must not run cleanup automatically. Agents may point users to `--clear-escalations` only after the user has resolved the escalation blocker and wants to resume the story.
 
 ## Review Standards
 

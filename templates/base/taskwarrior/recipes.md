@@ -92,13 +92,14 @@ View active phase tasks (excludes lock tasks):
 taskwarrior/tw aiactive
 ```
 
-Manual stale-lock and orphaned-active recovery (user only, after confirming no Cursor agents/subagents are running for this workspace):
+Manual stale-lock, orphaned-active, and escalation recovery (user only, after confirming no Cursor agents/subagents are running for this workspace):
 ```bash
 ccmd bash taskwarrior/cleanup-ai-state.sh
 ccmd bash taskwarrior/cleanup-ai-state.sh --apply
+ccmd bash taskwarrior/cleanup-ai-state.sh --apply --story 00034 --clear-escalations
 ```
 
-The cleanup script defaults to dry-run. In apply mode it stops active PM/Coordinator lock tasks, deletes duplicate singleton lock tasks (keeps lowest ID per `airole`), and stops active phase tasks, optionally scoped with `--story XXXXX` or limited to locks with `--locks-only`. It does not mark phase tasks done, modify `aistate`, or touch git. Agents must not run this automatically; they may only point the user to it after reporting read-only status.
+The cleanup script defaults to dry-run. In apply mode it stops active PM/Coordinator lock tasks, deletes duplicate singleton lock tasks (keeps lowest ID per `airole`), and stops active phase tasks, optionally scoped with `--story XXXXX` or limited to locks with `--locks-only`. With `--clear-escalations`, it also removes `Escalation:` annotations, clears `+blocked`, restores `aistate` on escalated phase tasks, and deletes matching files under `plan/escalations/` (story-scoped when `--story` is set). It does not mark phase tasks done or touch git except for escalation file deletion. Agents must not run this automatically; they may only point the user to it after reporting read-only status.
 
 ## State Transitions
 
