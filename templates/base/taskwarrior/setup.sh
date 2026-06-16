@@ -57,13 +57,33 @@ task config report.aiactive.sort "aistory+,aiphase+"
 # Create singleton lock tasks if they don't already exist.
 # These are permanent tasks that are never completed -- they are started/stopped
 # to indicate that a PM or Coordinator agent is running.
-PM_LOCK_COUNT=$(task +AI_LOCK airole:pm count 2>/dev/null || echo "0")
+dedupe_role_lock() {
+    local role="$1"
+    local count
+    count=$(task status:pending +AI_LOCK "airole:$role" count 2>/dev/null || echo "0")
+    if [ "$count" -le 1 ]; then
+        return 0
+    fi
+
+    local canonical
+    canonical=$(task status:pending +AI_LOCK "airole:$role" ids | awk '{print $1}')
+    local duplicate
+    for duplicate in $(task status:pending +AI_LOCK "airole:$role" ids | tr ' ' '\n' | tail -n +2); do
+        task "$duplicate" delete
+        echo "Removed duplicate $role lock task $duplicate (kept $canonical)."
+    done
+}
+
+dedupe_role_lock pm
+dedupe_role_lock coordinator
+
+PM_LOCK_COUNT=$(task status:pending +AI_LOCK airole:pm count 2>/dev/null || echo "0")
 if [ "$PM_LOCK_COUNT" -eq 0 ]; then
     task add "AI Framework Lock: Project Manager" +AI_LOCK airole:pm
     echo "Created PM lock task."
 fi
 
-COORD_LOCK_COUNT=$(task +AI_LOCK airole:coordinator count 2>/dev/null || echo "0")
+COORD_LOCK_COUNT=$(task status:pending +AI_LOCK airole:coordinator count 2>/dev/null || echo "0")
 if [ "$COORD_LOCK_COUNT" -eq 0 ]; then
     task add "AI Framework Lock: Coordinator" +AI_LOCK airole:coordinator
     echo "Created Coordinator lock task."

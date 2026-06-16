@@ -58,24 +58,28 @@ taskwarrior/tw +AI_LOCK +ACTIVE export
 
 Acquire PM lock (call at PM session start, before any reads or writes):
 ```bash
-taskwarrior/tw +AI_LOCK airole:pm +ACTIVE count    # must be 0
-taskwarrior/tw +AI_LOCK airole:pm start
+taskwarrior/tw status:pending +AI_LOCK airole:pm count    # must be 1
+taskwarrior/tw +AI_LOCK airole:pm +ACTIVE count           # must be 0
+PM_LOCK_ID=$(taskwarrior/tw status:pending +AI_LOCK airole:pm ids | awk '{print $1}')
+taskwarrior/tw "$PM_LOCK_ID" start
 ```
 
 Release PM lock (call when PM is intentionally done or stopped):
 ```bash
-taskwarrior/tw +AI_LOCK airole:pm stop
+taskwarrior/tw "$PM_LOCK_ID" stop
 ```
 
 Acquire Coordinator lock (call before creating tasks, touching git, or invoking subagents):
 ```bash
-taskwarrior/tw +AI_LOCK airole:coordinator +ACTIVE count    # must be 0
-taskwarrior/tw +AI_LOCK airole:coordinator start
+taskwarrior/tw status:pending +AI_LOCK airole:coordinator count    # must be 1
+taskwarrior/tw +AI_LOCK airole:coordinator +ACTIVE count           # must be 0
+COORD_LOCK_ID=$(taskwarrior/tw status:pending +AI_LOCK airole:coordinator ids | awk '{print $1}')
+taskwarrior/tw "$COORD_LOCK_ID" start
 ```
 
 Release Coordinator lock (call on story completion, escalation halt, or clean exit):
 ```bash
-taskwarrior/tw +AI_LOCK airole:coordinator stop
+taskwarrior/tw "$COORD_LOCK_ID" stop
 ```
 
 View all lock tasks and their active status:
@@ -94,7 +98,7 @@ ccmd bash taskwarrior/cleanup-ai-state.sh
 ccmd bash taskwarrior/cleanup-ai-state.sh --apply
 ```
 
-The cleanup script defaults to dry-run. In apply mode it stops active PM/Coordinator lock tasks and active phase tasks, optionally scoped with `--story XXXXX` or limited to locks with `--locks-only`. It does not mark tasks done, modify `aistate`, delete tasks, or touch git. Agents must not run this automatically; they may only point the user to it after reporting read-only status.
+The cleanup script defaults to dry-run. In apply mode it stops active PM/Coordinator lock tasks, deletes duplicate singleton lock tasks (keeps lowest ID per `airole`), and stops active phase tasks, optionally scoped with `--story XXXXX` or limited to locks with `--locks-only`. It does not mark phase tasks done, modify `aistate`, or touch git. Agents must not run this automatically; they may only point the user to it after reporting read-only status.
 
 ## State Transitions
 

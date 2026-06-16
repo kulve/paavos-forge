@@ -17,17 +17,21 @@ Take a high-level project vision and break it into milestones and stories, then 
 **Before reading any files or doing any work**, check for a running PM:
 
 ```bash
+taskwarrior/tw status:pending +AI_LOCK airole:pm count
 taskwarrior/tw +AI_LOCK airole:pm +ACTIVE count
 ```
 
-If this returns nonzero, another PM session is already running. As a duplicate PM you must:
+If the pending PM lock task count is greater than 1, framework state is inconsistent (duplicate singleton lock tasks). Report the lock task IDs from `taskwarrior/tw status:pending +AI_LOCK airole:pm ids`, tell the user to run `ccmd bash taskwarrior/cleanup-ai-state.sh --apply` after confirming no agents are active, and exit without modifying anything.
+
+If the active count is nonzero, another PM session is already running. As a duplicate PM you must:
 1. Run only read-only queries to report current status (see Duplicate Startup below).
 2. Exit immediately. Do not write files, do not invoke the Coordinator, do not run git commands.
 
-If no PM lock is active, acquire it now before proceeding:
+If exactly one pending PM lock task exists and it is not active, acquire it by task ID before proceeding (never `start` on the role filter; that would start every duplicate lock task):
 
 ```bash
-taskwarrior/tw +AI_LOCK airole:pm start
+PM_LOCK_ID=$(taskwarrior/tw status:pending +AI_LOCK airole:pm ids | awk '{print $1}')
+taskwarrior/tw "$PM_LOCK_ID" start
 ```
 
 Then read these files, in this order:
@@ -66,7 +70,7 @@ taskwarrior/tw status:pending aistory.any: count
 taskwarrior/tw status:completed aistory.any: count
 ```
 
-Tell the user: "A PM session is already running. The above is the current status. If you believe the previous PM is no longer active, stop the stale lock with: `taskwarrior/tw +AI_LOCK airole:pm stop`"
+Tell the user: "A PM session is already running. The above is the current status. If you believe the previous PM is no longer active, run `ccmd bash taskwarrior/cleanup-ai-state.sh --apply` after confirming no agents are active."
 
 Do NOT modify any file, task, or git state.
 
@@ -188,7 +192,8 @@ taskwarrior/tw status:completed aistory.any: count
 The PM holds the `+AI_LOCK airole:pm` singleton task for its entire session. Release it only when PM work is intentionally complete or the user explicitly stops the PM:
 
 ```bash
-taskwarrior/tw +AI_LOCK airole:pm stop
+PM_LOCK_ID=$(taskwarrior/tw status:pending +AI_LOCK airole:pm ids | awk '{print $1}')
+taskwarrior/tw "$PM_LOCK_ID" stop
 ```
 
 Do not release the PM lock while waiting for user direction after an escalation -- the PM session is still live.

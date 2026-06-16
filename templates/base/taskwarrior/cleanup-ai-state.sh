@@ -3,9 +3,10 @@ set -euo pipefail
 
 # Manual recovery for stale AI framework Taskwarrior active state.
 # Only run this after confirming there are no active Cursor agents/subagents
-# for this workspace. This does not recover or roll back git changes. It only
-# clears Taskwarrior start state on AI lock and phase tasks. After cleanup, ask
-# the PM to analyze status before launching a fresh Coordinator.
+# for this workspace. This does not recover or roll back git changes. It
+# clears Taskwarrior start state on AI lock and phase tasks, and removes
+# duplicate singleton lock tasks (keeping the lowest task ID per role).
+# After cleanup, ask the PM to analyze status before launching a fresh Coordinator.
 
 usage() {
   cat <<'USAGE'
@@ -17,12 +18,13 @@ Options:
   --apply       Stop active PM/Coordinator lock tasks and active phase tasks.
   --yes         Skip confirmation prompt. Valid only with --apply.
   --story ID    Limit phase-task cleanup/reporting to one story ID.
-  --locks-only  Stop PM/Coordinator locks only; leave phase tasks active.
+  --locks-only  Stop PM/Coordinator locks and dedupe lock tasks only.
   -h, --help    Show this help.
 
 Safety:
   Only run this after confirming no Cursor agents/subagents are active here.
-  This does not modify git, mark tasks done, modify aistate, or delete tasks.
+  This does not modify git, mark tasks done, or modify aistate on phase tasks.
+  Duplicate +AI_LOCK tasks for the same airole are deleted (lowest ID kept).
 USAGE
 }
 
@@ -90,12 +92,73 @@ section() {
   printf '\n== %s ==\n' "$1"
 }
 
+lock_ids_for_role() {
+  local role="$1"
+  run_tw status:pending +AI_LOCK "airole:$role" ids 2>/dev/null \
+    | tr ' ' '\n' \
+    | grep -E '^[0-9]+$' \
+    | sort -n \
+    || true
+}
+
+report_duplicate_locks() {
+  local role
+  for role in pm coordinator; do
+    local ids
+    ids="$(lock_ids_for_role "$role")"
+    local count=0
+    if [[ -n "$ids" ]]; then
+      count="$(printf '%s\n' "$ids" | sed '/^$/d' | wc -l | tr -d ' ')"
+    fi
+    if [[ "$count" -gt 1 ]]; then
+      local canonical
+      canonical="$(printf '%s\n' "$ids" | head -n 1)"
+      echo "- Duplicate $role lock tasks detected: $(printf '%s\n' "$ids" | tr '\n' ' ' | sed 's/ $//')"
+      echo "  Keep canonical task $canonical; delete the rest"
+    elif [[ "$count" -eq 1 ]]; then
+      echo "- $role lock task: $(printf '%s\n' "$ids" | head -n 1) (ok)"
+    else
+      echo "- $role lock task: missing (run taskwarrior/setup.sh to create)"
+    fi
+  done
+}
+
+dedupe_lock_tasks() {
+  local role
+  for role in pm coordinator; do
+    local ids
+    ids="$(lock_ids_for_role "$role")"
+    local count=0
+    if [[ -n "$ids" ]]; then
+      count="$(printf '%s\n' "$ids" | sed '/^$/d' | wc -l | tr -d ' ')"
+    fi
+    if [[ "$count" -le 1 ]]; then
+      continue
+    fi
+
+    local canonical
+    canonical="$(printf '%s\n' "$ids" | head -n 1)"
+    local duplicate
+    while IFS= read -r duplicate; do
+      [[ -z "$duplicate" ]] && continue
+      echo "- Delete duplicate $role lock task $duplicate (keeping canonical task $canonical)"
+      if [[ "$apply" == true ]]; then
+        run_tw "$duplicate" delete || true
+      fi
+    done < <(printf '%s\n' "$ids" | tail -n +2)
+  done
+}
+
 section "Safety"
 cat <<'SAFETY'
 Only continue if you have confirmed there are no active Cursor agents/subagents
-for this workspace. This script only clears Taskwarrior active state. It does
-not modify git, mark tasks done, modify aistate, or delete tasks.
+for this workspace. This script clears Taskwarrior active state and removes
+duplicate singleton lock tasks. It does not modify git, mark phase tasks done,
+or modify aistate on phase tasks.
 SAFETY
+
+section "Current AI Lock Tasks"
+run_tw ailocks || true
 
 section "Current Active AI Locks"
 run_tw +AI_LOCK +ACTIVE export || true
@@ -116,6 +179,7 @@ run_tw ainext || true
 section "Proposed Actions"
 echo "- Stop active Coordinator lock tasks: taskwarrior/tw +AI_LOCK airole:coordinator +ACTIVE stop"
 echo "- Stop active PM lock tasks: taskwarrior/tw +AI_LOCK airole:pm +ACTIVE stop"
+report_duplicate_locks
 if [[ "$locks_only" == true ]]; then
   echo "- Leave active phase tasks unchanged because --locks-only was supplied"
 elif [[ -n "$story" ]]; then
@@ -146,9 +210,13 @@ fi
 section "Applying Cleanup"
 run_tw +AI_LOCK airole:coordinator +ACTIVE stop || true
 run_tw +AI_LOCK airole:pm +ACTIVE stop || true
+dedupe_lock_tasks
 if [[ "$locks_only" != true ]]; then
   run_tw "${phase_filter[@]}" stop || true
 fi
+
+section "Post-Cleanup AI Lock Tasks"
+run_tw ailocks || true
 
 section "Post-Cleanup Active AI Locks"
 run_tw +AI_LOCK +ACTIVE export || true

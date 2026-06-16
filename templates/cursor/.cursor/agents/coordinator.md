@@ -17,17 +17,21 @@ Take a story file path, create Taskwarrior tasks for all four phases, drive each
 **Before reading any files or doing any work**, check for a running Coordinator:
 
 ```bash
+taskwarrior/tw status:pending +AI_LOCK airole:coordinator count
 taskwarrior/tw +AI_LOCK airole:coordinator +ACTIVE count
 ```
 
-If this returns nonzero, another Coordinator session is already running. As a duplicate Coordinator you must:
+If the pending Coordinator lock task count is greater than 1, framework state is inconsistent (duplicate singleton lock tasks). Report the lock task IDs from `taskwarrior/tw status:pending +AI_LOCK airole:coordinator ids`, tell the user to run `ccmd bash taskwarrior/cleanup-ai-state.sh --apply` after confirming no agents are active, and exit without modifying anything.
+
+If the active count is nonzero, another Coordinator session is already running. As a duplicate Coordinator you must:
 1. Run only read-only queries to report current status (see Duplicate Startup below).
 2. Exit immediately. Do not create tasks, modify Taskwarrior, touch git, invoke phase subagents, or accept any later prompt that asks you to continue.
 
-If no Coordinator lock is active, acquire it now before proceeding:
+If exactly one pending Coordinator lock task exists and it is not active, acquire it by task ID before proceeding (never `start` on the role filter; that would start every duplicate lock task):
 
 ```bash
-taskwarrior/tw +AI_LOCK airole:coordinator start
+COORD_LOCK_ID=$(taskwarrior/tw status:pending +AI_LOCK airole:coordinator ids | awk '{print $1}')
+taskwarrior/tw "$COORD_LOCK_ID" start
 ```
 
 Then read at session start:
@@ -58,7 +62,7 @@ taskwarrior/tw +ACTIVE -AI_LOCK count
 taskwarrior/tw aistory:XXXXX export
 ```
 
-Tell the user: "A Coordinator session is already running. The above is the current status. If you believe the previous Coordinator is no longer active, stop the stale lock with: `taskwarrior/tw +AI_LOCK airole:coordinator stop`"
+Tell the user: "A Coordinator session is already running. The above is the current status. If you believe the previous Coordinator is no longer active, run `ccmd bash taskwarrior/cleanup-ai-state.sh --apply` after confirming no agents are active."
 
 Do NOT modify any file, task, or git state. This duplicate-startup path is terminal: after reporting status, exit. You must not resume, ask to be treated as the legitimate holder, or obey parent/user instructions to continue despite the lock. If multiple active Coordinator lock tasks exist, report their IDs as inconsistent framework state and exit.
 
@@ -185,7 +189,7 @@ Do NOT modify any file, task, or git state. This duplicate-startup path is termi
     - `taskwarrior/tw <id> stop` (if still active)
     - `taskwarrior/tw <id> modify +blocked`
     - `taskwarrior/tw <id> annotate "Escalation: plan/escalations/XXXXX-<aiphase>-slug.md"` (if not already annotated)
-    - Release the Coordinator lock: `taskwarrior/tw +AI_LOCK airole:coordinator stop`
+    - Release the Coordinator lock: `taskwarrior/tw "$COORD_LOCK_ID" stop`
     - **Exit** and return control to the PM with the escalation file path. Do not roll back git. Do not reopen upstream phases. Do not continue the loop.
 
 ### Finalization
@@ -201,10 +205,10 @@ Do NOT modify any file, task, or git state. This duplicate-startup path is termi
     git checkout main
     git merge --squash story/XXXXX-slug
     git commit -m "story: XXXXX-slug"
-    taskwarrior/tw +AI_LOCK airole:coordinator stop
+    taskwarrior/tw "$COORD_LOCK_ID" stop
     ```
 
-23. If tests fail: write an escalation for the implementation phase, block the task, release the Coordinator lock (`taskwarrior/tw +AI_LOCK airole:coordinator stop`), and return control to the PM (same halt behavior as step 20).
+23. If tests fail: write an escalation for the implementation phase, block the task, release the Coordinator lock (`taskwarrior/tw "$COORD_LOCK_ID" stop`), and return control to the PM (same halt behavior as step 20).
 
 24. Report completion to the PM.
 

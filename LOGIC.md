@@ -62,7 +62,9 @@ If more than one matching active lock task exists for the same top-level role, f
 ccmd bash taskwarrior/cleanup-ai-state.sh
 ccmd bash taskwarrior/cleanup-ai-state.sh --apply
 ```
-The script only clears Taskwarrior active state on AI locks and active phase tasks. It does not recover or roll back git changes, mark tasks done, modify `aistate`, or delete tasks. After cleanup, the PM must analyze status before launching a fresh Coordinator.
+The script stops active AI locks and active phase tasks, and deletes duplicate singleton lock tasks (keeping the lowest task ID per `airole`). It does not recover or roll back git changes, mark phase tasks done, or modify `aistate`. After cleanup, the PM must analyze status before launching a fresh Coordinator.
+
+**Duplicate lock tasks**: `taskwarrior/setup.sh` creates one permanent `+AI_LOCK` task per role. If a lock task is briefly deleted and setup is re-run, a second lock task can appear. PM/Coordinator agents must start/stop by task ID, not by role filter. More than one pending `+AI_LOCK` task for the same `airole` is inconsistent framework state; run cleanup to dedupe.
 
 ---
 
