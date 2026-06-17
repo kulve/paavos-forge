@@ -32,17 +32,21 @@ A deterministic state machine that drives a single story through all four phases
 
 ### 2.3 Phase Agents
 
-Twenty specialized agents (4 phases x 5 roles: plan, plan-review, write, review) that produce and verify artifacts. Each has a narrow context window and strict input/output contracts. Plan-review agents verify plans before execution begins; review agents verify the artifacts produced by write agents.
+Sixteen specialized agents (4 phases x 4 states: plan, plan-review, write, review) that produce and verify artifacts. Each has a narrow context window and strict input/output contracts. Plan-review agents verify plans before execution begins; review agents verify the artifacts produced by write agents.
 
 ### 2.4 Support Agents
 
-Story Review and Escalation Analysis agents that assist the PM and Coordinator with quality assurance and failure diagnosis.
+Story Review, Escalation Analysis, and Escalation Recovery agents that assist the PM and Coordinator with quality assurance, failure diagnosis, and bounded automatic recovery.
 
-### 2.5 Fixer
+### 2.5 Escalation Recovery
+
+A PM-invoked support agent that operates inside the PM pipeline after a clean Coordinator escalation halt. It reads the escalation report and the minimum relevant story artifacts, applies the smallest correction needed to make the current story internally consistent, and reports the earliest phase state that must be rerun. It is not part of the Coordinator's dispatch table. It must stop for human input if recovery requires changing product intent, widening scope, changing public interfaces, adding dependencies, creating stories, skipping phases, or resolving suspicious runtime state.
+
+### 2.6 Fixer
 
 A lightweight bug-fix agent that operates entirely outside the PM pipeline. The user invokes it directly to fix bugs in existing code. It may modify source files and tests, but must not add features, change public interfaces, create framework artifacts, or use Taskwarrior. It is not part of the Coordinator's dispatch table. If a fix exceeds its scope (architectural changes, new interfaces, new requirements), it redirects the user to the PM.
 
-### 2.6 Top-Level Singleton Locks
+### 2.7 Top-Level Singleton Locks
 
 Only one PM and one Coordinator may run at any time. Locks are Taskwarrior tasks tagged `+AI_LOCK` that are created once by `taskwarrior/setup.sh` and never completed -- they are `start`ed and `stop`ped to track liveness:
 
@@ -64,11 +68,11 @@ ccmd bash taskwarrior/cleanup-ai-state.sh --apply
 ```
 The script stops active AI locks and active phase tasks, and deletes duplicate singleton lock tasks (keeping the lowest task ID per `airole`). It does not recover or roll back git changes, mark phase tasks done, or modify `aistate` by default. After cleanup, the PM must analyze status before launching a fresh Coordinator.
 
-If the user has resolved the blocker behind an escalation and explicitly wants to resume a halted story, they may run the cleanup script with `--clear-escalations`, usually scoped to a story:
+If the user has manually resolved the blocker behind an escalation and explicitly wants to resume a halted story outside the automatic recovery path, they may run the cleanup script with `--clear-escalations`, usually scoped to a story:
 ```
 ccmd bash taskwarrior/cleanup-ai-state.sh --apply --story XXXXX --clear-escalations
 ```
-This removes `Escalation:` annotations, clears `+blocked`, restores the escalated phase task to the inferred resume `aistate`, and deletes matching files under `plan/escalations/`. This is manual recovery only; agents must never clear escalations automatically.
+This removes `Escalation:` annotations, clears `+blocked`, restores the escalated phase task to the inferred resume `aistate`, and deletes matching files under `plan/escalations/`. This is manual runtime-state recovery only. During a clean PM-controlled automatic recovery, the PM may clear the resolved escalation state directly after verifying no Coordinator lock and no active phase task are present.
 
 **Duplicate lock tasks**: `taskwarrior/setup.sh` creates one permanent `+AI_LOCK` task per role. If a lock task is briefly deleted and setup is re-run, a second lock task can appear. PM/Coordinator agents must start/stop by task ID, not by role filter. More than one pending `+AI_LOCK` task for the same `airole` is inconsistent framework state; run cleanup to dedupe.
 
@@ -162,9 +166,9 @@ The PM does not generate all stories for a milestone upfront. It works in rollin
 
 6. **Git for planning artifacts**: PM commits milestone and story files to `main` directly, before invoking the Coordinator.
 
-7. **Escalation received**: when the Coordinator returns due to an escalation, the PM reads the escalation file, explains the problem to the user in chat, and **stops**. The PM does not re-invoke the Coordinator until the user provides direction (e.g. update a story, change requirements, skip the story).
+7. **Escalation received**: when the Coordinator returns due to an escalation, the PM reads the escalation file, verifies the Coordinator lock is inactive and no phase task is `+ACTIVE -AI_LOCK`, then invokes `escalation-recovery` in foreground. If recovery succeeds, the PM clears the resolved escalation state, restores the blocked task to the recovery agent's requested resume `aistate`, repeats the same no-running-work preflight, and launches a fresh Coordinator for the same story. If recovery cannot proceed safely, the PM explains the blocker to the user and stops.
 
-8. **Unexpectedly stopped Coordinator**: Coordinator work has stopped unexpectedly when a story has pending phase tasks and the Coordinator lock is inactive, no Coordinator subagent is known to be running, a phase task remains `+ACTIVE -AI_LOCK`, or branch/story state indicates work is incomplete and not cleanly merged. PM must not auto-resume, clear locks, modify Taskwarrior, or modify git. PM gathers read-only status (`+AI_LOCK +ACTIVE export`, `+ACTIVE -AI_LOCK export`, pending story tasks, `ainext`, branch, and recent commits if needed), summarizes the likely state as active, cleanly completed, interrupted, orphaned active task, or stale lock, and asks the user for next steps.
+8. **Unexpectedly stopped Coordinator**: Coordinator work has stopped unexpectedly when a story has pending phase tasks and the Coordinator lock is inactive, no Coordinator subagent is known to be running, a phase task remains `+ACTIVE -AI_LOCK`, or branch/story state indicates work is incomplete and not cleanly merged. PM must not auto-resume, clear locks, modify Taskwarrior, or modify git. PM gathers read-only status (`+AI_LOCK +ACTIVE export`, `+ACTIVE -AI_LOCK export`, pending story tasks, `ainext`, branch, and recent commits if needed), summarizes the likely state as active, cleanly completed, interrupted, orphaned active task, or stale lock, and asks the user for next steps. Automatic escalation recovery is allowed only after a clean Coordinator escalation return with no active Coordinator lock and no active phase task.
 
 ---
 
@@ -237,13 +241,14 @@ The Coordinator drives a single story through all four phases. It is a determini
     - `taskwarrior/tw <id> stop` (if still active)
     - `taskwarrior/tw <id> modify +blocked`
     - `taskwarrior/tw <id> annotate "Escalation: plan/escalations/XXXXX-<phase>-slug.md"` (if not already annotated)
+    - Release the Coordinator lock.
     - Return control to the PM with the escalation file path. Do not roll back git. Do not reopen upstream phases. Do not continue the loop.
 
 15. All four tasks done. Run the full test suite from the project profile.
 
 16. If tests pass: `git checkout main && git merge --squash story/XXXXX-slug && git commit -m "story: XXXXX-slug"`
 
-17. If tests fail: write an escalation for the implementation phase, block the task, and return control to the PM (same halt behavior as step 14).
+17. If tests fail: write an escalation for the implementation phase, block the task, release the Coordinator lock, and return control to the PM (same halt behavior as step 14).
 
 ---
 
@@ -251,7 +256,7 @@ The Coordinator drives a single story through all four phases. It is a determini
 
 - **One branch per story**: `story/XXXXX-slug`, created from `main`.
 - **Commit after each reviewed phase**: `git commit -am "phase(req): XXXXX"`, `phase(arch): XXXXX`, `phase(test): XXXXX`, `phase(impl): XXXXX`.
-- **No automatic rollback on escalation**: escalations halt execution and return control to the PM; git state is preserved for human review.
+- **No automatic rollback on escalation**: escalations halt the Coordinator and return control to the PM; git state is preserved for PM-controlled recovery or human review.
 - **Squash-merge to main**: when all four phases are done and the full test suite passes.
 - **Planning artifacts on main**: PM commits milestone and story files to `main` directly.
 
@@ -259,17 +264,40 @@ The Coordinator drives a single story through all four phases. It is a determini
 
 ## 7. Escalation Protocol
 
-Escalations halt all AI work and surface the problem to the user. There is no automatic recovery loop.
+Escalations halt Coordinator work and surface the problem to the PM. The PM may attempt one bounded automatic recovery only after proving that no Coordinator or phase subagent is still active.
 
 1. **Trigger**: a subagent hits an impossible constraint, a contradiction it cannot resolve, or the Coordinator detects the 3rd plan-review or review rejection for the same phase.
 
 2. **Report**: the subagent (or Coordinator on reject limit) writes `plan/escalations/XXXXX-phase-slug.md` using the escalation template, annotates the task with `Escalation: <path>`, and exits immediately. The subagent does not continue working after writing the escalation.
 
-3. **Coordinator halt**: the Coordinator detects the `Escalation:` annotation or reject limit, calls `taskwarrior/tw <id> stop`, marks the task `+blocked`, and returns control to the PM with the escalation file path. No git rollback. No upstream phase reopening. No further subagent invocations.
+3. **Coordinator halt**: the Coordinator detects the `Escalation:` annotation or reject limit, calls `taskwarrior/tw <id> stop`, marks the task `+blocked`, releases the Coordinator lock, and returns control to the PM with the escalation file path. No git rollback. No upstream phase reopening. No further Coordinator subagent invocations.
 
-4. **PM escalation**: the PM reads the escalation file, explains the situation and root cause to the user in chat, and **stops**. The PM waits for user direction before taking any further action (e.g. updating a story, writing a corrective story with Modifies Stories, or skipping the story).
+4. **PM recovery preflight**: before invoking recovery, the PM must verify:
+   ```
+   taskwarrior/tw +AI_LOCK airole:coordinator +ACTIVE count    # must be 0
+   taskwarrior/tw +ACTIVE -AI_LOCK count                       # must be 0
+   taskwarrior/tw <blocked-task-id> export
+   ```
+   If the Coordinator lock count or active phase count is nonzero, the PM must not recover automatically. It reports the active state and waits for the user because another agent may still be running.
 
-The escalation-analysis subagent remains available for manual invocation by the user or PM when deeper diagnosis is needed. It is not part of the automatic Coordinator loop.
+5. **Escalation Recovery**: the PM invokes `escalation-recovery` in foreground with the escalation path, blocked task ID, story path, and current task metadata. The recovery agent may make only bounded corrections to artifacts for the current story and must return one of:
+   - `resolved`: includes the earliest phase and `aistate` to rerun
+   - `needs-human`: explains the product, scope, interface, dependency, or runtime-state decision required
+   - `failed-recovery`: explains why its attempted bounded fix did not resolve the blocker
+
+6. **PM state restoration**: if recovery returns `resolved`, the PM repeats the recovery preflight. Only if both counts are still zero may it clear the phase task's resolved escalation state:
+   ```
+   taskwarrior/tw <id> denotate "Escalation:"
+   taskwarrior/tw <id> modify -blocked aistate:<resume-state>
+   taskwarrior/tw <id> annotate "Recovery: <summary or path>"
+   ```
+   The PM must not mark the task done during recovery. The escalation report should be preserved for audit, with recovery notes appended by the recovery agent.
+
+7. **Resume**: after state restoration, the PM repeats the Coordinator launch preflight. Only when the Coordinator lock count and active phase count are both zero may the PM launch a fresh Coordinator for the same story in foreground. The PM must not resume an old Coordinator chat or run any Coordinator in the background.
+
+8. **Human stop conditions**: PM stops and asks the user when recovery requires changing story intent, widening acceptance criteria, changing public interfaces, adding dependencies, creating or skipping stories, skipping phases, clearing stale/duplicate locks, clearing orphaned active phase tasks, or resolving the same root cause repeatedly.
+
+The escalation-analysis subagent remains available when deeper read-only diagnosis is useful. It is not part of the Coordinator loop; PM may use `escalation-recovery` for bounded automatic repair instead.
 
 ---
 

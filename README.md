@@ -10,7 +10,7 @@ You give a high-level milestone (e.g. "implement a simple game"). The framework:
 2. For each story, runs four phases in sequence: **requirements -> architecture -> integration tests -> implementation**
 3. Each phase goes through **plan -> plan-review -> write -> review** with specialized agents
 4. Taskwarrior tracks execution state; git manages code via ephemeral story branches
-5. Failed reviews loop back (max 3 rounds); unresolvable issues halt execution and escalate to the user via the PM
+5. Failed reviews loop back (max 3 rounds); unresolvable issues halt the Coordinator and let the PM attempt bounded automatic recovery before escalating to the user
 6. Completed stories squash-merge to `main`
 
 ## What It Is Not
@@ -18,7 +18,7 @@ You give a high-level milestone (e.g. "implement a simple game"). The framework:
 - Not an AI model or runtime -- it's a set of agent prompts, workflow rules, and templates
 - Not tied to a single language -- optimized for C++ but works with Python, TypeScript, etc. via a project profile
 - Not a CI/CD tool -- it orchestrates AI agents within an IDE (currently Cursor)
-- Not a replacement for human judgment -- the PM agent discusses goals with the user and escalates when stuck
+- Not a replacement for human judgment -- the PM agent discusses goals with the user and stops when recovery needs a product or scope decision
 
 ## Key Files
 
@@ -46,10 +46,10 @@ See [DEPLOY.md](DEPLOY.md) for the full deployment guide. The short version:
 
 The framework has a layered agent hierarchy:
 
-- **Project Manager**: talks to the user, defines milestones, generates stories in rolling batches
+- **Project Manager**: talks to the user, defines milestones, generates stories in rolling batches, and orchestrates bounded escalation recovery
 - **Coordinator**: deterministic state machine that drives one story through all four phases
 - **Phase Agents** (16 total): 4 phases x 4 states (plan/plan-review/write/review), each with narrow context
-- **Support Agents**: story review, escalation analysis
+- **Support Agents**: story review, escalation analysis, escalation recovery
 
 All context passes through Taskwarrior annotations (file paths only). Agents never talk to each other directly, keeping context windows small and focused.
 

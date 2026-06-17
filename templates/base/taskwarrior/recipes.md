@@ -92,14 +92,14 @@ View active phase tasks (excludes lock tasks):
 taskwarrior/tw aiactive
 ```
 
-Manual stale-lock, orphaned-active, and escalation recovery (user only, after confirming no Cursor agents/subagents are running for this workspace):
+Manual stale-lock, orphaned-active, and escalation cleanup (user only, after confirming no Cursor agents/subagents are running for this workspace):
 ```bash
 ccmd bash taskwarrior/cleanup-ai-state.sh
 ccmd bash taskwarrior/cleanup-ai-state.sh --apply
 ccmd bash taskwarrior/cleanup-ai-state.sh --apply --story 00034 --clear-escalations
 ```
 
-The cleanup script defaults to dry-run. In apply mode it stops active PM/Coordinator lock tasks, deletes duplicate singleton lock tasks (keeps lowest ID per `airole`), and stops active phase tasks, optionally scoped with `--story XXXXX` or limited to locks with `--locks-only`. With `--clear-escalations`, it also removes `Escalation:` annotations, clears `+blocked`, restores `aistate` on escalated phase tasks, and deletes matching files under `plan/escalations/` (story-scoped when `--story` is set). It does not mark phase tasks done or touch git except for escalation file deletion. Agents must not run this automatically; they may only point the user to it after reporting read-only status.
+The cleanup script defaults to dry-run. In apply mode it stops active PM/Coordinator lock tasks, deletes duplicate singleton lock tasks (keeps lowest ID per `airole`), and stops active phase tasks, optionally scoped with `--story XXXXX` or limited to locks with `--locks-only`. With `--clear-escalations`, it also removes `Escalation:` annotations, clears `+blocked`, restores `aistate` on escalated phase tasks, and deletes matching files under `plan/escalations/` (story-scoped when `--story` is set). It does not mark phase tasks done or touch git except for escalation file deletion. Agents must not run this automatic runtime-state cleanup; they may only point the user to it after reporting read-only status.
 
 ## State Transitions
 
@@ -168,13 +168,36 @@ taskwarrior/tw <id> annotate "Feedback: plan/requirements-review/XXXXX-feedback.
 
 ## Escalation
 
-Halt execution and return control to the PM. No automatic recovery.
+Coordinator halt path. This must leave no active phase task and no active Coordinator lock before returning control to the PM.
 
 ```bash
 taskwarrior/tw <id> stop
 taskwarrior/tw <id> modify +blocked
 taskwarrior/tw <id> annotate "Escalation: plan/escalations/XXXXX-req-auth.md"
+taskwarrior/tw "$COORD_LOCK_ID" stop
 ```
+
+## PM Escalation Recovery
+
+Before invoking `escalation-recovery`, before clearing resolved escalation state, and before launching a fresh Coordinator, the PM must verify that no Coordinator or phase subagent is running:
+
+```bash
+taskwarrior/tw +AI_LOCK airole:coordinator +ACTIVE count
+taskwarrior/tw +ACTIVE -AI_LOCK count
+taskwarrior/tw <id> export
+```
+
+Both counts must be `0`. If either count is nonzero, do not recover or resume automatically.
+
+After `escalation-recovery` returns `resolved`, the PM clears only the resolved escalation state for the blocked task and restores the requested resume state:
+
+```bash
+taskwarrior/tw <id> denotate "Escalation:"
+taskwarrior/tw <id> modify -blocked aistate:<plan|plan-review|write|review>
+taskwarrior/tw <id> annotate "Recovery: <summary from escalation-recovery>"
+```
+
+Do not mark the task done during recovery. Preserve the escalation file for audit. Then repeat the Coordinator launch preflight and start a fresh Coordinator in foreground only if both counts are still `0`.
 
 ## Discoveries
 

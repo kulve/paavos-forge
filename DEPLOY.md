@@ -67,7 +67,7 @@ cp -r "$FRAMEWORK/templates/cursor/.cursor" "$PROJECT/"
 ```
 
 This creates:
-- `.cursor/agents/` -- 21 agent prompt files (20 pipeline agents + fixer)
+- `.cursor/agents/` -- 22 agent prompt files (PM, Coordinator, 16 phase agents, 3 support agents, and fixer)
 - `.cursor/rules/ai-framework.mdc` -- always-on framework rules
 - `.cursor/commands/` -- `ai-status` and `ai-next` slash commands
 
@@ -217,7 +217,7 @@ Or verify manually:
 - [ ] `taskwarrior/env.sh` exists and is executable
 - [ ] `taskwarrior/tw` exists and is executable
 - [ ] `taskwarrior/recipes.md` exists
-- [ ] `.cursor/agents/` contains 21 agent files
+- [ ] `.cursor/agents/` contains 22 agent files
 - [ ] `.cursor/rules/ai-framework.mdc` exists
 - [ ] `.cursor/commands/` contains `ai-status.md` and `ai-next.md`
 - [ ] Taskwarrior UDAs are configured: `taskwarrior/tw _udas | grep aiphase`
@@ -273,5 +273,6 @@ After updating templates, re-run `bash taskwarrior/setup.sh` to pick up any new 
 | PM has no context on first run | No `README.md` | Create a brief README before invoking PM (Step 6) |
 | Coordinator fails on git merge/reset | Command wrapper blocking local git | Allow local git merge, reset, checkout in wrapper config |
 | Agent not found | Missing `.cursor/agents/` files | Verify Step 2 copied `.cursor/` directory |
-| Coordinator stuck | State machine confusion | Run `/ai-next` to see the current state and manually advance if needed |
-| Escalation loop | Recurring failures | Check `plan/escalations/` for reports describing root cause and recovery |
+| Coordinator stuck | State machine confusion or stale active state | Run `/ai-next` to inspect state; use manual cleanup only after confirming no agents are active |
+| Escalation recovery stops | Needs product/scope/interface decision or active agent state is unsafe | Check `plan/escalations/` for the recovery report and give the PM direction |
+| Escalation loop | Recurring failures after recovery | Check `plan/escalations/` for reports describing root cause and recovery |

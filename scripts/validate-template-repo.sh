@@ -46,6 +46,19 @@ if ! grep -q 'ai-framework/LOGIC.md' DEPLOY.md; then
     fail "DEPLOY.md must document copying LOGIC.md to ai-framework/LOGIC.md"
 fi
 
+echo "--- Cursor agent prompts ---"
+if [ ! -d "templates/cursor/.cursor/agents" ]; then
+    fail "Missing Cursor agent prompt directory"
+else
+    AGENT_COUNT=$(find templates/cursor/.cursor/agents -maxdepth 1 -type f -name '*.md' | wc -l | tr -d ' ')
+    if [ "$AGENT_COUNT" -ne 22 ]; then
+        fail "Expected 22 Cursor agent prompt files, found $AGENT_COUNT"
+    fi
+    if [ ! -f "templates/cursor/.cursor/agents/escalation-recovery.md" ]; then
+        fail "Missing escalation recovery agent prompt"
+    fi
+fi
+
 echo ""
 echo "=== Results ==="
 if [ $ERRORS -eq 0 ]; then

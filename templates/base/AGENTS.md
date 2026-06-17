@@ -22,10 +22,10 @@ Project-specific conventions (language, directories, test commands, architecture
 
 Agents in this project follow a strict hierarchy:
 
-- **Project Manager** (`project-manager`): defines milestones and stories, invokes the Coordinator
+- **Project Manager** (`project-manager`): defines milestones and stories, invokes the Coordinator, and orchestrates bounded escalation recovery
 - **Coordinator** (`coordinator`): drives stories through phases, manages Taskwarrior and git
 - **Phase Agents**: specialized agents for each phase (requirements, architecture, tests, implementation) and state (plan, plan-review, write, review)
-- **Support Agents**: story review, escalation analysis
+- **Support Agents**: story review, escalation analysis, escalation recovery
 - **Fixer** (`fixer`): fixes bugs in existing code outside the PM pipeline; invoked directly by the user
 
 See `ai-framework/LOGIC.md` for the full role descriptions and workflow rules.
@@ -51,7 +51,7 @@ All Taskwarrior commands must use `taskwarrior/tw`, never bare `task`. The wrapp
 8. All Taskwarrior commands use `taskwarrior/tw`, never bare `task`.
 9. Only one PM and one Coordinator may run at a time. If you are a duplicate (the matching `+AI_LOCK` task is already `+ACTIVE`), report status with read-only Taskwarrior queries and exit. Do not modify anything. If more than one pending lock task exists for the same role, report inconsistent state and ask the user to run manual cleanup after confirming no agents are active.
 10. The PM must not invoke, resume, or prompt a Coordinator while a Coordinator lock is active. Duplicate Coordinators must never be resumed or treated as legitimate lock holders.
-11. Stale locks, duplicate singleton lock tasks, orphaned active phase tasks, and resolved escalations are recovered only by manual user action after confirming no agents/subagents are running. Agents may point users to `ccmd bash taskwarrior/cleanup-ai-state.sh`, including `--clear-escalations` when the user has resolved an escalation blocker, but must not run it automatically.
+11. Stale locks, duplicate singleton lock tasks, and orphaned active phase tasks are recovered only by manual user action after confirming no agents/subagents are running. During a clean Coordinator escalation halt, the PM may invoke `escalation-recovery` only after confirming no Coordinator lock and no active phase task remain; if recovery resolves the blocker, the PM clears the resolved escalation state and launches a fresh Coordinator after repeating the same checks.
 12. Agents may record significant out-of-scope findings as new discovery files, but only the PM may read and triage discoveries.
 
 ## Artifact Locations
@@ -84,6 +84,8 @@ Only specifically designated phase agents may write to implementation directorie
 Any agent may create one new discovery file under `plan/discoveries/` for a significant out-of-scope finding, using `plan/templates/discovery.md`, then continue its assigned task. Subagents must never read, list, modify, deduplicate, or delete existing discoveries; the PM triages them after milestone completion.
 
 The exact directories are defined in `ai-framework/project-profile.md`. The ownership rules above apply to whatever directories the project profile specifies.
+
+The `escalation-recovery` agent may modify requirements, architecture artifacts, integration tests, source files, phase plans, review feedback, and the existing escalation report only when the PM invokes it after a clean Coordinator escalation halt and the correction is bounded to the current story. It must not modify Taskwarrior, launch Coordinators, create stories, change product intent, widen scope, add public interfaces, or add dependencies.
 
 The `fixer` agent has limited write access to source and test directories for bug fixes only. It must not create or modify framework artifacts (`plan/`, requirements, architecture), add features, or change public interfaces. If a fix exceeds this scope, the fixer redirects the user to the PM pipeline.
 

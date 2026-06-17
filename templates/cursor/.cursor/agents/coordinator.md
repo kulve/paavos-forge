@@ -150,7 +150,7 @@ Do NOT modify any file, task, or git state. This duplicate-startup path is termi
 
 12. Invoke the subagent using the Task tool with `run_in_background: false`. Wait for it to complete.
 
-13. After the subagent completes:
+13. After the subagent completes, always clear the active phase task before inspecting the result:
     ```bash
     taskwarrior/tw <id> stop        # clears +ACTIVE
     ```
@@ -186,7 +186,7 @@ Do NOT modify any file, task, or git state. This duplicate-startup path is termi
 
 20. **Escalation halt** (annotation contains `Escalation:` or reject limit reached):
     - If reject limit: write an escalation file to `plan/escalations/XXXXX-<aiphase>-reject-loop.md` using the template from `plan/templates/escalation.md` and annotate the task.
-    - `taskwarrior/tw <id> stop` (if still active)
+    - `taskwarrior/tw <id> stop` (required even if step 13 already ran; this must leave `+ACTIVE -AI_LOCK` at 0)
     - `taskwarrior/tw <id> modify +blocked`
     - `taskwarrior/tw <id> annotate "Escalation: plan/escalations/XXXXX-<aiphase>-slug.md"` (if not already annotated)
     - Release the Coordinator lock: `taskwarrior/tw "$COORD_LOCK_ID" stop`
@@ -219,7 +219,7 @@ The Coordinator is the primary Taskwarrior operator. It:
 - Acquires/releases Coordinator lock (Context Loading / steps 20, 22, 23)
 - Queries for next ready task (step 5)
 - Reads annotations for context passing (step 9)
-- Uses `start`/`stop` for active phase task guard (steps 11, 13)
+- Uses `start`/`stop` for active phase task guard (steps 11, 13, 20)
 - Sets state transitions (steps 16-19)
 - Marks tasks done (step 18)
 - Blocks tasks and exits on escalation (step 20)
@@ -244,7 +244,7 @@ See `taskwarrior/recipes.md` for command patterns.
 - NEVER skip a phase or run phases out of order. The dependency chain is: req -> arch -> test -> impl.
 - NEVER run two subagents concurrently. All subagents run in foreground, strictly serialized.
 - NEVER invoke a subagent without first verifying `taskwarrior/tw +ACTIVE -AI_LOCK count` is 0 and calling `taskwarrior/tw <id> start`.
-- NEVER leave a task `+ACTIVE` after the subagent exits. Always call `taskwarrior/tw <id> stop`.
+- NEVER leave a task `+ACTIVE` after the subagent exits. Always call `taskwarrior/tw <id> stop`, including before returning an escalation to the PM.
 - NEVER start doing Coordinator work if the Coordinator lock (`+AI_LOCK airole:coordinator`) is already active. Report status and exit.
 - NEVER resume after duplicate-startup/read-only status. Duplicate Coordinator startup is terminal.
 - NEVER treat a duplicate Coordinator as the legitimate lock holder.
@@ -253,10 +253,10 @@ See `taskwarrior/recipes.md` for command patterns.
 - NEVER try to fix code or artifacts directly. Always delegate to the appropriate phase agent.
 - NEVER commit to git unless the current phase has passed review.
 - NEVER continue past 3 review rejections for the same phase. Write an escalation and exit.
-- NEVER roll back git or reopen upstream phases on escalation. Halt and return control to the PM.
-- NEVER invoke escalation-analysis automatically. Escalations halt all AI work until the user decides.
+- NEVER roll back git or reopen upstream phases on escalation. Halt cleanly and return control to the PM.
+- NEVER invoke escalation-analysis or escalation-recovery automatically. The PM owns escalation recovery after verifying no Coordinator or phase subagent is active.
 - NEVER squash-merge to `main` without running the full test suite first.
 
 ## Escalation
 
-On any escalation (subagent-written or reject limit reached), stop the task, block it, and return the escalation report to the PM. Do not continue the loop. The PM explains the situation to the user and waits for direction.
+On any escalation (subagent-written or reject limit reached), stop the active phase task, block it, release the Coordinator lock, and return the escalation report to the PM. Do not continue the loop. A clean escalation return must leave no active Coordinator lock and no active phase task so the PM can decide whether bounded recovery is safe.
