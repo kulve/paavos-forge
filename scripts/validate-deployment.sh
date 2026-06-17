@@ -1,6 +1,7 @@
 #!/bin/bash
 # Validate that the AI execution framework was deployed correctly into a project.
-# Run from the project root directory.
+# Run from the deployed project root directory.
+# For template-repo layout checks, use scripts/validate-template-repo.sh in the framework repo.
 set -euo pipefail
 
 ERRORS=0

@@ -9,24 +9,48 @@ How to deploy the AI execution framework into a downstream project.
 - **[Cursor](https://cursor.com/) IDE** (for the agent system; other IDE support is future work)
 - System packages for your target language (e.g. C++: cmake, compiler; Python: python3, pip)
 
+## Deployment Inputs
+
+The framework ships from three locations in this repository:
+
+| Source | Deployed to | Purpose |
+|--------|-------------|---------|
+| `templates/base/` | Project root | Scaffolding: `AGENTS.md`, Taskwarrior, plan templates, project profile |
+| `LOGIC.md` (repo root) | `ai-framework/LOGIC.md` | Canonical workflow specification (copied as-is) |
+| `templates/cursor/.cursor/` | `.cursor/` | Cursor agents, rules, and commands |
+
+`templates/base/AGENTS.md` becomes your project's root `AGENTS.md`. Customize it after deployment if you need project-specific AI guidance (extra rules, domain context, or stricter review standards). The workflow specification itself lives in `ai-framework/LOGIC.md` and should not be edited unless you are intentionally forking the framework.
+
 ## Step 1: Copy Base Templates
 
 Copy the base framework files into your project root:
 
 ```bash
-cp -r /path/to/ai-execution-framework/templates/base/* /path/to/your-project/
-cp /path/to/ai-execution-framework/templates/base/.taskrc /path/to/your-project/
-cp /path/to/ai-execution-framework/templates/base/.gitignore /path/to/your-project/
+FRAMEWORK=/path/to/ai-execution-framework
+PROJECT=/path/to/your-project
+
+cp -r "$FRAMEWORK/templates/base/"* "$PROJECT/"
+cp "$FRAMEWORK/templates/base/.taskrc" "$PROJECT/"
+cp "$FRAMEWORK/templates/base/.gitignore" "$PROJECT/"
 ```
 
 > **Note:** `cp -r base/*` does not copy dotfiles. Copy `.taskrc` and `.gitignore` explicitly, or use `cp -r base/. project/` if your shell supports it.
 
+### Step 1b: Copy the Workflow Specification
+
+`LOGIC.md` is maintained once at the framework repo root. Copy it into your project:
+
+```bash
+mkdir -p "$PROJECT/ai-framework"
+cp "$FRAMEWORK/LOGIC.md" "$PROJECT/ai-framework/LOGIC.md"
+```
+
 This creates:
-- `AGENTS.md` -- project-level AI instructions
+- `AGENTS.md` -- from `templates/base/AGENTS.md`; project-level AI instructions
 - `ARCHITECTURE.md` -- domain dependency policy registry (populated by agents as domains are introduced)
 - `.taskrc` -- per-project Taskwarrior config
 - `.gitignore` -- ignores `.task/` and `build/`
-- `ai-framework/LOGIC.md` -- the workflow specification
+- `ai-framework/LOGIC.md` -- workflow specification (copied from framework repo root)
 - `ai-framework/project-profile.md` -- to be filled in by you
 - `plan/templates/` -- 8 artifact templates used by agents
 - `taskwarrior/setup.sh` -- Taskwarrior UDA configuration script
@@ -39,7 +63,7 @@ This creates:
 Copy the Cursor-specific files:
 
 ```bash
-cp -r /path/to/ai-execution-framework/templates/cursor/.cursor /path/to/your-project/
+cp -r "$FRAMEWORK/templates/cursor/.cursor" "$PROJECT/"
 ```
 
 This creates:
@@ -182,11 +206,11 @@ bash validate-deployment.sh
 
 Or verify manually:
 
-- [ ] `AGENTS.md` exists at project root
+- [ ] `AGENTS.md` exists at project root (deployed from `templates/base/AGENTS.md`)
 - [ ] `ARCHITECTURE.md` exists at project root
 - [ ] `.taskrc` exists at project root
 - [ ] `.gitignore` contains `.task/`
-- [ ] `ai-framework/LOGIC.md` exists
+- [ ] `ai-framework/LOGIC.md` exists (copied from framework repo root `LOGIC.md` in Step 1b)
 - [ ] `ai-framework/project-profile.md` exists and is filled in
 - [ ] `plan/templates/` contains 8 template files (milestone, story, requirement, phase-plan, plan-review-feedback, review-feedback, escalation, discovery)
 - [ ] `taskwarrior/setup.sh` exists and is executable
@@ -224,7 +248,7 @@ The "good" phrasing makes explicit that *you* open a chat with the PM agent. The
 
 If the upstream framework template is updated, you can selectively merge changes:
 
-- `ai-framework/LOGIC.md` -- compare and merge workflow changes
+- `ai-framework/LOGIC.md` -- replace with the latest root `LOGIC.md` from the framework repo, or compare and merge workflow changes
 - `.cursor/agents/` -- compare and merge agent prompt improvements
 - `.cursor/rules/ai-framework.mdc` -- compare and merge rule changes
 - `plan/templates/` -- compare and merge template changes

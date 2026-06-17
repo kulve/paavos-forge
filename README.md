@@ -24,21 +24,23 @@ You give a high-level milestone (e.g. "implement a simple game"). The framework:
 
 | File | Purpose |
 |------|---------|
-| `LOGIC.md` | Canonical workflow specification -- the single source of truth |
+| `LOGIC.md` | Canonical workflow specification -- maintained here only; copied to `ai-framework/LOGIC.md` at deploy time |
 | `DEPLOY.md` | Step-by-step guide to deploy into a downstream project |
 | `AGENTS.md` | Instructions for AI agents maintaining this framework repo |
-| `templates/base/` | Files copied to every downstream project |
+| `templates/base/AGENTS.md` | Template that becomes the downstream project's root `AGENTS.md` |
+| `templates/base/` | Scaffolding copied to every downstream project (except `LOGIC.md`) |
 | `templates/cursor/` | Cursor-specific agents, rules, and commands |
 
 ## Quick Start
 
 See [DEPLOY.md](DEPLOY.md) for the full deployment guide. The short version:
 
-1. Copy `templates/base/*` into your project root
-2. Copy `templates/cursor/.cursor/` into your project root
-3. Run `bash taskwarrior/setup.sh` to configure Taskwarrior UDAs
-4. Fill in `ai-framework/project-profile.md` with your project's details
-5. Start a chat with the `project-manager` agent
+1. Copy `templates/base/*` into your project root (plus `.taskrc` and `.gitignore`)
+2. Copy root `LOGIC.md` to `ai-framework/LOGIC.md` in your project
+3. Copy `templates/cursor/.cursor/` into your project root
+4. Run `bash taskwarrior/setup.sh` to configure Taskwarrior UDAs
+5. Fill in `ai-framework/project-profile.md` with your project's details
+6. Start a chat with the `project-manager` agent
 
 ## Architecture
 
@@ -56,8 +58,9 @@ All context passes through Taskwarrior annotations (file paths only). Agents nev
 This is a generic template. When deploying into a project, you'll likely tune agent prompts and add domain-specific guidance. If your changes are generic enough to benefit other projects, contribute them back:
 
 - Keep changes language-agnostic in core files; language-specific details go in the project profile
-- Update `LOGIC.md` if you change any workflow rules
+- Update root `LOGIC.md` if you change any workflow rules (downstream projects receive it via deployment)
 - Update agent prompts and templates together -- they must stay consistent
+- Run `bash scripts/validate-template-repo.sh` before releasing template changes
 - Test by deploying into a real project
 
 See [AGENTS.md](AGENTS.md) for maintenance guidelines.

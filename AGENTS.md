@@ -19,17 +19,32 @@ All shell commands in this repository must run through `ccmd`. This avoids per-c
 
 This repository is a generic, deployable template. It does not build or run anything on its own. Its outputs are documentation and template files that get copied into downstream projects.
 
+## This Repo vs Deployed Projects
+
+| File | In this template repo | In a deployed downstream project |
+|------|----------------------|----------------------------------|
+| `AGENTS.md` (root) | Instructions for agents maintaining this framework repo | Not present -- use the deployed copy instead |
+| `templates/base/AGENTS.md` | Template for downstream project agent instructions | Copied to project root as `AGENTS.md` |
+| `LOGIC.md` (root) | Canonical workflow specification -- edit here only | Copied to `ai-framework/LOGIC.md` at deploy time |
+| `ai-framework/LOGIC.md` | Not present at repo root | Deployed workflow spec used by all project agents |
+| `templates/base/ai-framework/project-profile.md` | Blank template | Copied and filled in by the deploying user |
+| `DEPLOY.md` | Human deployment procedure for new projects | Not copied -- lives only in this repo |
+| `README.md` | Human overview of the framework template | Each project has its own README |
+
+Downstream projects never edit workflow rules in place. They receive a copy of root `LOGIC.md` during deployment and may merge upstream updates later (see `DEPLOY.md`).
+
 ## Key Principles
 
 ### LOGIC.md is Authoritative
 
-`LOGIC.md` is the single source of truth for the workflow specification. If you need to change how the framework works (phases, states, Taskwarrior protocol, git policy, escalation protocol), change `LOGIC.md` first, then update all files that reference those rules:
+Root `LOGIC.md` is the single source of truth for the workflow specification. Do not maintain a second editable copy under `templates/base/`. If you need to change how the framework works (phases, states, Taskwarrior protocol, git policy, escalation protocol), change root `LOGIC.md` first, then update all files that reference those rules:
 
 - All agent prompts in `templates/cursor/.cursor/agents/`
 - The Cursor rule in `templates/cursor/.cursor/rules/ai-framework.mdc`
 - The Taskwarrior recipes in `templates/base/taskwarrior/recipes.md`
-- The deployed copy at `templates/base/ai-framework/LOGIC.md`
 - The deployment guide `DEPLOY.md`
+
+After editing `LOGIC.md`, run `bash scripts/validate-template-repo.sh` to confirm the template repo layout is valid. Downstream projects receive `LOGIC.md` via the copy step in `DEPLOY.md`.
 
 ### Preserve Genericity
 
@@ -68,18 +83,18 @@ AI lock recovery is manual-only. Agents must never resume a duplicate Coordinato
 ## File Structure
 
 ```
-LOGIC.md                                   # Change workflow rules here first
+LOGIC.md                                   # Canonical workflow spec (edit here only)
 README.md                                  # Human overview
-AGENTS.md                                  # This file
-DEPLOY.md                                  # Deployment guide
+AGENTS.md                                  # This file (template-repo maintenance)
+DEPLOY.md                                  # Deployment guide for downstream projects
 
 templates/base/                            # Copied to downstream project root
-  AGENTS.md                                # Project-level AI instructions
+  AGENTS.md                                # Becomes downstream project AGENTS.md
   ARCHITECTURE.md                          # Domain dependency policy skeleton
   .taskrc                                  # Per-project Taskwarrior config
   .gitignore                               # Ignores .task/ and build/
-  ai-framework/LOGIC.md                    # Deployed workflow spec
   ai-framework/project-profile.md          # Filled by deploying user
+  ai-framework/README.md                   # Notes that LOGIC.md is copied at deploy time
   plan/templates/*.md                      # Artifact templates
   taskwarrior/setup.sh                     # UDA setup (sources env.sh)
   taskwarrior/env.sh                       # Sets TASKRC, creates .task/
@@ -90,6 +105,10 @@ templates/cursor/.cursor/                  # Copied to downstream .cursor/
   agents/*.md                              # Agent prompts
   rules/ai-framework.mdc                   # Always-on rules
   commands/*.md                            # Slash commands
+
+scripts/
+  validate-template-repo.sh                # Validates template-repo layout
+  validate-deployment.sh                     # Validates a deployed downstream project
 ```
 
 ## When Updating Agent Prompts
