@@ -1,0 +1,60 @@
+#!/bin/bash
+# Print status of all epics and the merge gate. Read-only.
+# Usage: epic-status
+set -euo pipefail
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/env.sh"
+
+PROJECT_ROOT="${SCRIPT_DIR}/.."
+
+echo "=== Epic Status ==="
+echo ""
+
+# Merge gate
+GATE_ACTIVE=$(task +MERGE_GATE +ACTIVE count 2>/dev/null || echo "0")
+if [ "$GATE_ACTIVE" -gt 0 ]; then
+    echo "Merge Gate: HELD"
+    task +MERGE_GATE export 2>/dev/null | python3 -c "
+import sys, json
+tasks = json.load(sys.stdin)
+if tasks:
+    t = tasks[0]
+    print(f\"  Since: {t.get('start', 'unknown')}\")
+" 2>/dev/null || true
+else
+    echo "Merge Gate: FREE"
+fi
+echo ""
+
+# All epics
+EPIC_COUNT=$(task aiepic.any: count 2>/dev/null || echo "0")
+if [ "$EPIC_COUNT" -eq 0 ]; then
+    echo "No epics registered."
+    exit 0
+fi
+
+echo "Epics ($EPIC_COUNT):"
+task aiepic.any: export 2>/dev/null | python3 -c "
+import sys, json
+tasks = json.load(sys.stdin)
+for t in sorted(tasks, key=lambda x: x.get('aiepic', '')):
+    epic_id = t.get('aiepic', '?')
+    state = t.get('epicstate', '?')
+    desc = t.get('description', '')
+    status_icon = {'active': '[>>]', 'merge-ready': '[OK]', 'merging': '[~~]', 'merged': '[++]', 'conflict': '[!!]', 'cancelled': '[--]'}.get(state, '[??]')
+    print(f'  {status_icon} {desc} (state: {state})')
+" 2>/dev/null || echo "  (error reading epic data)"
+
+echo ""
+
+# Worktrees
+if [ -d "${PROJECT_ROOT}/.worktrees" ]; then
+    echo "Worktrees:"
+    for d in "${PROJECT_ROOT}/.worktrees"/*/; do
+        if [ -d "$d" ]; then
+            echo "  $(basename "$d")"
+        fi
+    done
+else
+    echo "Worktrees: none"
+fi

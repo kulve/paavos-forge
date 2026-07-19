@@ -1,0 +1,15 @@
+#!/bin/bash
+# Stop a phase task (clear +ACTIVE).
+# Usage: phase-stop <task-id>
+set -euo pipefail
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/env.sh"
+
+if [ $# -lt 1 ]; then
+    echo "Usage: phase-stop <task-id>"
+    exit 2
+fi
+
+TASK_ID="$1"
+task "$TASK_ID" stop
+echo "OK: Task $TASK_ID stopped."

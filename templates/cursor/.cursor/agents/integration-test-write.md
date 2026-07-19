@@ -42,14 +42,14 @@ Discovery note: If you notice a significant out-of-scope bug, gap, stub, design 
    - Tests must compile/parse even before implementation exists:
      - **C++:** tests include the headers and call declared functions
      - **Python:** tests import ABCs and instantiate (will fail at runtime until implementation exists, but should parse)
-6. Annotate: `taskwarrior/tw <id> annotate "Artifact: tests/integration/test_XXXXX.cpp"`
-7. Advance: `taskwarrior/tw <id> modify aistate:review`
+6. Annotate: `ccmd bash taskwarrior/phase-annotate <id> Artifact tests/integration/test_XXXXX.cpp`
+7. Advance: `ccmd bash taskwarrior/phase-transition <id> review`
 
 ### Re-do After Review
 
 1. Read the feedback for specific issues.
 2. Fix ONLY what was flagged. Do not rewrite tests from scratch.
-3. Annotate any new files. Advance: `taskwarrior/tw <id> modify aistate:review`
+3. Annotate any new files. Advance: `ccmd bash taskwarrior/phase-transition <id> review`
 
 ## Output Specification
 
@@ -60,8 +60,8 @@ Discovery note: If you notice a significant out-of-scope bug, gap, stub, design 
 ## Taskwarrior Protocol
 
 ```bash
-taskwarrior/tw <id> annotate "Artifact: tests/integration/test_player_movement.cpp"
-taskwarrior/tw <id> modify aistate:review
+ccmd bash taskwarrior/phase-annotate <id> Artifact tests/integration/test_player_movement.cpp
+ccmd bash taskwarrior/phase-transition <id> review
 ```
 
 ## Quality Criteria

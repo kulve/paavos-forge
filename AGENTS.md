@@ -72,13 +72,16 @@ Never add content that assumes a specific downstream project. This includes:
 - Specific build commands (always reference "the build command from the project profile")
 - Hardcoded directory paths (always reference "the directory from the project profile")
 
-## Taskwarrior Wrapper (`taskwarrior/tw`)
+## Script Protocol (`taskwarrior/`)
 
-All Taskwarrior CLI references in agent prompts, recipes, and LOGIC.md must use `taskwarrior/tw`, never bare `task`. This ensures per-project database isolation in downstream projects.
+All state mutations in agent prompts and LOGIC.md must use the provided scripts, never raw `taskwarrior/tw` for writes. Read-only queries still use `taskwarrior/tw`.
 
-When updating agent prompts or command references, verify that every Taskwarrior CLI invocation uses `taskwarrior/tw`.
+When updating agent prompts or command references:
+- Verify state mutations use scripts (`phase-transition`, `phase-annotate`, etc.)
+- Verify read-only queries use `taskwarrior/tw`
+- Verify script names match what exists in `templates/base/taskwarrior/`
 
-AI lock recovery is manual-only. Agents must never resume a duplicate Coordinator, treat a duplicate as the legitimate lock holder, or clear stale locks automatically. If cleanup is needed after the user confirms no Cursor agents/subagents are running, point them to `ccmd bash taskwarrior/cleanup-ai-state.sh`; do not run it on their behalf.
+AI lock and gate recovery is manual-only. Agents must never clear stale locks or gates automatically. Point users to `ccmd bash taskwarrior/cleanup-ai-state.sh` or `ccmd bash taskwarrior/epic-gate-release --force`.
 
 ## File Structure
 
@@ -92,32 +95,40 @@ templates/base/                            # Copied to downstream project root
   AGENTS.md                                # Becomes downstream project AGENTS.md
   ARCHITECTURE.md                          # Domain dependency policy skeleton
   .taskrc                                  # Per-project Taskwarrior config
-  .gitignore                               # Ignores .task/ and build/
+  .gitignore                               # Ignores .task/, .worktrees/, build/
   ai-framework/project-profile.md          # Filled by deploying user
   ai-framework/README.md                   # Notes that LOGIC.md is copied at deploy time
-  plan/templates/*.md                      # Artifact templates
-  taskwarrior/setup.sh                     # UDA setup (sources env.sh)
+  plan/templates/*.md                      # 9 artifact templates (incl. epic.md)
+  plan/epics/.gitkeep                      # Epic artifacts directory
+  taskwarrior/setup.sh                     # UDA setup (--main / --worktree modes)
   taskwarrior/env.sh                       # Sets TASKRC, creates .task/
-  taskwarrior/tw                           # Project-local task wrapper
-  taskwarrior/recipes.md                   # Command patterns
+  taskwarrior/tw                           # Project-local task wrapper (read-only use)
+  taskwarrior/recipes.md                   # Script usage documentation
+  taskwarrior/cleanup-ai-state.sh          # Manual recovery script
+  taskwarrior/epic-*                       # Epic lifecycle scripts (7)
+  taskwarrior/story-*                      # Story lifecycle scripts (4)
+  taskwarrior/phase-*                      # Phase state scripts (6)
+  taskwarrior/pm-lock-* / pm-preflight     # PM lock/status scripts (3)
+  taskwarrior/coordinator-lock-*           # Coordinator lock scripts (3)
 
 templates/cursor/.cursor/                  # Copied to downstream .cursor/
-  agents/*.md                              # Agent prompts
+  agents/*.md                              # 22 agent prompts
   rules/ai-framework.mdc                   # Always-on rules
   commands/*.md                            # Slash commands
 
 scripts/
   validate-template-repo.sh                # Validates template-repo layout
-  validate-deployment.sh                     # Validates a deployed downstream project
+  validate-deployment.sh                   # Validates a deployed downstream project
 ```
 
 ## When Updating Agent Prompts
 
-Agent prompts follow a standard structure (see LOGIC.md section 4). When editing them:
+Agent prompts follow a standard structure (see LOGIC.md section 11). When editing them:
 
 1. Maintain the standard sections: Role, Goal, Context Loading, Procedure, Output Specification, Taskwarrior Protocol, Quality Criteria, Anti-Patterns, Escalation
 2. Keep Context Loading precise -- list exactly what to read and what NOT to read
 3. Keep Procedures numbered and unambiguous
 4. Keep Anti-Patterns specific to the role (not generic advice)
-5. Verify Taskwarrior commands match `recipes.md`
+5. Verify state mutations use scripts (not raw `taskwarrior/tw`)
 6. Verify file paths match artifact templates
+7. Verify script names match `recipes.md` and actual script files

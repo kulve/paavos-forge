@@ -1,0 +1,55 @@
+#!/bin/bash
+# Create a git worktree for an epic, initialize its Taskwarrior database, and register
+# the epic in the main tree's Taskwarrior.
+# Usage: epic-fork <epic-id> <slug>
+# Exit 0: success. Exit 1: merge gate blocked. Exit 2: error.
+# Must be run from the main project tree (not a worktree).
+set -euo pipefail
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/env.sh"
+
+if [ $# -lt 2 ]; then
+    echo "Usage: epic-fork <epic-id> <slug>"
+    exit 2
+fi
+
+EPIC_ID="$1"
+SLUG="$2"
+PROJECT_ROOT="${SCRIPT_DIR}/.."
+WORKTREE_DIR="${PROJECT_ROOT}/.worktrees/epic-${EPIC_ID}-${SLUG}"
+BRANCH_NAME="epic/${EPIC_ID}-${SLUG}"
+
+# Check merge gate
+GATE_ACTIVE=$(task +MERGE_GATE +ACTIVE count 2>/dev/null || echo "0")
+if [ "$GATE_ACTIVE" -gt 0 ]; then
+    echo "ERROR: Merge gate is held. Cannot fork while a merge is in progress."
+    exit 1
+fi
+
+# Check if worktree already exists
+if [ -d "$WORKTREE_DIR" ]; then
+    echo "ERROR: Worktree already exists at $WORKTREE_DIR"
+    exit 2
+fi
+
+# Check if epic already registered
+EXISTING=$(task "aiepic:$EPIC_ID" count 2>/dev/null || echo "0")
+if [ "$EXISTING" -gt 0 ]; then
+    echo "ERROR: Epic $EPIC_ID already registered in Taskwarrior."
+    task "aiepic:$EPIC_ID" list
+    exit 2
+fi
+
+# Create worktree from main
+mkdir -p "${PROJECT_ROOT}/.worktrees"
+git worktree add -b "$BRANCH_NAME" "$WORKTREE_DIR" main
+
+# Initialize Taskwarrior in the worktree
+bash "${WORKTREE_DIR}/taskwarrior/setup.sh" --worktree
+
+# Register epic in main tree's Taskwarrior
+task add "Epic ${EPIC_ID}: ${SLUG}" "aiepic:${EPIC_ID}" "epicstate:active"
+
+echo "OK: Epic $EPIC_ID forked."
+echo "  worktree=$WORKTREE_DIR"
+echo "  branch=$BRANCH_NAME"

@@ -1,0 +1,34 @@
+#!/bin/bash
+# Create 4 phase tasks with dependencies for a story and create the git branch.
+# Usage: story-init <story-id> <slug>
+# Must be run within an epic worktree.
+set -euo pipefail
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/env.sh"
+
+if [ $# -lt 2 ]; then
+    echo "Usage: story-init <story-id> <slug>"
+    exit 2
+fi
+
+STORY_ID="$1"
+SLUG="$2"
+
+EXISTING=$(task "aistory:$STORY_ID" count 2>/dev/null || echo "0")
+if [ "$EXISTING" -gt 0 ]; then
+    echo "ERROR: Tasks already exist for story $STORY_ID."
+    task "aistory:$STORY_ID" list
+    exit 2
+fi
+
+REQ_ID=$(task add "Story $STORY_ID: Requirements" aiphase:req aistate:plan "aistory:$STORY_ID" 2>&1 | grep -oP 'Created task \K\d+')
+ARCH_ID=$(task add "Story $STORY_ID: Architecture" aiphase:arch aistate:blocked "aistory:$STORY_ID" "depends:$REQ_ID" 2>&1 | grep -oP 'Created task \K\d+')
+TEST_ID=$(task add "Story $STORY_ID: Integration Tests" aiphase:test aistate:blocked "aistory:$STORY_ID" "depends:$ARCH_ID" 2>&1 | grep -oP 'Created task \K\d+')
+IMPL_ID=$(task add "Story $STORY_ID: Implementation" aiphase:impl aistate:blocked "aistory:$STORY_ID" "depends:$TEST_ID" 2>&1 | grep -oP 'Created task \K\d+')
+
+CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+git checkout -b "story/${STORY_ID}-${SLUG}" "$CURRENT_BRANCH"
+
+echo "OK: Story $STORY_ID initialized."
+echo "  req=$REQ_ID arch=$ARCH_ID test=$TEST_ID impl=$IMPL_ID"
+echo "  branch=story/${STORY_ID}-${SLUG} (from $CURRENT_BRANCH)"

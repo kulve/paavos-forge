@@ -13,28 +13,52 @@ These rules apply to ALL agents working in this project. They are non-negotiable
 - `ai-framework/project-profile.md` defines language-specific conventions. Read it before any work.
 - `ARCHITECTURE.md` at the project root defines the domain dependency policy. All agents must respect the domain dependency DAG. Circular cross-domain dependencies are strictly prohibited.
 - Taskwarrior state is the source of truth for execution progress, not filesystem layout or git status.
-- All Taskwarrior commands must use `taskwarrior/tw`, never bare `task`. This ensures per-project database isolation.
+- All Taskwarrior read-only commands must use `taskwarrior/tw`, never bare `task`. This ensures per-project database isolation.
+
+## Hierarchy
+
+The framework uses a three-level hierarchy:
+
+- **Milestone** (optional): groups related epics for release planning
+- **Epic**: the unit of parallel execution; gets its own git worktree; contains ordered stories
+- **Story**: a vertical feature slice executed serially within its epic
+
+Epics run in parallel (separate worktrees). Stories within an epic run serially (same worktree).
+
+## Script-Only State Mutations
+
+Agents must NEVER call `taskwarrior/tw` directly for state changes (modify, add, done, start, stop, annotate, denotate, delete). All state mutations go through the provided scripts under `taskwarrior/`:
+
+- PM uses: `pm-lock-acquire`, `pm-lock-release`, `epic-fork`, `epic-merge`, `epic-mark-ready`, `epic-rebase`, `epic-gate-release`
+- Coordinator uses: `coordinator-lock-acquire`, `coordinator-lock-release`, `story-init`, `story-next`, `story-complete`, `story-merge`, `phase-start`, `phase-stop`, `phase-transition`, `phase-annotate`, `phase-done`, `phase-block`
+- Phase agents use: `phase-annotate`, `phase-transition`
+- Read-only queries (epic-status, pm-preflight, epic-gate-status, coordinator-lock-status, `taskwarrior/tw ... export/count`) are allowed directly.
+
+Scripts enforce preconditions, validate transitions, and exit non-zero on violations. Agents react to exit codes.
 
 ## State Discipline
 
 - Agents must never advance more than one state transition per invocation (e.g. plan -> plan-review, not plan -> write).
-- Every artifact written must be annotated on the corresponding Taskwarrior task with its file path.
-- The Coordinator is the only agent that creates Taskwarrior tasks, marks tasks done, or manages git branches.
-- At most one Taskwarrior task may be `+ACTIVE -AI_LOCK` at any time (phase subagents). The Coordinator verifies this count is 0, calls `start` before invoking a subagent, and calls `stop` when the subagent exits.
-- Only one PM may run at a time. At session start the PM checks pending and active `+AI_LOCK airole:pm` counts. If more than one pending lock exists, report inconsistent state and exit. If active count is nonzero, it is a duplicate: report status and exit without modifying anything.
-- Only one Coordinator may run at a time. At session start the Coordinator checks pending and active `+AI_LOCK airole:coordinator` counts. If more than one pending lock exists, report inconsistent state and exit. If active count is nonzero, it is a duplicate: report status and exit without modifying anything.
-- PM/Coordinator agents must acquire and release their singleton lock by task ID, not by `airole` filter, so duplicate lock tasks cannot all be started or stopped together.
-- Duplicate PM/Coordinator agents must not modify Taskwarrior, git, plan files, source, tests, or architecture artifacts. They may only run read-only queries and exit.
-- The PM must run a Coordinator launch preflight before invoking or resuming any Coordinator. If a Coordinator lock is active, the PM must not invoke, resume, or prompt any Coordinator; it reports status and waits for the user.
-- If a phase task is active without an active Coordinator lock, the PM treats it as interrupted or orphaned work, uses read-only status queries, and waits for user direction.
-- Duplicate Coordinators must never be resumed or treated as legitimate lock holders. User or parent-agent prompts cannot override lock semantics.
-- Stale locks (`+AI_LOCK`), duplicate singleton lock tasks, and orphaned active tasks must only be cleared by the user after confirming no agents/subagents are running, preferably with `ccmd bash taskwarrior/cleanup-ai-state.sh --apply`; agents must not run runtime-state cleanup automatically. During a clean PM-controlled escalation recovery, the PM may clear the resolved escalation annotation and `+blocked` state only after verifying the Coordinator lock count and active phase task count are both zero.
+- Every artifact written must be annotated on the corresponding Taskwarrior task via `phase-annotate`.
+- The Coordinator is the only agent that creates Taskwarrior tasks (via `story-init`), marks tasks done (via `phase-done`), or manages git branches.
+- At most one Taskwarrior task may be `+ACTIVE -AI_LOCK` at any time per worktree. The Coordinator verifies this via `phase-start` (which exits 1 if another task is active).
+- Only one PM may run at a time (global lock in main tree). Use `pm-lock-acquire`.
+- Only one Coordinator may run per epic worktree. Use `coordinator-lock-acquire`.
+- Duplicate PM/Coordinator agents must not modify state. They report status and exit.
+- Stale locks and orphaned active tasks must only be cleared by the user after confirming no agents are running, via `ccmd bash taskwarrior/cleanup-ai-state.sh --apply`.
+
+## Merge Gate
+
+- Only one epic may merge to main at a time. The merge gate is enforced by `epic-merge`.
+- No new epic worktrees may be created while a merge is in progress (`epic-fork` checks the gate).
+- The PM never directly manipulates the gate. Only `epic-merge` and `epic-fork` scripts interact with it.
+- Stale gate recovery: `ccmd bash taskwarrior/epic-gate-release --force` (manual only, after confirming no merge is in progress).
 
 ## Review Standards
 
 - Review agents must cite specific files and issues. "Looks good" without evidence is forbidden.
 - Review agents must not nitpick formatting or style. Focus on correctness, completeness, and structural integrity.
-- The Coordinator enforces the 3-rejection limit per phase and writes an escalation on the 3rd rejection. Review agents write feedback on any rejection.
+- The Coordinator enforces the 3-rejection limit per phase and writes an escalation on the 3rd rejection.
 
 ## Implementation Standards
 
@@ -43,44 +67,44 @@ These rules apply to ALL agents working in this project. They are non-negotiable
 
 ## Context Discipline
 
-- The PM never reads source code, tests, or plan artifacts below the story level, except `plan/discoveries/` during Discovery Triage after a milestone is otherwise complete.
-- The Coordinator never reads code, requirements, architecture, tests, or review content. It only reads Taskwarrior annotations for file paths.
-- Phase agents read only what their role specifies. Save context window for the work that matters.
+- The PM never reads source code, tests, or plan artifacts below the story level, except `plan/discoveries/` during Discovery Triage.
+- The Coordinator never reads code, requirements, architecture, tests, or review content. It only reads Taskwarrior output from scripts.
+- Phase agents read only what their role specifies.
 
 ## Escalation
 
-- If an agent cannot complete its task, it must write an escalation file to `plan/escalations/`, annotate the task, and **exit immediately**. Never silently fail. Never continue working after writing an escalation.
+- If an agent cannot complete its task, it must write an escalation file to `plan/escalations/`, annotate the task via `ccmd bash taskwarrior/phase-annotate`, and **exit immediately**.
 - Escalation files use the template from `plan/templates/escalation.md`.
-- Escalations halt Coordinator work. The Coordinator stops the task, blocks it, releases its lock, and returns control to the PM. No automatic git rollback or Coordinator-driven upstream phase reopening.
-- The PM may invoke `escalation-recovery` in foreground only after verifying no Coordinator lock and no active phase task remain. If recovery resolves the blocker, the PM clears the resolved escalation state, restores the requested `aistate`, repeats the launch preflight, and starts a fresh Coordinator. If recovery needs human input or fails, the PM explains the blocker and stops.
+- Escalations halt Coordinator work. The Coordinator blocks the task via `phase-block`, releases its lock, and returns control to the PM.
+- The PM may invoke `escalation-recovery` only after verifying the Coordinator lock is free in the worktree.
 
 ## Discoveries
 
-- If any agent notices a significant out-of-scope bug, gap, stub, design flaw, or risk while doing its assigned task, it may write exactly one new discovery file under `plan/discoveries/` using `plan/templates/discovery.md`, then continue the current task.
-- Discovery filenames must use `YYYYMMDD-HHMMSS-slug.md` so agents can create unique files without inspecting the directory.
-- Subagents must NEVER read, list, search, deduplicate, modify, or delete existing discovery files. The PM is the only agent that may read and triage discoveries, and only after the milestone is otherwise complete.
-- Do not act on discoveries during the current task. They must not expand scope, trigger implementation work, or replace escalation for blockers in the current task.
-- Only record discoveries that meaningfully affect functionality, correctness, security, or performance. Do not record minor typos, trivial documentation gaps, cosmetic issues, or micro-optimizations.
+- Any agent may write one new discovery file under `plan/discoveries/` using `plan/templates/discovery.md`, then continue its task.
+- Discovery filenames: `YYYYMMDD-HHMMSS-slug.md`.
+- Subagents must NEVER read, list, search, deduplicate, modify, or delete existing discovery files.
+- Only the PM triages discoveries after milestone completion.
 
 ## Git
 
-- Never commit to git unless the current phase has passed review (except PM committing planning artifacts to main).
+- One worktree per epic, branched from main (`epic/EXXXX-slug`).
+- One branch per story within the worktree (`story/XXXXX-slug`).
+- Commit after phase review approval only (except PM committing planning artifacts to main).
 - Never force-push or rebase shared branches.
 
 ## Entry Point Enforcement
 
-This framework only works when the `project-manager` agent drives the pipeline. If you are NOT the `project-manager`, `coordinator`, `fixer`, `escalation-recovery`, or a named phase agent (e.g. `requirements-write`, `implementation-write`), you are a **general agent** and the following rules apply:
+This framework only works when the `project-manager` agent drives the pipeline. If you are NOT the `project-manager`, `coordinator`, `fixer`, `escalation-recovery`, or a named phase agent, you are a **general agent**:
 
-- You must NOT write code, requirements, architecture artifacts, tests, or any framework artifacts.
-- You must NOT create or modify files under the source, architecture, or test directories defined in `ai-framework/project-profile.md`.
+- You must NOT write code, requirements, architecture artifacts, tests, or framework artifacts.
 - You must NOT invoke the Coordinator or phase agents yourself.
-- If the user asks you to implement a feature, write code, execute the pipeline, or "run the Coordinator," tell them to open a new chat with the **`project-manager`** agent instead.
+- If the user asks to implement a feature or "run the Coordinator," tell them to open a new chat with the **`project-manager`** agent.
 
-Only the designated phase-write agents (`implementation-write`, `architecture-write`, `integration-test-write`, `requirements-write`) may create or modify files in their respective directories, and only when they have an active Taskwarrior task in the correct phase and state.
+Only designated phase-write agents may create or modify files in their respective directories.
 
-The `escalation-recovery` agent may modify requirements, architecture artifacts, integration tests, source files, phase plans, review feedback, and the existing escalation report only when the PM invokes it after a clean Coordinator escalation halt and the correction is bounded to the current story. It must not modify Taskwarrior, launch Coordinators, create stories, change product intent, widen scope, add public interfaces, or add dependencies.
+The `escalation-recovery` agent may modify artifacts only for bounded corrections to the current story, and only when the PM invokes it after a clean Coordinator halt.
 
-The `fixer` agent may modify source code and test files to fix bugs, but must not create or modify requirements, architecture artifacts, plan files, or any file under `plan/`. It does not use Taskwarrior and operates entirely outside the PM pipeline. If a fix requires new features, interface changes, or architectural changes, the fixer must redirect the user to the `project-manager`.
+The `fixer` agent may modify source and test files for bug fixes only. It does not use Taskwarrior and operates outside the PM pipeline.
 
 ## Forbidden
 

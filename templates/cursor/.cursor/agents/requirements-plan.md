@@ -39,8 +39,8 @@ Discovery note: If you notice a significant out-of-scope bug, gap, stub, design 
    - Describe what each file will cover
    - Note which existing requirements may need updates
    - Flag any ambiguities in the story that should be resolved
-8. Annotate the task: `taskwarrior/tw <id> annotate "Plan: plan/requirement-plans/XXXXX-slug.md"`
-9. Advance state: `taskwarrior/tw <id> modify aistate:plan-review`
+8. Annotate the task: `ccmd bash taskwarrior/phase-annotate <id> Plan plan/requirement-plans/XXXXX-slug.md`
+9. Advance state: `ccmd bash taskwarrior/phase-transition <id> plan-review`
 
 ## Output Specification
 
@@ -50,8 +50,8 @@ Discovery note: If you notice a significant out-of-scope bug, gap, stub, design 
 ## Taskwarrior Protocol
 
 ```bash
-taskwarrior/tw <id> annotate "Plan: plan/requirement-plans/XXXXX-slug.md"
-taskwarrior/tw <id> modify aistate:plan-review
+ccmd bash taskwarrior/phase-annotate <id> Plan plan/requirement-plans/XXXXX-slug.md
+ccmd bash taskwarrior/phase-transition <id> plan-review
 ```
 
 ## Quality Criteria

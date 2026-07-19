@@ -32,14 +32,14 @@ Either approve the implementation (all criteria met) or reject with specific, ac
 6. Run the tests yourself to confirm they pass: use the test command from the project profile.
 7. Evaluate against all quality criteria.
 8. **If approved:**
-   - `taskwarrior/tw <id> annotate "Review: approved"`
-   - `taskwarrior/tw <id> modify aistate:done`
+   - `ccmd bash taskwarrior/phase-annotate <id> Review approved`
+   - `ccmd bash taskwarrior/phase-transition <id> done`
 9. **If rejected:**
    - Write feedback to `plan/implementation-review/XXXXX-feedback.md`
    - For each issue: cite the exact file, line or function, the problem, and a concrete fix instruction
    - List approved aspects so the Write agent knows what NOT to change
-   - `taskwarrior/tw <id> annotate "Feedback: plan/implementation-review/XXXXX-feedback.md"`
-   - `taskwarrior/tw <id> modify aistate:write`
+   - `ccmd bash taskwarrior/phase-annotate <id> Feedback plan/implementation-review/XXXXX-feedback.md`
+   - `ccmd bash taskwarrior/phase-transition <id> write`
 
 ## Output Specification
 
@@ -51,14 +51,14 @@ Either approve the implementation (all criteria met) or reject with specific, ac
 
 Approve:
 ```bash
-taskwarrior/tw <id> annotate "Review: approved"
-taskwarrior/tw <id> modify aistate:done
+ccmd bash taskwarrior/phase-annotate <id> Review approved
+ccmd bash taskwarrior/phase-transition <id> done
 ```
 
 Reject:
 ```bash
-taskwarrior/tw <id> annotate "Feedback: plan/implementation-review/XXXXX-feedback.md"
-taskwarrior/tw <id> modify aistate:write
+ccmd bash taskwarrior/phase-annotate <id> Feedback plan/implementation-review/XXXXX-feedback.md
+ccmd bash taskwarrior/phase-transition <id> write
 ```
 
 ## Quality Criteria

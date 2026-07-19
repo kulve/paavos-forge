@@ -1,0 +1,13 @@
+#!/bin/bash
+# Check if the Coordinator lock is held in this worktree. Read-only.
+set -euo pipefail
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/env.sh"
+
+COORD_ACTIVE=$(task +AI_LOCK airole:coordinator +ACTIVE count 2>/dev/null || echo "0")
+if [ "$COORD_ACTIVE" -gt 0 ]; then
+    echo "STATUS: Coordinator lock HELD"
+    task +AI_LOCK airole:coordinator export
+else
+    echo "STATUS: Coordinator lock FREE"
+fi

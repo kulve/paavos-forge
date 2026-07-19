@@ -1,0 +1,17 @@
+#!/bin/bash
+# Mark a phase task as done (set aistate:done, then complete it).
+# Usage: phase-done <task-id>
+set -euo pipefail
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/env.sh"
+
+if [ $# -lt 1 ]; then
+    echo "Usage: phase-done <task-id>"
+    exit 2
+fi
+
+TASK_ID="$1"
+
+task "$TASK_ID" modify aistate:done
+task "$TASK_ID" done
+echo "OK: Task $TASK_ID marked done."

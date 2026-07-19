@@ -1,408 +1,230 @@
-#!/usr/bin/env bash
+#!/bin/bash
+# Manual AI state cleanup for the execution framework.
+# Run this after confirming no Cursor agents or subagents are active.
+#
+# Usage:
+#   cleanup-ai-state.sh [OPTIONS]
+#
+# Options:
+#   --apply              Actually perform changes (default is dry-run)
+#   --yes                Skip confirmation prompt
+#   --story ID           Scope cleanup to a specific story
+#   --epic ID            Scope cleanup to a specific epic
+#   --locks-only         Only clean up lock state
+#   --clear-escalations  Also clear escalation state on blocked tasks
+#   --release-gate       Also release a stuck merge gate
+#   -h, --help           Show this help
+#
+# What it does:
+#   Main tree (run from project root):
+#   - Stops active PM lock
+#   - Stops active merge gate (with --release-gate)
+#   - Resets epic state from 'merging' to 'merge-ready' (with --release-gate)
+#
+#   Worktree (auto-detected or specified via --epic):
+#   - Stops active Coordinator lock
+#   - Stops active phase tasks
+#   - Optionally clears escalation state (with --clear-escalations)
+#
+# NEVER run this while agents are still active. Always confirm first.
 set -euo pipefail
 
-# Manual recovery for stale AI framework Taskwarrior active state.
-# Only run this after confirming there are no active Cursor agents/subagents
-# for this workspace. This does not recover or roll back git changes. It
-# clears Taskwarrior start state on AI lock and phase tasks, and removes
-# duplicate singleton lock tasks (keeping the lowest task ID per role).
-# After cleanup, ask the PM to analyze status before launching a fresh Coordinator.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/env.sh"
+
+PROJECT_ROOT="${SCRIPT_DIR}/.."
+
+APPLY=false
+YES=false
+STORY=""
+EPIC=""
+LOCKS_ONLY=false
+CLEAR_ESCALATIONS=false
+RELEASE_GATE=false
 
 usage() {
-  cat <<'USAGE'
-Usage: taskwarrior/cleanup-ai-state.sh [--apply] [--yes] [--story XXXXX] [--locks-only] [--clear-escalations]
-
-Default mode is a dry run: print current state and proposed cleanup actions.
-
-Options:
-  --apply               Stop active PM/Coordinator lock tasks and active phase tasks.
-  --yes                 Skip confirmation prompt. Valid only with --apply.
-  --story ID            Limit cleanup/reporting to one story ID.
-  --locks-only          Stop PM/Coordinator locks and dedupe lock tasks only.
-  --clear-escalations   Remove escalation annotations, +blocked tags, and
-                        escalation files; restore aistate on escalated tasks.
-  -h, --help            Show this help.
-
-Safety:
-  Only run this after confirming no Cursor agents/subagents are active here.
-  By default this does not modify git, mark tasks done, or modify aistate.
-  --clear-escalations deletes plan/escalations/ files and resets escalated
-  phase tasks so the PM can resume the story. Duplicate +AI_LOCK tasks for the
-  same airole are deleted (lowest ID kept).
-USAGE
+    head -27 "$0" | tail -25
+    exit 0
 }
 
-apply=false
-yes=false
-story=""
-locks_only=false
-clear_escalations=false
-
-while [[ $# -gt 0 ]]; do
-  case "$1" in
-    --apply)
-      apply=true
-      ;;
-    --yes)
-      yes=true
-      ;;
-    --story)
-      if [[ $# -lt 2 || -z "${2:-}" ]]; then
-        echo "error: --story requires a story ID" >&2
-        exit 2
-      fi
-      story="$2"
-      shift
-      ;;
-    --locks-only)
-      locks_only=true
-      ;;
-    --clear-escalations)
-      clear_escalations=true
-      ;;
-    -h|--help)
-      usage
-      exit 0
-      ;;
-    *)
-      echo "error: unknown argument: $1" >&2
-      usage >&2
-      exit 2
-      ;;
-  esac
-  shift
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --apply) APPLY=true ;;
+        --yes) YES=true ;;
+        --story) STORY="$2"; shift ;;
+        --epic) EPIC="$2"; shift ;;
+        --locks-only) LOCKS_ONLY=true ;;
+        --clear-escalations) CLEAR_ESCALATIONS=true ;;
+        --release-gate) RELEASE_GATE=true ;;
+        -h|--help) usage ;;
+        *) echo "Unknown option: $1"; usage ;;
+    esac
+    shift
 done
 
-if [[ "$yes" == true && "$apply" != true ]]; then
-  echo "error: --yes is only valid with --apply" >&2
-  exit 2
-fi
+echo "=== AI State Cleanup ==="
+echo "Mode: $([ "$APPLY" = true ] && echo 'APPLY' || echo 'DRY-RUN')"
+echo ""
 
-script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-repo_root="$(cd -- "$script_dir/.." && pwd)"
-tw="$repo_root/taskwarrior/tw"
+# --- Main tree checks ---
+echo "--- Main Tree ($(pwd)) ---"
 
-if [[ ! -x "$tw" ]]; then
-  echo "error: expected executable wrapper at $tw" >&2
-  exit 1
-fi
-
-phase_filter=(+ACTIVE -AI_LOCK)
-if [[ -n "$story" ]]; then
-  phase_filter+=("aistory:$story")
-fi
-
-run_tw() {
-  "$tw" "$@"
-}
-
-section() {
-  printf '\n== %s ==\n' "$1"
-}
-
-lock_ids_for_role() {
-  local role="$1"
-  run_tw status:pending +AI_LOCK "airole:$role" ids 2>/dev/null \
-    | tr ' ' '\n' \
-    | grep -E '^[0-9]+$' \
-    | sort -n \
-    || true
-}
-
-report_duplicate_locks() {
-  local role
-  for role in pm coordinator; do
-    local ids
-    ids="$(lock_ids_for_role "$role")"
-    local count=0
-    if [[ -n "$ids" ]]; then
-      count="$(printf '%s\n' "$ids" | sed '/^$/d' | wc -l | tr -d ' ')"
+# PM Lock
+PM_ACTIVE=$(task +AI_LOCK airole:pm +ACTIVE count 2>/dev/null || echo "0")
+if [ "$PM_ACTIVE" -gt 0 ]; then
+    PM_ID=$(task +AI_LOCK airole:pm +ACTIVE ids 2>/dev/null | awk '{print $1}')
+    echo "  PM lock ACTIVE (task $PM_ID) -- will stop"
+    if [ "$APPLY" = true ]; then
+        task "$PM_ID" stop
+        echo "    -> stopped"
     fi
-    if [[ "$count" -gt 1 ]]; then
-      local canonical
-      canonical="$(printf '%s\n' "$ids" | head -n 1)"
-      echo "- Duplicate $role lock tasks detected: $(printf '%s\n' "$ids" | tr '\n' ' ' | sed 's/ $//')"
-      echo "  Keep canonical task $canonical; delete the rest"
-    elif [[ "$count" -eq 1 ]]; then
-      echo "- $role lock task: $(printf '%s\n' "$ids" | head -n 1) (ok)"
+else
+    echo "  PM lock: free"
+fi
+
+# Merge gate
+GATE_ACTIVE=$(task +MERGE_GATE +ACTIVE count 2>/dev/null || echo "0")
+if [ "$GATE_ACTIVE" -gt 0 ]; then
+    GATE_ID=$(task +MERGE_GATE +ACTIVE ids 2>/dev/null | awk '{print $1}')
+    echo "  Merge gate ACTIVE (task $GATE_ID)"
+    if [ "$RELEASE_GATE" = true ]; then
+        echo "    -- will release (--release-gate specified)"
+        if [ "$APPLY" = true ]; then
+            task "$GATE_ID" stop
+            # Reset any epic stuck in 'merging'
+            task "epicstate:merging" modify "epicstate:merge-ready" 2>/dev/null || true
+            echo "    -> released"
+        fi
     else
-      echo "- $role lock task: missing (run taskwarrior/setup.sh to create)"
+        echo "    -- skipping (use --release-gate to release)"
     fi
-  done
-}
+else
+    echo "  Merge gate: free"
+fi
 
-escalation_plan_tsv() {
-  REPO_ROOT="$repo_root" python3 - "$story" <<'PY'
-import glob
-import json
-import os
-import subprocess
-import sys
-
-story = sys.argv[1] if len(sys.argv) > 1 and sys.argv[1] else ""
-repo_root = os.environ["REPO_ROOT"]
-tw = os.path.join(repo_root, "taskwarrior", "tw")
-
-cmd = [tw, "status:pending"]
-if story:
-    cmd.append(f"aistory:{story}")
+# Epic state report
+echo ""
+echo "  Epics:"
+task aiepic.any: export 2>/dev/null | python3 -c "
+import sys, json
+tasks = json.load(sys.stdin)
+if not tasks:
+    print('    (none)')
 else:
-    cmd.append("aistory.any:")
-cmd.append("export")
+    for t in tasks:
+        print(f\"    {t.get('aiepic','?')}: {t.get('epicstate','?')} - {t.get('description','')}\")
+" 2>/dev/null || echo "    (error reading)"
 
-result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-lines = [line for line in result.stdout.splitlines() if not line.startswith("TASKRC")]
-tasks = json.loads("\n".join(lines))
-tasks = [
-    task
-    for task in tasks
-    if task.get("aiphase") and "AI_LOCK" not in (task.get("tags") or [])
-]
+# --- Worktree checks ---
+echo ""
+echo "--- Worktrees ---"
 
-
-def infer_resume_aistate(annotations):
-    descriptions = [entry.get("description", "") for entry in (annotations or [])]
-    if any(desc.startswith("Artifact:") for desc in descriptions):
-        return "write"
-    if any(desc.startswith("Feedback:") for desc in descriptions):
-        return "write"
-    if any(desc.startswith("Plan-review: approved") for desc in descriptions):
-        return "write"
-    if any(desc.startswith("Plan:") for desc in descriptions):
-        return "plan-review"
-    return "plan"
-
-
-escalation_dir = os.path.join(repo_root, "plan", "escalations")
-files = set()
-if story:
-    files.update(glob.glob(os.path.join(escalation_dir, f"{story}-*.md")))
-else:
-    files.update(glob.glob(os.path.join(escalation_dir, "*.md")))
-
-for task in tasks:
-    task_id = str(task["id"])
-    annotations = task.get("annotations") or []
-    escalation_paths = []
-    for entry in annotations:
-        description = entry.get("description", "")
-        if description.startswith("Escalation: "):
-            path = description.removeprefix("Escalation: ").strip()
-            escalation_paths.append(path)
-            if path:
-                files.add(os.path.join(repo_root, path))
-
-    if not escalation_paths:
-        continue
-
-    resume = infer_resume_aistate(annotations)
-    print(
-        "\t".join(
-            [
-                "task",
-                task_id,
-                resume,
-                ",".join(escalation_paths),
-            ]
-        )
-    )
-
-for path in sorted(files):
-    rel = os.path.relpath(path, repo_root)
-    print("\t".join(["file", rel]))
-PY
-}
-
-report_escalations() {
-  local kind
-  local arg1
-  local arg2
-  local arg3
-  local had_actions=false
-  while IFS=$'\t' read -r kind arg1 arg2 arg3; do
-    [[ -z "$kind" ]] && continue
-    had_actions=true
-    case "$kind" in
-      task)
-        echo "- Clear escalation on task $arg1: denotate Escalation:, remove +blocked, set aistate:$arg2"
-        if [[ -n "$arg3" ]]; then
-          echo "  Referenced files: ${arg3//,/, }"
+cleanup_worktree() {
+    local wt_path="$1"
+    local wt_name=$(basename "$wt_path")
+    
+    if [ ! -f "${wt_path}/taskwarrior/tw" ]; then
+        echo "  $wt_name: no taskwarrior/tw (skipping)"
+        return
+    fi
+    
+    echo "  $wt_name:"
+    
+    # Coordinator lock
+    local coord_active
+    coord_active=$(cd "$wt_path" && bash taskwarrior/tw +AI_LOCK airole:coordinator +ACTIVE count 2>/dev/null || echo "0")
+    if [ "$coord_active" -gt 0 ]; then
+        local coord_id
+        coord_id=$(cd "$wt_path" && bash taskwarrior/tw +AI_LOCK airole:coordinator +ACTIVE ids 2>/dev/null | awk '{print $1}')
+        echo "    Coordinator lock ACTIVE (task $coord_id) -- will stop"
+        if [ "$APPLY" = true ]; then
+            (cd "$wt_path" && bash taskwarrior/tw "$coord_id" stop)
+            echo "      -> stopped"
         fi
-        ;;
-      file)
-        if [[ -f "$repo_root/$arg1" ]]; then
-          echo "- Delete escalation file: $arg1"
-        else
-          echo "- Escalation file already missing: $arg1"
-        fi
-        ;;
-    esac
-  done < <(escalation_plan_tsv || true)
-
-  if [[ "$had_actions" != true ]]; then
-    if [[ -n "$story" ]]; then
-      echo "- No escalation annotations or files found for story $story"
     else
-      echo "- No escalation annotations or files found"
+        echo "    Coordinator lock: free"
     fi
-  fi
-}
-
-clear_escalations() {
-  local kind
-  local arg1
-  local arg2
-  local arg3
-  local task_id
-  local resume
-  local rel_path
-  local abs_path
-
-  while IFS=$'\t' read -r kind arg1 arg2 arg3; do
-    [[ -z "$kind" ]] && continue
-    case "$kind" in
-      task)
-        task_id="$arg1"
-        resume="$arg2"
-        echo "- Clear escalation on task $task_id (resume aistate:$resume)"
-        run_tw "$task_id" denotate "Escalation:" || true
-        run_tw "$task_id" modify -blocked "aistate:$resume" || true
-        ;;
-      file)
-        rel_path="$arg1"
-        abs_path="$repo_root/$rel_path"
-        if [[ -f "$abs_path" ]]; then
-          echo "- Delete escalation file: $rel_path"
-          rm -f "$abs_path"
-        else
-          echo "- Escalation file already missing: $rel_path"
+    
+    if [ "$LOCKS_ONLY" = true ]; then
+        return
+    fi
+    
+    # Active phase tasks
+    local phase_active
+    phase_active=$(cd "$wt_path" && bash taskwarrior/tw +ACTIVE -AI_LOCK count 2>/dev/null || echo "0")
+    if [ "$phase_active" -gt 0 ]; then
+        echo "    Active phase tasks: $phase_active -- will stop"
+        if [ "$APPLY" = true ]; then
+            local task_ids
+            task_ids=$(cd "$wt_path" && bash taskwarrior/tw +ACTIVE -AI_LOCK ids 2>/dev/null)
+            for tid in $task_ids; do
+                (cd "$wt_path" && bash taskwarrior/tw "$tid" stop)
+                echo "      -> stopped task $tid"
+            done
         fi
-        ;;
-    esac
-  done < <(escalation_plan_tsv || true)
+    else
+        echo "    Active phase tasks: none"
+    fi
+    
+    # Escalation cleanup
+    if [ "$CLEAR_ESCALATIONS" = true ]; then
+        local blocked
+        blocked=$(cd "$wt_path" && bash taskwarrior/tw +blocked status:pending count 2>/dev/null || echo "0")
+        if [ "$blocked" -gt 0 ]; then
+            echo "    Blocked tasks with escalations: $blocked -- will clear"
+            if [ "$APPLY" = true ]; then
+                (cd "$wt_path" && bash taskwarrior/tw +blocked status:pending export 2>/dev/null | python3 -c "
+import sys, json, subprocess, os
+os.chdir('$wt_path')
+tasks = json.load(sys.stdin)
+for t in tasks:
+    tid = str(t['id'])
+    annotations = t.get('annotations', [])
+    for ann in annotations:
+        desc = ann.get('description', '')
+        if desc.startswith('Escalation:'):
+            subprocess.run(['bash', 'taskwarrior/tw', tid, 'denotate', desc], check=True)
+            esc_path = desc.split('Escalation: ', 1)[1].strip()
+            if os.path.exists(esc_path):
+                os.remove(esc_path)
+                print(f'      -> removed {esc_path}')
+    # Infer resume state from annotations
+    resume = 'plan'
+    for ann in annotations:
+        desc = ann.get('description', '')
+        if desc.startswith('Review: approved'): resume = 'done'
+        elif desc.startswith('Feedback:'): resume = 'write'
+        elif desc.startswith('Plan-review: approved'): resume = 'write'
+        elif desc.startswith('Plan-feedback:'): resume = 'plan'
+        elif desc.startswith('Plan:'): resume = 'plan-review'
+    subprocess.run(['bash', 'taskwarrior/tw', tid, 'modify', '-blocked', f'aistate:{resume}'], check=True)
+    print(f'      -> task {tid} unblocked, aistate:{resume}')
+" 2>/dev/null)
+            fi
+        fi
+    fi
 }
 
-dedupe_lock_tasks() {
-  local role
-  for role in pm coordinator; do
-    local ids
-    ids="$(lock_ids_for_role "$role")"
-    local count=0
-    if [[ -n "$ids" ]]; then
-      count="$(printf '%s\n' "$ids" | sed '/^$/d' | wc -l | tr -d ' ')"
-    fi
-    if [[ "$count" -le 1 ]]; then
-      continue
-    fi
-
-    local canonical
-    canonical="$(printf '%s\n' "$ids" | head -n 1)"
-    local duplicate
-    while IFS= read -r duplicate; do
-      [[ -z "$duplicate" ]] && continue
-      echo "- Delete duplicate $role lock task $duplicate (keeping canonical task $canonical)"
-      if [[ "$apply" == true ]]; then
-        run_tw "$duplicate" delete || true
-      fi
-    done < <(printf '%s\n' "$ids" | tail -n +2)
-  done
-}
-
-section "Safety"
-if [[ "$clear_escalations" == true ]]; then
-  cat <<'SAFETY'
-Only continue if you have confirmed there are no active Cursor agents/subagents
-for this workspace. This script clears Taskwarrior active state, removes
-duplicate singleton lock tasks, and (with --clear-escalations) deletes
-plan/escalations/ files and resets escalated phase tasks. It does not modify
-git or mark phase tasks done except when clearing escalations.
-SAFETY
+if [ -n "$EPIC" ]; then
+    # Find specific epic worktree
+    for wt in "${PROJECT_ROOT}/.worktrees"/epic-${EPIC}-*/; do
+        if [ -d "$wt" ]; then
+            cleanup_worktree "$wt"
+        fi
+    done
+elif [ -d "${PROJECT_ROOT}/.worktrees" ]; then
+    for wt in "${PROJECT_ROOT}/.worktrees"/*/; do
+        if [ -d "$wt" ]; then
+            cleanup_worktree "$wt"
+        fi
+    done
 else
-  cat <<'SAFETY'
-Only continue if you have confirmed there are no active Cursor agents/subagents
-for this workspace. This script clears Taskwarrior active state and removes
-duplicate singleton lock tasks. It does not modify git, mark phase tasks done,
-or modify aistate on phase tasks.
-SAFETY
+    echo "  No worktrees found."
 fi
 
-section "Current AI Lock Tasks"
-run_tw ailocks || true
-
-section "Current Active AI Locks"
-run_tw +AI_LOCK +ACTIVE export || true
-
-section "Current Active Phase Tasks"
-run_tw "${phase_filter[@]}" export || true
-
-section "Pending Story Tasks"
-if [[ -n "$story" ]]; then
-  run_tw status:pending "aistory:$story" export || true
+echo ""
+if [ "$APPLY" = true ]; then
+    echo "=== Cleanup applied ==="
 else
-  run_tw status:pending aistory.any: export || true
+    echo "=== Dry run complete. Use --apply to execute changes. ==="
 fi
-
-section "Next Actionable Task"
-run_tw ainext || true
-
-section "Proposed Actions"
-echo "- Stop active Coordinator lock tasks: taskwarrior/tw +AI_LOCK airole:coordinator +ACTIVE stop"
-echo "- Stop active PM lock tasks: taskwarrior/tw +AI_LOCK airole:pm +ACTIVE stop"
-report_duplicate_locks
-if [[ "$locks_only" == true ]]; then
-  echo "- Leave active phase tasks unchanged because --locks-only was supplied"
-elif [[ -n "$story" ]]; then
-  echo "- Stop active phase tasks for story $story: taskwarrior/tw +ACTIVE -AI_LOCK aistory:$story stop"
-else
-  echo "- Stop all active phase tasks: taskwarrior/tw +ACTIVE -AI_LOCK stop"
-fi
-
-if [[ "$clear_escalations" == true ]]; then
-  report_escalations
-fi
-
-if [[ "$apply" != true ]]; then
-  cat <<'DRYRUN'
-
-Dry run only. To apply these actions after confirming no agents/subagents are
-running, run:
-  ccmd bash taskwarrior/cleanup-ai-state.sh --apply
-DRYRUN
-  exit 0
-fi
-
-if [[ "$yes" != true ]]; then
-  printf '\nType "cleanup" to apply these Taskwarrior stop actions: '
-  read -r answer
-  if [[ "$answer" != "cleanup" ]]; then
-    echo "aborted"
-    exit 1
-  fi
-fi
-
-section "Applying Cleanup"
-run_tw +AI_LOCK airole:coordinator +ACTIVE stop || true
-run_tw +AI_LOCK airole:pm +ACTIVE stop || true
-dedupe_lock_tasks
-if [[ "$locks_only" != true ]]; then
-  run_tw "${phase_filter[@]}" stop || true
-fi
-if [[ "$clear_escalations" == true ]]; then
-  section "Clearing Escalations"
-  clear_escalations
-fi
-
-section "Post-Cleanup AI Lock Tasks"
-run_tw ailocks || true
-
-section "Post-Cleanup Active AI Locks"
-run_tw +AI_LOCK +ACTIVE export || true
-
-section "Post-Cleanup Active Phase Tasks"
-run_tw "${phase_filter[@]}" export || true
-
-cat <<'DONE'
-
-Cleanup complete. Ask the PM to analyze status before launching a fresh
-Coordinator.
-DONE

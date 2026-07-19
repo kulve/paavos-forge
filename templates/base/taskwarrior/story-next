@@ -1,0 +1,42 @@
+#!/bin/bash
+# Query the next READY task for a story. Prints structured JSON output.
+# Usage: story-next <story-id>
+# Exit 0 + JSON: task found. Exit 0 + "NONE": all done or no ready tasks.
+set -euo pipefail
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/env.sh"
+
+if [ $# -lt 1 ]; then
+    echo "Usage: story-next <story-id>"
+    exit 2
+fi
+
+STORY_ID="$1"
+
+PENDING=$(task "aistory:$STORY_ID" status:pending count 2>/dev/null || echo "0")
+if [ "$PENDING" -eq 0 ]; then
+    echo "NONE: All tasks for story $STORY_ID are complete."
+    exit 0
+fi
+
+READY_JSON=$(task "aistory:$STORY_ID" status:pending +READY export 2>/dev/null)
+READY_COUNT=$(echo "$READY_JSON" | python3 -c "import sys,json; print(len(json.load(sys.stdin)))" 2>/dev/null || echo "0")
+
+if [ "$READY_COUNT" -eq 0 ]; then
+    echo "NONE: No READY tasks for story $STORY_ID (tasks may be blocked)."
+    exit 0
+fi
+
+python3 -c "
+import sys, json
+tasks = json.load(sys.stdin)
+t = tasks[0]
+print(json.dumps({
+    'task_id': t['id'],
+    'uuid': t['uuid'],
+    'phase': t.get('aiphase', ''),
+    'state': t.get('aistate', ''),
+    'description': t.get('description', ''),
+    'annotations': [a.get('description', '') for a in t.get('annotations', [])]
+}, indent=2))
+" <<< "$READY_JSON"

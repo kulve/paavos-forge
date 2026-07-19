@@ -1,0 +1,54 @@
+#!/bin/bash
+# PM preflight check: report status of all epics, Coordinator locks, and active phase tasks.
+# Read-only. Prints structured status for PM decision-making.
+# Usage: pm-preflight
+set -euo pipefail
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/env.sh"
+
+PROJECT_ROOT="${SCRIPT_DIR}/.."
+
+echo "=== PM Preflight ==="
+echo ""
+
+# PM lock status
+PM_ACTIVE=$(task +AI_LOCK airole:pm +ACTIVE count 2>/dev/null || echo "0")
+echo "PM Lock: $([ "$PM_ACTIVE" -gt 0 ] && echo 'HELD' || echo 'FREE')"
+
+# Merge gate
+GATE_ACTIVE=$(task +MERGE_GATE +ACTIVE count 2>/dev/null || echo "0")
+echo "Merge Gate: $([ "$GATE_ACTIVE" -gt 0 ] && echo 'HELD' || echo 'FREE')"
+
+# Epic summary
+echo ""
+echo "--- Epics ---"
+EPIC_COUNT=$(task aiepic.any: count 2>/dev/null || echo "0")
+if [ "$EPIC_COUNT" -gt 0 ]; then
+    task aiepic.any: export 2>/dev/null | python3 -c "
+import sys, json
+tasks = json.load(sys.stdin)
+for t in sorted(tasks, key=lambda x: x.get('aiepic', '')):
+    print(f\"  {t.get('aiepic','?')}: {t.get('epicstate','?')} - {t.get('description','')}\")
+" 2>/dev/null
+else
+    echo "  No epics registered."
+fi
+
+# Per-worktree coordinator lock and active task check
+echo ""
+echo "--- Worktree Status ---"
+if [ -d "${PROJECT_ROOT}/.worktrees" ]; then
+    for wt in "${PROJECT_ROOT}/.worktrees"/*/; do
+        if [ -d "$wt" ] && [ -f "${wt}taskwarrior/tw" ]; then
+            WT_NAME=$(basename "$wt")
+            COORD_ACTIVE=$(cd "$wt" && bash taskwarrior/coordinator-lock-status 2>/dev/null | grep -c "HELD" || echo "0")
+            PHASE_ACTIVE=$(cd "$wt" && bash taskwarrior/tw +ACTIVE -AI_LOCK count 2>/dev/null || echo "0")
+            echo "  $WT_NAME: coordinator=$([ "$COORD_ACTIVE" -gt 0 ] && echo 'HELD' || echo 'free') active_tasks=$PHASE_ACTIVE"
+        fi
+    done
+else
+    echo "  No worktrees."
+fi
+
+echo ""
+echo "=== Preflight Complete ==="

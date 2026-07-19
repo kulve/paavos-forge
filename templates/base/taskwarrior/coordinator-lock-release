@@ -1,0 +1,14 @@
+#!/bin/bash
+# Release the Coordinator singleton lock in the current worktree's TW database.
+set -euo pipefail
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/env.sh"
+
+COORD_ID=$(task +AI_LOCK airole:coordinator +ACTIVE ids 2>/dev/null | awk '{print $1}')
+if [ -z "$COORD_ID" ]; then
+    echo "OK: Coordinator lock not held (nothing to release)."
+    exit 0
+fi
+
+task "$COORD_ID" stop
+echo "OK: Coordinator lock released (task $COORD_ID)."

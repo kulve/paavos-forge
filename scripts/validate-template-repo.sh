@@ -46,6 +46,32 @@ if ! grep -q 'ai-framework/LOGIC.md' DEPLOY.md; then
     fail "DEPLOY.md must document copying LOGIC.md to ai-framework/LOGIC.md"
 fi
 
+echo "--- Plan templates (9 required) ---"
+for tmpl in milestone story epic requirement phase-plan plan-review-feedback review-feedback escalation discovery; do
+    if [ ! -f "templates/base/plan/templates/${tmpl}.md" ]; then
+        fail "Missing plan template: templates/base/plan/templates/${tmpl}.md"
+    fi
+done
+
+echo "--- Epic directory ---"
+if [ ! -d "templates/base/plan/epics" ]; then
+    fail "Missing templates/base/plan/epics/ directory"
+fi
+
+echo "--- Taskwarrior scripts ---"
+REQUIRED_SCRIPTS="tw env.sh setup.sh cleanup-ai-state.sh recipes.md
+    epic-fork epic-merge epic-status epic-mark-ready epic-gate-status epic-gate-release epic-rebase
+    story-init story-next story-complete story-merge
+    phase-start phase-stop phase-transition phase-annotate phase-done phase-block
+    pm-lock-acquire pm-lock-release pm-preflight
+    coordinator-lock-acquire coordinator-lock-release coordinator-lock-status"
+
+for script in $REQUIRED_SCRIPTS; do
+    if [ ! -f "templates/base/taskwarrior/${script}" ]; then
+        fail "Missing taskwarrior script: templates/base/taskwarrior/${script}"
+    fi
+done
+
 echo "--- Cursor agent prompts ---"
 if [ ! -d "templates/cursor/.cursor/agents" ]; then
     fail "Missing Cursor agent prompt directory"
@@ -56,6 +82,27 @@ else
     fi
     if [ ! -f "templates/cursor/.cursor/agents/escalation-recovery.md" ]; then
         fail "Missing escalation recovery agent prompt"
+    fi
+fi
+
+echo "--- Cursor rules and commands ---"
+if [ ! -f "templates/cursor/.cursor/rules/ai-framework.mdc" ]; then
+    fail "Missing Cursor rule: templates/cursor/.cursor/rules/ai-framework.mdc"
+fi
+if [ ! -f "templates/cursor/.cursor/commands/ai-status.md" ]; then
+    fail "Missing slash command: templates/cursor/.cursor/commands/ai-status.md"
+fi
+if [ ! -f "templates/cursor/.cursor/commands/ai-next.md" ]; then
+    fail "Missing slash command: templates/cursor/.cursor/commands/ai-next.md"
+fi
+
+echo "--- .gitignore entries ---"
+if [ -f "templates/base/.gitignore" ]; then
+    if ! grep -q '.task/' templates/base/.gitignore; then
+        fail ".gitignore missing .task/ entry"
+    fi
+    if ! grep -q '.worktrees/' templates/base/.gitignore; then
+        fail ".gitignore missing .worktrees/ entry"
     fi
 fi
 

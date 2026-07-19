@@ -1,23 +1,50 @@
 ---
-description: "Show or execute the next step in the AI execution pipeline"
+description: "Show or run the next pipeline step for an epic"
 ---
 
-Equivalent to one iteration of the Coordinator loop. Useful for step-by-step debugging.
+# AI Next
 
-## Steps
+Show the next actionable pipeline step, optionally scoped to a specific epic.
 
-1. Query Taskwarrior for the next ready task:
-   ```bash
-   taskwarrior/tw status:pending +READY aistory.any: export
-   ```
+## Instructions
 
-2. If no ready tasks, report that the pipeline is idle or all stories are complete.
+### If epic ID or worktree path is provided in the prompt
 
-3. If a ready task exists, report:
-   - Task ID, story, phase, and current state
-   - Which subagent would be invoked
-   - What files would be passed as context (from annotations)
+Run from within that epic's worktree:
 
-4. Ask the user if they want to invoke the subagent or just see the status.
+```bash
+ccmd bash taskwarrior/story-next <story-id>
+```
 
-5. If the user confirms, invoke the appropriate subagent as described in the Coordinator's procedure (see `ai-framework/LOGIC.md` section 5).
+Or if no specific story is given, find the active story:
+
+```bash
+ccmd bash taskwarrior/tw status:pending +READY -AI_LOCK aistory.any: export
+```
+
+### If no epic specified
+
+Run from the main tree to show all active epics:
+
+```bash
+ccmd bash taskwarrior/epic-status
+```
+
+Then for each active worktree, show the next task.
+
+### Present Results As
+
+1. **Epic**: which epic this task belongs to
+2. **Story**: story ID and slug
+3. **Phase**: req/arch/test/impl
+4. **State**: plan/plan-review/write/review
+5. **Subagent**: which agent would handle this (from the Coordinator mapping)
+6. **Context files**: relevant annotation paths (Plan, Feedback, etc.)
+7. **Coordinator lock status**: whether the Coordinator lock is held in that worktree
+
+### Optional: Invoke
+
+If the user explicitly asks to "run" the next step, and the Coordinator lock is NOT held:
+- Ask confirmation before proceeding
+- Reference the Coordinator procedure in `ai-framework/LOGIC.md` section 5
+- Do NOT invoke if the Coordinator lock is held (tell the user a Coordinator is already running)

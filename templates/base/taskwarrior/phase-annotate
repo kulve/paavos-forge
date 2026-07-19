@@ -1,0 +1,27 @@
+#!/bin/bash
+# Add a validated annotation to a phase task.
+# Usage: phase-annotate <task-id> <prefix> <value>
+# Valid prefixes: Plan, Plan-review, Plan-feedback, Artifact, Deleted,
+#                 Test fix, Feedback, Review, Escalation, Recovery
+set -euo pipefail
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/env.sh"
+
+if [ $# -lt 3 ]; then
+    echo "Usage: phase-annotate <task-id> <prefix> <value>"
+    exit 2
+fi
+
+TASK_ID="$1"
+PREFIX="$2"
+shift 2
+VALUE="$*"
+
+VALID_PREFIXES="Plan|Plan-review|Plan-feedback|Artifact|Deleted|Test fix|Feedback|Review|Escalation|Recovery"
+if ! echo "$PREFIX" | grep -qE "^($VALID_PREFIXES)$"; then
+    echo "ERROR: Invalid prefix '$PREFIX'. Valid: $VALID_PREFIXES"
+    exit 2
+fi
+
+task "$TASK_ID" annotate "${PREFIX}: ${VALUE}"
+echo "OK: Task $TASK_ID annotated with '${PREFIX}: ${VALUE}'."

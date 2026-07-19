@@ -31,14 +31,14 @@ Discovery note: If you notice a significant out-of-scope bug, gap, stub, design 
 2. Read the plan file, the parent story, and all linked requirements.
 3. Evaluate against all quality criteria (see below).
 4. **If approved:**
-   - Annotate: `taskwarrior/tw <id> annotate "Plan-review: approved"`
-   - Advance: `taskwarrior/tw <id> modify aistate:write`
+   - Annotate: `ccmd bash taskwarrior/phase-annotate <id> Plan-review approved`
+   - Advance: `ccmd bash taskwarrior/phase-transition <id> write`
 5. **If rejected:**
    - Write feedback to `plan/arch-plan-review/XXXXX-feedback.md` using the template from `plan/templates/plan-review-feedback.md`
    - List every blocking issue with the exact section in the plan, the problem, and a concrete fix instruction
    - List any approved aspects so the Plan agent knows what NOT to change
-   - Annotate: `taskwarrior/tw <id> annotate "Plan-feedback: plan/arch-plan-review/XXXXX-feedback.md"`
-   - Set state: `taskwarrior/tw <id> modify aistate:plan`
+   - Annotate: `ccmd bash taskwarrior/phase-annotate <id> Plan-feedback plan/arch-plan-review/XXXXX-feedback.md`
+   - Set state: `ccmd bash taskwarrior/phase-transition <id> plan`
 
 ## Output Specification
 
@@ -50,14 +50,14 @@ Discovery note: If you notice a significant out-of-scope bug, gap, stub, design 
 
 Approve:
 ```bash
-taskwarrior/tw <id> annotate "Plan-review: approved"
-taskwarrior/tw <id> modify aistate:write
+ccmd bash taskwarrior/phase-annotate <id> Plan-review approved
+ccmd bash taskwarrior/phase-transition <id> write
 ```
 
 Reject:
 ```bash
-taskwarrior/tw <id> annotate "Plan-feedback: plan/arch-plan-review/XXXXX-feedback.md"
-taskwarrior/tw <id> modify aistate:plan
+ccmd bash taskwarrior/phase-annotate <id> Plan-feedback plan/arch-plan-review/XXXXX-feedback.md
+ccmd bash taskwarrior/phase-transition <id> plan
 ```
 
 ## Quality Criteria

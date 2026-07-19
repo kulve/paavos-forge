@@ -1,0 +1,29 @@
+#!/bin/bash
+# Mark an epic as merge-ready after its Coordinator has completed all stories.
+# Usage: epic-mark-ready <epic-id>
+# Exit 0: success. Exit 2: error (epic not active or not found).
+set -euo pipefail
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/env.sh"
+
+if [ $# -lt 1 ]; then
+    echo "Usage: epic-mark-ready <epic-id>"
+    exit 2
+fi
+
+EPIC_ID="$1"
+
+EPIC_STATE=$(task "aiepic:$EPIC_ID" export 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(d[0].get('epicstate','') if d else '')" 2>/dev/null)
+
+if [ -z "$EPIC_STATE" ]; then
+    echo "ERROR: Epic $EPIC_ID not found."
+    exit 2
+fi
+
+if [ "$EPIC_STATE" != "active" ]; then
+    echo "ERROR: Epic $EPIC_ID is in state '$EPIC_STATE', expected 'active'."
+    exit 2
+fi
+
+task "aiepic:$EPIC_ID" modify "epicstate:merge-ready"
+echo "OK: Epic $EPIC_ID marked merge-ready."

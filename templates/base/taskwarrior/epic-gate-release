@@ -1,0 +1,32 @@
+#!/bin/bash
+# Release a stuck merge gate. Manual recovery only.
+# Usage: epic-gate-release [--force]
+# Without --force: shows status and exits. With --force: releases unconditionally.
+set -euo pipefail
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/env.sh"
+
+FORCE="${1:-}"
+
+GATE_ACTIVE=$(task +MERGE_GATE +ACTIVE count 2>/dev/null || echo "0")
+if [ "$GATE_ACTIVE" -eq 0 ]; then
+    echo "OK: Merge gate is not held."
+    exit 0
+fi
+
+if [ "$FORCE" != "--force" ]; then
+    echo "Merge gate is currently held:"
+    bash "${SCRIPT_DIR}/epic-gate-status"
+    echo ""
+    echo "To force-release, run: bash taskwarrior/epic-gate-release --force"
+    echo "WARNING: Only do this after confirming no merge operation is in progress."
+    exit 2
+fi
+
+GATE_ID=$(task +MERGE_GATE +ACTIVE ids 2>/dev/null | awk '{print $1}')
+task "$GATE_ID" stop
+
+# Reset any epic stuck in 'merging' state back to 'merge-ready'
+task "epicstate:merging" modify "epicstate:merge-ready" 2>/dev/null || true
+
+echo "OK: Merge gate force-released."

@@ -6,7 +6,7 @@ This file tells AI agents how this project uses the AI execution framework.
 
 To add new features or implement changes, always start a **`project-manager`** agent chat. Never ask a general agent to implement, write code, or "run the Coordinator."
 
-The framework only produces requirements, architecture, tested code, and full traceability when the PM drives the Coordinator, which drives the phase agents. Each agent runs in its own constrained context with a narrow role -- this is what makes the pipeline reliable.
+The framework only produces requirements, architecture, tested code, and full traceability when the PM drives the pipeline. Each agent runs in its own constrained context with a narrow role -- this is what makes the pipeline reliable.
 
 **If you are a general agent** and the user asks you to implement a feature, write code, create requirements, or execute the framework pipeline: **do not do it**. Instead, tell the user to open a new chat with the `project-manager` agent and describe the goal there.
 
@@ -18,45 +18,68 @@ This project uses the AI execution framework. The canonical workflow specificati
 
 Project-specific conventions (language, directories, test commands, architecture type, mock boundaries, review standards, forbidden areas) are defined in `ai-framework/project-profile.md`. Read it before every task.
 
+## Execution Model
+
+The framework uses a three-level hierarchy:
+
+- **Milestone** (optional): groups related epics for release planning
+- **Epic**: the unit of parallel execution; each epic gets its own git worktree
+- **Story**: a vertical feature slice; stories within an epic execute serially
+
+Multiple epics run in parallel in isolated git worktrees. Each worktree has its own Taskwarrior database. A merge gate ensures only one epic merges to main at a time.
+
 ## Agent Roles
 
-Agents in this project follow a strict hierarchy:
+Agents follow a strict hierarchy:
 
-- **Project Manager** (`project-manager`): defines milestones and stories, invokes the Coordinator, and orchestrates bounded escalation recovery
-- **Coordinator** (`coordinator`): drives stories through phases, manages Taskwarrior and git
+- **Project Manager** (`project-manager`): defines milestones and epics, generates stories, dispatches epics for parallel execution, merges back to main, orchestrates escalation recovery
+- **Coordinator** (`coordinator`): drives all stories in an epic through phases, manages Taskwarrior and git within its worktree
 - **Phase Agents**: specialized agents for each phase (requirements, architecture, tests, implementation) and state (plan, plan-review, write, review)
 - **Support Agents**: story review, escalation analysis, escalation recovery
 - **Fixer** (`fixer`): fixes bugs in existing code outside the PM pipeline; invoked directly by the user
 
 See `ai-framework/LOGIC.md` for the full role descriptions and workflow rules.
 
+## Script Protocol
+
+All Taskwarrior state mutations must go through the provided scripts under `taskwarrior/`. Agents must never call `taskwarrior/tw` directly for state changes (modify, add, done, start, stop, annotate). Read-only queries are allowed.
+
+Key scripts:
+- **PM**: `pm-lock-acquire`, `pm-lock-release`, `epic-fork`, `epic-merge`, `epic-mark-ready`, `epic-status`, `pm-preflight`
+- **Coordinator**: `coordinator-lock-acquire`, `coordinator-lock-release`, `story-init`, `story-next`, `story-complete`, `story-merge`
+- **Phase**: `phase-start`, `phase-stop`, `phase-transition`, `phase-annotate`, `phase-done`, `phase-block`
+
+See `taskwarrior/recipes.md` for full documentation.
+
 ## Taskwarrior
 
-All Taskwarrior commands must use `taskwarrior/tw`, never bare `task`. The wrapper ensures per-project database isolation:
+All Taskwarrior read-only commands must use `taskwarrior/tw`, never bare `task`. The wrapper ensures per-project database isolation:
 
-- Config: `.taskrc` at project root (`data.location=.task`, `confirmation=off`)
-- Database: `.task/` directory (gitignored, never committed)
+- Config: `.taskrc` at project root
+- Main tree database: `.task/` (PM-level: epic tracking, PM lock, merge gate)
+- Worktree databases: `.worktrees/epic-*/. task/` (Coordinator-level: phase tasks, Coordinator lock)
 - Wrapper: `taskwarrior/tw` sources `taskwarrior/env.sh` and sets `TASKRC`
-- Command patterns: see `taskwarrior/recipes.md`
+- Setup: `taskwarrior/setup.sh --main` (project root) or `--worktree` (epic worktrees)
 
 ## Key Rules
 
 1. Taskwarrior is the source of truth for execution state.
-2. Every artifact written must be annotated on the corresponding Taskwarrior task.
+2. All state mutations go through scripts, never raw `taskwarrior/tw` for writes.
 3. Agents follow the phase state machine: `plan -> plan-review -> write -> review -> done`.
 4. Reviews focus on blocking issues, not style nits.
 5. If you cannot complete your task, write an escalation to `plan/escalations/` and exit.
 6. All templates are in `plan/templates/`. Use them for every artifact.
 7. Read the project profile before every task for language and convention details.
-8. All Taskwarrior commands use `taskwarrior/tw`, never bare `task`.
-9. Only one PM and one Coordinator may run at a time. If you are a duplicate (the matching `+AI_LOCK` task is already `+ACTIVE`), report status with read-only Taskwarrior queries and exit. Do not modify anything. If more than one pending lock task exists for the same role, report inconsistent state and ask the user to run manual cleanup after confirming no agents are active.
-10. The PM must not invoke, resume, or prompt a Coordinator while a Coordinator lock is active. Duplicate Coordinators must never be resumed or treated as legitimate lock holders.
-11. Stale locks, duplicate singleton lock tasks, and orphaned active phase tasks are recovered only by manual user action after confirming no agents/subagents are running. During a clean Coordinator escalation halt, the PM may invoke `escalation-recovery` only after confirming no Coordinator lock and no active phase task remain; if recovery resolves the blocker, the PM clears the resolved escalation state and launches a fresh Coordinator after repeating the same checks.
-12. Agents may record significant out-of-scope findings as new discovery files, but only the PM may read and triage discoveries.
+8. Only one PM runs at a time (global). Only one Coordinator runs per worktree.
+9. The merge gate allows only one epic to merge to main at a time. Scripts enforce this.
+10. Stale locks and gates require manual user recovery via `cleanup-ai-state.sh`.
+11. The PM must not invoke a Coordinator while one is already running in that worktree.
+12. Agents may record significant out-of-scope findings as discoveries; only PM triages them.
 
 ## Artifact Locations
 
 - Milestones: `plan/milestones/`
+- Epics: `plan/epics/`
 - Stories: `plan/stories/`
 - Requirements: `plan/requirements/[domain]/`
 - Phase plans: `plan/*-plans/`
@@ -81,12 +104,6 @@ Only specifically designated phase agents may write to implementation directorie
 - **Plan review feedback** (`plan/*-plan-review/`) -- only the respective plan-review agents
 - **Review feedback** (`plan/*-review/`) -- only the respective review agents
 
-Any agent may create one new discovery file under `plan/discoveries/` for a significant out-of-scope finding, using `plan/templates/discovery.md`, then continue its assigned task. Subagents must never read, list, modify, deduplicate, or delete existing discoveries; the PM triages them after milestone completion.
+The `escalation-recovery` agent may modify artifacts for bounded corrections after a clean Coordinator halt. The `fixer` agent has limited write access to source and test directories for bug fixes only.
 
-The exact directories are defined in `ai-framework/project-profile.md`. The ownership rules above apply to whatever directories the project profile specifies.
-
-The `escalation-recovery` agent may modify requirements, architecture artifacts, integration tests, source files, phase plans, review feedback, and the existing escalation report only when the PM invokes it after a clean Coordinator escalation halt and the correction is bounded to the current story. It must not modify Taskwarrior, launch Coordinators, create stories, change product intent, widen scope, add public interfaces, or add dependencies.
-
-The `fixer` agent has limited write access to source and test directories for bug fixes only. It must not create or modify framework artifacts (`plan/`, requirements, architecture), add features, or change public interfaces. If a fix exceeds this scope, the fixer redirects the user to the PM pipeline.
-
-Any agent receiving a request to implement a feature, write code, create architecture artifacts, write tests, or "run the Coordinator" must **NOT** do the work directly. Instead: tell the user to start a `project-manager` agent chat.
+Any agent receiving a request to implement a feature or "run the Coordinator" must **NOT** do the work directly. Instead: tell the user to start a `project-manager` agent chat.

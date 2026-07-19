@@ -1,5 +1,8 @@
 # Taskwarrior per-project database (managed by framework, not committed)
 .task/
 
+# Epic worktrees (parallel execution, not committed)
+.worktrees/
+
 # Common build output
 build/

@@ -1,204 +1,229 @@
-# Taskwarrior Command Recipes
+# Taskwarrior Script Recipes
 
-All commands use `taskwarrior/tw` -- the project-local wrapper that ensures per-project database isolation via `.taskrc` and `.task/`. Never use bare `task` directly. See `taskwarrior/env.sh` for details.
+Command reference for AI agents using the execution framework. All state mutations go through scripts. Read-only queries may use `taskwarrior/tw` directly.
 
-Reference for agents interacting with Taskwarrior. See `ai-framework/LOGIC.md` for the full workflow specification.
+## Important: Script-Only Mutations
 
-## Create Story Tasks
+Agents must NEVER call `taskwarrior/tw` directly for: `modify`, `add`, `done`, `start`, `stop`, `annotate`, `denotate`, or `delete`. Use the provided scripts instead. Read-only operations (`export`, `count`, `list`, custom reports) are fine with `taskwarrior/tw`.
 
-Create four phase tasks with dependencies for a story. Replace `XXXXX` with the story ID.
+## Exit Code Convention
+
+All scripts follow:
+- **Exit 0**: success
+- **Exit 1**: precondition not met (retry later)
+- **Exit 2**: error (invalid args, illegal state, conflict)
+
+---
+
+## PM Scripts (run from main project tree)
+
+### Acquire/Release PM Lock
 
 ```bash
-REQ_ID=$(taskwarrior/tw add "Story XXXXX: Requirements" aiphase:req aistate:plan aistory:XXXXX 2>&1 | grep -oP 'Created task \K[0-9]+')
-ARCH_ID=$(taskwarrior/tw add "Story XXXXX: Architecture" aiphase:arch aistate:blocked aistory:XXXXX depends:$REQ_ID 2>&1 | grep -oP 'Created task \K[0-9]+')
-TEST_ID=$(taskwarrior/tw add "Story XXXXX: Integration Tests" aiphase:test aistate:blocked aistory:XXXXX depends:$ARCH_ID 2>&1 | grep -oP 'Created task \K[0-9]+')
-taskwarrior/tw add "Story XXXXX: Implementation" aiphase:impl aistate:blocked aistory:XXXXX depends:$TEST_ID
+ccmd bash taskwarrior/pm-lock-acquire    # exit 1 if already held
+ccmd bash taskwarrior/pm-lock-release
 ```
 
-## Query Tasks
+### Preflight Check
 
-Find the next actionable task for a story:
 ```bash
-taskwarrior/tw aistory:XXXXX status:pending +READY export
+ccmd bash taskwarrior/pm-preflight       # read-only status across all worktrees
 ```
 
-Show all tasks for a story:
+### Epic Lifecycle
+
 ```bash
-taskwarrior/tw aistory:XXXXX export
+# Fork a new epic (creates worktree, initializes TW, registers epic)
+ccmd bash taskwarrior/epic-fork EXXXX slug       # exit 1 if gate held
+
+# Check status of all epics
+ccmd bash taskwarrior/epic-status
+
+# Mark epic ready for merge (after Coordinator completes)
+ccmd bash taskwarrior/epic-mark-ready EXXXX      # exit 2 if not 'active'
+
+# Merge epic to main (acquires gate, squash-merges, cleans up)
+ccmd bash taskwarrior/epic-merge EXXXX           # exit 1 if gate held, exit 2 if conflict
+
+# Rebase epic branch on latest main
+ccmd bash taskwarrior/epic-rebase EXXXX          # exit 2 if conflict
+
+# Merge gate inspection
+ccmd bash taskwarrior/epic-gate-status
+ccmd bash taskwarrior/epic-gate-release --force  # manual recovery only
 ```
 
-Use the custom report:
+---
+
+## Coordinator Scripts (run from within epic worktree)
+
+### Acquire/Release Coordinator Lock
+
 ```bash
-taskwarrior/tw ainext
+ccmd bash taskwarrior/coordinator-lock-acquire   # exit 1 if already held
+ccmd bash taskwarrior/coordinator-lock-release
+ccmd bash taskwarrior/coordinator-lock-status    # read-only
 ```
 
-## Active Task Guard
-
-The Coordinator must ensure at most one phase task is `+ACTIVE` at any time. The `-AI_LOCK` filter excludes PM/Coordinator lock tasks so they do not interfere with this check:
+### Story Lifecycle
 
 ```bash
-# Check no phase subagent is currently active (must be 0 before starting a subagent)
-taskwarrior/tw +ACTIVE -AI_LOCK count
+# Initialize story (creates 4 phase tasks + git branch)
+ccmd bash taskwarrior/story-init XXXXX slug
 
-# Mark a phase task active (call before invoking a subagent)
-taskwarrior/tw <id> start
+# Query next actionable task (returns JSON or "NONE")
+ccmd bash taskwarrior/story-next XXXXX
 
-# Clear active status (call after subagent completes or is stopped)
-taskwarrior/tw <id> stop
+# Verify all phases done, optionally run tests
+ccmd bash taskwarrior/story-complete XXXXX --run-tests   # exit 1 if not done, exit 2 if tests fail
+
+# Merge story branch into epic branch
+ccmd bash taskwarrior/story-merge XXXXX slug
 ```
 
-## Top-Level Role Locks
+---
 
-PM and Coordinator are singleton agents. Each has a permanent `+AI_LOCK` Taskwarrior task (created by `taskwarrior/setup.sh`) that is `start`ed when the agent begins and `stop`ped when it exits.
+## Phase Scripts (run from within epic worktree)
 
-Check whether a top-level agent is currently running:
+### Task Activation
+
 ```bash
-taskwarrior/tw +AI_LOCK +ACTIVE export
+# Start a phase task (guards against other active tasks)
+ccmd bash taskwarrior/phase-start <task-id>      # exit 1 if another task active
+
+# Stop a phase task
+ccmd bash taskwarrior/phase-stop <task-id>
 ```
 
-Acquire PM lock (call at PM session start, before any reads or writes):
+### State Transitions
+
 ```bash
-taskwarrior/tw status:pending +AI_LOCK airole:pm count    # must be 1
-taskwarrior/tw +AI_LOCK airole:pm +ACTIVE count           # must be 0
-PM_LOCK_ID=$(taskwarrior/tw status:pending +AI_LOCK airole:pm ids | awk '{print $1}')
-taskwarrior/tw "$PM_LOCK_ID" start
+# Validated state change (checks transition is legal)
+ccmd bash taskwarrior/phase-transition <task-id> <new-state>
+
+# Legal transitions:
+#   plan → plan-review
+#   plan-review → write (approved)
+#   plan-review → plan (rejected)
+#   write → review
+#   review → done (approved)
+#   review → write (rejected)
+#   blocked → plan/plan-review/write/review (recovery)
 ```
 
-Release PM lock (call when PM is intentionally done or stopped):
+### Annotations
+
 ```bash
-taskwarrior/tw "$PM_LOCK_ID" stop
+# Add a validated annotation
+ccmd bash taskwarrior/phase-annotate <task-id> <prefix> <value>
+
+# Valid prefixes:
+#   Plan          - plan file path
+#   Plan-review   - "approved"
+#   Plan-feedback - feedback file path (plan rejected)
+#   Artifact      - artifact file path
+#   Deleted       - deleted artifact path
+#   Test fix      - reason for test modification
+#   Feedback      - review feedback file path (review rejected)
+#   Review        - "approved"
+#   Escalation    - escalation file path
+#   Recovery      - recovery summary
 ```
 
-Acquire Coordinator lock (call before creating tasks, touching git, or invoking subagents):
+### Completion and Blocking
+
 ```bash
-taskwarrior/tw status:pending +AI_LOCK airole:coordinator count    # must be 1
-taskwarrior/tw +AI_LOCK airole:coordinator +ACTIVE count           # must be 0
-COORD_LOCK_ID=$(taskwarrior/tw status:pending +AI_LOCK airole:coordinator ids | awk '{print $1}')
-taskwarrior/tw "$COORD_LOCK_ID" start
+# Mark phase done (sets aistate:done, completes task)
+ccmd bash taskwarrior/phase-done <task-id>
+
+# Block task with escalation
+ccmd bash taskwarrior/phase-block <task-id> <escalation-path>
 ```
 
-Release Coordinator lock (call on story completion, escalation halt, or clean exit):
+---
+
+## Read-Only Queries (direct taskwarrior/tw usage allowed)
+
 ```bash
-taskwarrior/tw "$COORD_LOCK_ID" stop
+# Export task JSON
+ccmd bash taskwarrior/tw <task-id> export
+
+# Count tasks
+ccmd bash taskwarrior/tw status:pending aistory:XXXXX count
+ccmd bash taskwarrior/tw +ACTIVE -AI_LOCK count
+
+# Custom reports
+ccmd bash taskwarrior/tw ainext       # next actionable task
+ccmd bash taskwarrior/tw aistory      # all story tasks
+ccmd bash taskwarrior/tw ailocks      # lock status
+ccmd bash taskwarrior/tw aiactive     # active phase tasks
+ccmd bash taskwarrior/tw aiepics      # all epics (main tree only)
 ```
 
-View all lock tasks and their active status:
-```bash
-taskwarrior/tw ailocks
-```
+---
 
-View active phase tasks (excludes lock tasks):
-```bash
-taskwarrior/tw aiactive
-```
+## Manual Recovery
 
-Manual stale-lock, orphaned-active, and escalation cleanup (user only, after confirming no Cursor agents/subagents are running for this workspace):
 ```bash
+# Cleanup stale state (dry-run first, then --apply)
 ccmd bash taskwarrior/cleanup-ai-state.sh
 ccmd bash taskwarrior/cleanup-ai-state.sh --apply
-ccmd bash taskwarrior/cleanup-ai-state.sh --apply --story 00034 --clear-escalations
+
+# Scope to specific epic
+ccmd bash taskwarrior/cleanup-ai-state.sh --apply --epic EXXXX
+
+# Clear escalations
+ccmd bash taskwarrior/cleanup-ai-state.sh --apply --epic EXXXX --clear-escalations
+
+# Release stuck merge gate
+ccmd bash taskwarrior/cleanup-ai-state.sh --apply --release-gate
+# or directly:
+ccmd bash taskwarrior/epic-gate-release --force
 ```
 
-The cleanup script defaults to dry-run. In apply mode it stops active PM/Coordinator lock tasks, deletes duplicate singleton lock tasks (keeps lowest ID per `airole`), and stops active phase tasks, optionally scoped with `--story XXXXX` or limited to locks with `--locks-only`. With `--clear-escalations`, it also removes `Escalation:` annotations, clears `+blocked`, restores `aistate` on escalated phase tasks, and deletes matching files under `plan/escalations/` (story-scoped when `--story` is set). It does not mark phase tasks done or touch git except for escalation file deletion. Agents must not run this automatic runtime-state cleanup; they may only point the user to it after reporting read-only status.
+---
 
-## State Transitions
+## Typical Flows
 
-Advance from plan to plan-review:
-```bash
-taskwarrior/tw <id> modify aistate:plan-review
-```
-
-Approve plan (plan-review passed, advance to write):
-```bash
-taskwarrior/tw <id> modify aistate:write
-```
-
-Reject plan (plan-review failed, back to plan):
-```bash
-taskwarrior/tw <id> modify aistate:plan
-```
-
-Advance from write to review:
-```bash
-taskwarrior/tw <id> modify aistate:review
-```
-
-Approve (review passed):
-```bash
-taskwarrior/tw <id> modify aistate:done
-taskwarrior/tw <id> done
-```
-
-Reject (review failed, back to write):
-```bash
-taskwarrior/tw <id> modify aistate:write
-```
-
-## Annotations
-
-Link a plan file:
-```bash
-taskwarrior/tw <id> annotate "Plan: plan/requirement-plans/XXXXX-auth.md"
-```
-
-Link an artifact:
-```bash
-taskwarrior/tw <id> annotate "Artifact: plan/requirements/core/XXXXX-auth.md"
-```
-
-Approve a plan review:
-```bash
-taskwarrior/tw <id> annotate "Plan-review: approved"
-```
-
-Link plan review feedback:
-```bash
-taskwarrior/tw <id> annotate "Plan-feedback: plan/requirement-plan-review/XXXXX-feedback.md"
-```
-
-Approve a review:
-```bash
-taskwarrior/tw <id> annotate "Review: approved"
-```
-
-Link review feedback:
-```bash
-taskwarrior/tw <id> annotate "Feedback: plan/requirements-review/XXXXX-feedback.md"
-```
-
-## Escalation
-
-Coordinator halt path. This must leave no active phase task and no active Coordinator lock before returning control to the PM.
+### PM: Dispatch an Epic
 
 ```bash
-taskwarrior/tw <id> stop
-taskwarrior/tw <id> modify +blocked
-taskwarrior/tw <id> annotate "Escalation: plan/escalations/XXXXX-req-auth.md"
-taskwarrior/tw "$COORD_LOCK_ID" stop
+ccmd bash taskwarrior/pm-lock-acquire
+ccmd bash taskwarrior/pm-preflight
+ccmd bash taskwarrior/epic-fork E0001 auth-system
+# Launch Coordinator subagent pointed at .worktrees/epic-E0001-auth-system/
 ```
 
-## PM Escalation Recovery
-
-Before invoking `escalation-recovery`, before clearing resolved escalation state, and before launching a fresh Coordinator, the PM must verify that no Coordinator or phase subagent is running:
+### PM: Merge a Completed Epic
 
 ```bash
-taskwarrior/tw +AI_LOCK airole:coordinator +ACTIVE count
-taskwarrior/tw +ACTIVE -AI_LOCK count
-taskwarrior/tw <id> export
+ccmd bash taskwarrior/epic-mark-ready E0001
+ccmd bash taskwarrior/epic-merge E0001
 ```
 
-Both counts must be `0`. If either count is nonzero, do not recover or resume automatically.
-
-After `escalation-recovery` returns `resolved`, the PM clears only the resolved escalation state for the blocked task and restores the requested resume state:
+### Coordinator: Process a Story Phase
 
 ```bash
-taskwarrior/tw <id> denotate "Escalation:"
-taskwarrior/tw <id> modify -blocked aistate:<plan|plan-review|write|review>
-taskwarrior/tw <id> annotate "Recovery: <summary from escalation-recovery>"
+ccmd bash taskwarrior/story-next 00001
+# → JSON with task_id, phase, state, annotations
+ccmd bash taskwarrior/phase-start 5
+# invoke subagent...
+ccmd bash taskwarrior/phase-stop 5
+# check outcome from annotations
 ```
 
-Do not mark the task done during recovery. Preserve the escalation file for audit. Then repeat the Coordinator launch preflight and start a fresh Coordinator in foreground only if both counts are still `0`.
+### Phase Agent: Complete Work
 
-## Discoveries
+```bash
+# Plan agent:
+ccmd bash taskwarrior/phase-annotate 5 Plan plan/requirement-plans/00001-auth.md
+ccmd bash taskwarrior/phase-transition 5 plan-review
 
-Discoveries are filesystem-only records under `plan/discoveries/`; they are not Taskwarrior tasks and should not be annotated on phase tasks. Subagents may only create new discovery files and must not inspect existing ones.
+# Review agent (approve):
+ccmd bash taskwarrior/phase-annotate 5 Review approved
+ccmd bash taskwarrior/phase-transition 5 done
+
+# Review agent (reject):
+ccmd bash taskwarrior/phase-annotate 5 Feedback plan/requirements-review/00001-feedback.md
+ccmd bash taskwarrior/phase-transition 5 write
+```

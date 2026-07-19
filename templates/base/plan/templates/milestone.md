@@ -15,17 +15,13 @@
 
 ## Epics
 
-[Broad feature areas. Stories will be derived from these.]
+[Each epic is a coherent feature area that executes independently in its own worktree.
+Epics within a milestone may run in parallel.]
 
-- [Epic 1: brief description]
-- [Epic 2: brief description]
+1. plan/epics/EXXXX-slug.md -- [status: planned/active/merged]
+2. plan/epics/EXXXX-slug.md -- [status: planned/active/merged]
 
 ## Done Criteria
 
 - [ ] [Verifiable milestone-level outcome]
-
-## Current Story Batch
-
-[Updated by PM as stories are generated]
-
-- [ ] plan/stories/XXXXX-slug.md -- [status]
+- [ ] All epics merged to main

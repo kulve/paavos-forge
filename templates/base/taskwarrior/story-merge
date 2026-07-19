@@ -1,0 +1,37 @@
+#!/bin/bash
+# Squash-merge a completed story branch into the epic branch (within the worktree).
+# Usage: story-merge <story-id> <slug>
+set -euo pipefail
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/env.sh"
+
+if [ $# -lt 2 ]; then
+    echo "Usage: story-merge <story-id> <slug>"
+    exit 2
+fi
+
+STORY_ID="$1"
+SLUG="$2"
+STORY_BRANCH="story/${STORY_ID}-${SLUG}"
+
+CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+if [ "$CURRENT_BRANCH" != "$STORY_BRANCH" ]; then
+    echo "ERROR: Not on story branch. Current: $CURRENT_BRANCH, expected: $STORY_BRANCH"
+    exit 2
+fi
+
+EPIC_BRANCH=$(git log --format=%D "$STORY_BRANCH" | grep -oP 'epic/[^ ,]+' | head -1 || true)
+if [ -z "$EPIC_BRANCH" ]; then
+    EPIC_BRANCH=$(git branch --list 'epic/*' | head -1 | tr -d ' *')
+fi
+if [ -z "$EPIC_BRANCH" ]; then
+    echo "ERROR: Cannot determine epic branch to merge into."
+    exit 2
+fi
+
+git checkout "$EPIC_BRANCH"
+git merge --squash "$STORY_BRANCH"
+git commit -m "story: ${STORY_ID}-${SLUG}"
+git branch -d "$STORY_BRANCH"
+
+echo "OK: Story $STORY_ID merged into $EPIC_BRANCH."

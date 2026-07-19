@@ -1,0 +1,46 @@
+#!/bin/bash
+# Verify all 4 phases of a story are done. Optionally runs the test suite.
+# Usage: story-complete <story-id> [--run-tests]
+# Exit 0: all done (and tests pass if --run-tests). Exit 1: not all done. Exit 2: tests fail.
+set -euo pipefail
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/env.sh"
+
+if [ $# -lt 1 ]; then
+    echo "Usage: story-complete <story-id> [--run-tests]"
+    exit 2
+fi
+
+STORY_ID="$1"
+RUN_TESTS="${2:-}"
+
+PENDING=$(task "aistory:$STORY_ID" status:pending count 2>/dev/null || echo "0")
+COMPLETED=$(task "aistory:$STORY_ID" status:completed count 2>/dev/null || echo "0")
+
+if [ "$PENDING" -gt 0 ]; then
+    echo "ERROR: Story $STORY_ID has $PENDING pending tasks."
+    task "aistory:$STORY_ID" status:pending list
+    exit 1
+fi
+
+if [ "$COMPLETED" -ne 4 ]; then
+    echo "WARNING: Story $STORY_ID has $COMPLETED completed tasks (expected 4)."
+fi
+
+if [ "$RUN_TESTS" = "--run-tests" ]; then
+    PROFILE="${SCRIPT_DIR}/../ai-framework/project-profile.md"
+    if [ -f "$PROFILE" ]; then
+        TEST_CMD=$(grep -A1 "full test suite\|all tests" "$PROFILE" | grep -v "^--" | grep -v "test suite" | head -1 | sed 's/^[- ]*//' | sed 's/`//g' || true)
+        if [ -n "$TEST_CMD" ]; then
+            echo "Running tests: $TEST_CMD"
+            if ! eval "$TEST_CMD"; then
+                echo "ERROR: Test suite failed for story $STORY_ID."
+                exit 2
+            fi
+        else
+            echo "WARNING: Could not extract test command from project profile."
+        fi
+    fi
+fi
+
+echo "OK: Story $STORY_ID complete ($COMPLETED tasks done)."

@@ -31,12 +31,12 @@ Discovery note: If you notice a significant out-of-scope bug, gap, stub, design 
 2. Read each test file, the architecture artifacts, and requirements.
 3. Evaluate against all quality criteria.
 4. **If approved:**
-   - `taskwarrior/tw <id> annotate "Review: approved"`
-   - `taskwarrior/tw <id> modify aistate:done`
+   - `ccmd bash taskwarrior/phase-annotate <id> Review approved`
+   - `ccmd bash taskwarrior/phase-transition <id> done`
 5. **If rejected:**
    - Write feedback to `plan/integration-test-review/XXXXX-feedback.md`
-   - `taskwarrior/tw <id> annotate "Feedback: plan/integration-test-review/XXXXX-feedback.md"`
-   - `taskwarrior/tw <id> modify aistate:write`
+   - `ccmd bash taskwarrior/phase-annotate <id> Feedback plan/integration-test-review/XXXXX-feedback.md`
+   - `ccmd bash taskwarrior/phase-transition <id> write`
 
 ## Output Specification
 
@@ -48,14 +48,14 @@ Discovery note: If you notice a significant out-of-scope bug, gap, stub, design 
 
 Approve:
 ```bash
-taskwarrior/tw <id> annotate "Review: approved"
-taskwarrior/tw <id> modify aistate:done
+ccmd bash taskwarrior/phase-annotate <id> Review approved
+ccmd bash taskwarrior/phase-transition <id> done
 ```
 
 Reject:
 ```bash
-taskwarrior/tw <id> annotate "Feedback: plan/integration-test-review/XXXXX-feedback.md"
-taskwarrior/tw <id> modify aistate:write
+ccmd bash taskwarrior/phase-annotate <id> Feedback plan/integration-test-review/XXXXX-feedback.md
+ccmd bash taskwarrior/phase-transition <id> write
 ```
 
 ## Quality Criteria

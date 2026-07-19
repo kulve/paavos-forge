@@ -40,17 +40,17 @@ Produce source files that fully implement the architecture and pass all integrat
 8. If tests fail:
    - Read the failure output carefully
    - If the failure is an implementation bug: fix the implementation and re-run tests
-   - If the failure appears to be a test bug (test itself is wrong): fix the test, but annotate the task explaining why: `taskwarrior/tw <id> annotate "Test fix: [reason]"`
+   - If the failure appears to be a test bug (test itself is wrong): fix the test, but annotate the task explaining why: `ccmd bash taskwarrior/phase-annotate <id> "Test fix" "[reason]"`
    - Iterate until all tests pass
-9. Annotate artifact paths: `taskwarrior/tw <id> annotate "Artifact: src/core/player.cpp"`
-10. Advance: `taskwarrior/tw <id> modify aistate:review`
+9. Annotate artifact paths: `ccmd bash taskwarrior/phase-annotate <id> Artifact src/core/player.cpp`
+10. Advance: `ccmd bash taskwarrior/phase-transition <id> review`
 
 ### Re-do After Review
 
 1. Read the feedback for specific issues.
 2. Fix ONLY what was flagged. Do not rewrite from scratch.
 3. Re-run tests to verify fixes don't break anything.
-4. Annotate any new files. Advance: `taskwarrior/tw <id> modify aistate:review`
+4. Annotate any new files. Advance: `ccmd bash taskwarrior/phase-transition <id> review`
 
 ## Output Specification
 
@@ -61,13 +61,13 @@ Produce source files that fully implement the architecture and pass all integrat
 ## Taskwarrior Protocol
 
 ```bash
-taskwarrior/tw <id> annotate "Artifact: src/core/player.cpp"
-taskwarrior/tw <id> modify aistate:review
+ccmd bash taskwarrior/phase-annotate <id> Artifact src/core/player.cpp
+ccmd bash taskwarrior/phase-transition <id> review
 ```
 
 If fixing a test bug:
 ```bash
-taskwarrior/tw <id> annotate "Test fix: [description of the test bug and why it was wrong]"
+ccmd bash taskwarrior/phase-annotate <id> "Test fix" "[description of the test bug and why it was wrong]"
 ```
 
 ## Quality Criteria

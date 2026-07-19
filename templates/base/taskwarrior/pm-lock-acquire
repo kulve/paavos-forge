@@ -1,0 +1,21 @@
+#!/bin/bash
+# Acquire the PM singleton lock. Exits 1 if already held.
+set -euo pipefail
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/env.sh"
+
+PM_ACTIVE=$(task +AI_LOCK airole:pm +ACTIVE count 2>/dev/null || echo "0")
+if [ "$PM_ACTIVE" -gt 0 ]; then
+    echo "ERROR: PM lock already held."
+    task +AI_LOCK airole:pm export
+    exit 1
+fi
+
+PM_ID=$(task +AI_LOCK airole:pm ids 2>/dev/null | awk '{print $1}')
+if [ -z "$PM_ID" ]; then
+    echo "ERROR: PM lock task not found. Run: bash taskwarrior/setup.sh --main"
+    exit 2
+fi
+
+task "$PM_ID" start
+echo "OK: PM lock acquired (task $PM_ID)."

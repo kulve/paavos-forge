@@ -1,7 +1,6 @@
 #!/bin/bash
 # Validate that the AI execution framework was deployed correctly into a project.
 # Run from the deployed project root directory.
-# For template-repo layout checks, use scripts/validate-template-repo.sh in the framework repo.
 set -euo pipefail
 
 ERRORS=0
@@ -44,9 +43,7 @@ check_placeholder() {
 
 check_gitignore_entry() {
     if [ -f ".gitignore" ]; then
-        if grep -q "$1" .gitignore 2>/dev/null; then
-            true
-        else
+        if ! grep -q "$1" .gitignore 2>/dev/null; then
             echo "WARNING: .gitignore missing entry: $1"
             WARNINGS=$((WARNINGS + 1))
         fi
@@ -69,9 +66,10 @@ echo "--- Project Profile ---"
 check_nonempty "ai-framework/project-profile.md"
 check_placeholder "ai-framework/project-profile.md"
 
-echo "--- Plan Templates (8 required) ---"
+echo "--- Plan Templates (9 required) ---"
 check_file "plan/templates/milestone.md"
 check_file "plan/templates/story.md"
+check_file "plan/templates/epic.md"
 check_file "plan/templates/requirement.md"
 check_file "plan/templates/phase-plan.md"
 check_file "plan/templates/plan-review-feedback.md"
@@ -79,7 +77,10 @@ check_file "plan/templates/review-feedback.md"
 check_file "plan/templates/escalation.md"
 check_file "plan/templates/discovery.md"
 
-echo "--- Taskwarrior ---"
+echo "--- Plan Directories ---"
+check_dir "plan/epics"
+
+echo "--- Taskwarrior Core ---"
 check_file ".taskrc"
 check_file "taskwarrior/setup.sh"
 check_executable "taskwarrior/setup.sh"
@@ -88,7 +89,30 @@ check_executable "taskwarrior/env.sh"
 check_file "taskwarrior/tw"
 check_executable "taskwarrior/tw"
 check_file "taskwarrior/recipes.md"
+check_file "taskwarrior/cleanup-ai-state.sh"
+check_executable "taskwarrior/cleanup-ai-state.sh"
+
+echo "--- Taskwarrior Scripts (Epic) ---"
+for script in epic-fork epic-merge epic-status epic-mark-ready epic-gate-status epic-gate-release epic-rebase; do
+    check_file "taskwarrior/$script"
+    check_executable "taskwarrior/$script"
+done
+
+echo "--- Taskwarrior Scripts (Story/Phase) ---"
+for script in story-init story-next story-complete story-merge phase-start phase-stop phase-transition phase-annotate phase-done phase-block; do
+    check_file "taskwarrior/$script"
+    check_executable "taskwarrior/$script"
+done
+
+echo "--- Taskwarrior Scripts (Lock) ---"
+for script in pm-lock-acquire pm-lock-release pm-preflight coordinator-lock-acquire coordinator-lock-release coordinator-lock-status; do
+    check_file "taskwarrior/$script"
+    check_executable "taskwarrior/$script"
+done
+
+echo "--- .gitignore ---"
 check_gitignore_entry ".task/"
+check_gitignore_entry ".worktrees/"
 
 echo "--- Cursor Agents (22 required) ---"
 check_file ".cursor/agents/project-manager.md"
@@ -119,49 +143,35 @@ check_file ".cursor/rules/ai-framework.mdc"
 check_file ".cursor/commands/ai-status.md"
 check_file ".cursor/commands/ai-next.md"
 
-echo "--- Taskwarrior UDAs ---"
+echo "--- Taskwarrior UDAs (main tree) ---"
 if [ -x "taskwarrior/tw" ]; then
     UDAS=$(taskwarrior/tw _udas 2>/dev/null || echo "")
-    for UDA in aiphase aistate aistory airole; do
-        if echo "$UDAS" | grep -q "$UDA"; then
-            true
-        else
-            echo "ERROR: Taskwarrior UDA '$UDA' not configured. Run: bash taskwarrior/setup.sh"
+    for UDA in aiepic epicstate airole; do
+        if ! echo "$UDAS" | grep -q "$UDA"; then
+            echo "ERROR: Taskwarrior UDA '$UDA' not configured. Run: bash taskwarrior/setup.sh --main"
             ERRORS=$((ERRORS + 1))
         fi
     done
-    # Check that the two singleton lock tasks exist
     PM_LOCK=$(taskwarrior/tw +AI_LOCK airole:pm count 2>/dev/null || echo "0")
     if [ "$PM_LOCK" -lt 1 ]; then
-        echo "ERROR: PM singleton lock task missing. Run: bash taskwarrior/setup.sh"
+        echo "ERROR: PM singleton lock task missing. Run: bash taskwarrior/setup.sh --main"
         ERRORS=$((ERRORS + 1))
     fi
-    COORD_LOCK=$(taskwarrior/tw +AI_LOCK airole:coordinator count 2>/dev/null || echo "0")
-    if [ "$COORD_LOCK" -lt 1 ]; then
-        echo "ERROR: Coordinator singleton lock task missing. Run: bash taskwarrior/setup.sh"
+    GATE=$(taskwarrior/tw +MERGE_GATE count 2>/dev/null || echo "0")
+    if [ "$GATE" -lt 1 ]; then
+        echo "ERROR: Merge gate task missing. Run: bash taskwarrior/setup.sh --main"
         ERRORS=$((ERRORS + 1))
     fi
 elif command -v task &> /dev/null; then
-    echo "WARNING: taskwarrior/tw not executable. Falling back to bare 'task' for UDA check."
+    echo "WARNING: taskwarrior/tw not executable. Cannot verify UDAs."
     WARNINGS=$((WARNINGS + 1))
-    UDAS=$(task _udas 2>/dev/null || echo "")
-    for UDA in aiphase aistate aistory airole; do
-        if echo "$UDAS" | grep -q "$UDA"; then
-            true
-        else
-            echo "ERROR: Taskwarrior UDA '$UDA' not configured. Run: bash taskwarrior/setup.sh"
-            ERRORS=$((ERRORS + 1))
-        fi
-    done
 else
-    echo "WARNING: Taskwarrior not found. Install it and run: bash taskwarrior/setup.sh"
+    echo "WARNING: Taskwarrior not found. Install it and run: bash taskwarrior/setup.sh --main"
     WARNINGS=$((WARNINGS + 1))
 fi
 
 echo "--- Git ---"
-if [ -d ".git" ]; then
-    true
-else
+if [ ! -d ".git" ]; then
     echo "WARNING: Not a git repository. Initialize with: git init"
     WARNINGS=$((WARNINGS + 1))
 fi

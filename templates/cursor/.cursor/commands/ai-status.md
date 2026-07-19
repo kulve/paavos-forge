@@ -1,25 +1,37 @@
 ---
-description: "Show current AI execution framework status"
+description: "Show pipeline status: epics, stories, phases, and merge gate"
 ---
 
-Query Taskwarrior and summarize the current state of the AI execution pipeline.
+# AI Status
 
-## Steps
+Show the current status of the AI execution framework pipeline.
 
-1. Read the current milestone from `plan/milestones/` (find the latest one).
+## Instructions
 
-2. Query Taskwarrior for all AI tasks:
-   ```bash
-   taskwarrior/tw status:pending aistory.any: export
-   taskwarrior/tw status:completed aistory.any: export
-   ```
+Run the following commands and present the results in a readable table format:
 
-3. Summarize in a table:
-   - Current milestone name and progress
-   - For each active story: story ID, current phase, current state, any blocked tasks
-   - Count of completed stories vs total
-   - Any escalations in `plan/escalations/`
+### Epic-Level Status (run from main tree)
 
-4. If there are blocked tasks or escalations, highlight them and suggest next steps.
+```bash
+ccmd bash taskwarrior/epic-status
+ccmd bash taskwarrior/epic-gate-status
+```
 
-Format the output as a concise status table that a human can scan quickly.
+### Per-Worktree Story Status
+
+For each active epic worktree listed by `epic-status`, run from within that worktree:
+
+```bash
+ccmd bash taskwarrior/tw status:pending aistory.any: export
+ccmd bash taskwarrior/tw status:completed aistory.any: export
+```
+
+### Present Results As
+
+1. **Milestone progress** (if a milestone file exists in `plan/milestones/`)
+2. **Epic table**: epic ID, slug, state (active/merge-ready/merged/conflict), worktree path
+3. **Merge gate**: FREE or HELD (with details)
+4. **Per-epic story table**: story ID, phase progress (req/arch/test/impl), current state, blocked/escalated items
+5. **Summary**: total stories pending vs completed across all epics
+
+Highlight any blocked tasks or escalations. If `plan/escalations/` has files, list them.

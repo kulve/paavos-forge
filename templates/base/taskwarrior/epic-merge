@@ -1,0 +1,78 @@
+#!/bin/bash
+# Acquire merge gate, squash-merge a completed epic into main, clean up worktree, release gate.
+# Usage: epic-merge <epic-id>
+# Exit 0: success. Exit 1: gate blocked. Exit 2: conflict or error.
+# Must be run from the main project tree.
+set -euo pipefail
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/env.sh"
+
+if [ $# -lt 1 ]; then
+    echo "Usage: epic-merge <epic-id>"
+    exit 2
+fi
+
+EPIC_ID="$1"
+PROJECT_ROOT="${SCRIPT_DIR}/.."
+
+# Verify epic is merge-ready
+EPIC_STATE=$(task "aiepic:$EPIC_ID" export 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(d[0].get('epicstate','') if d else '')" 2>/dev/null)
+if [ "$EPIC_STATE" != "merge-ready" ]; then
+    echo "ERROR: Epic $EPIC_ID is in state '$EPIC_STATE', expected 'merge-ready'."
+    exit 2
+fi
+
+# Check merge gate
+GATE_ACTIVE=$(task +MERGE_GATE +ACTIVE count 2>/dev/null || echo "0")
+if [ "$GATE_ACTIVE" -gt 0 ]; then
+    echo "ERROR: Merge gate already held. Another merge in progress."
+    exit 1
+fi
+
+# Find epic metadata
+EPIC_JSON=$(task "aiepic:$EPIC_ID" export 2>/dev/null)
+EPIC_DESC=$(echo "$EPIC_JSON" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d[0].get('description',''))" 2>/dev/null)
+SLUG=$(echo "$EPIC_DESC" | sed "s/Epic ${EPIC_ID}: //")
+
+WORKTREE_DIR="${PROJECT_ROOT}/.worktrees/epic-${EPIC_ID}-${SLUG}"
+BRANCH_NAME="epic/${EPIC_ID}-${SLUG}"
+
+if [ ! -d "$WORKTREE_DIR" ]; then
+    echo "ERROR: Worktree not found at $WORKTREE_DIR"
+    exit 2
+fi
+
+# Acquire merge gate
+GATE_ID=$(task +MERGE_GATE ids 2>/dev/null | awk '{print $1}')
+if [ -z "$GATE_ID" ]; then
+    echo "ERROR: Merge gate task not found. Run: bash taskwarrior/setup.sh --main"
+    exit 2
+fi
+task "$GATE_ID" start
+task "aiepic:$EPIC_ID" modify "epicstate:merging"
+
+# Perform the merge
+MERGE_OK=true
+cd "$PROJECT_ROOT"
+git checkout main
+
+if ! git merge --squash "$BRANCH_NAME"; then
+    git merge --abort 2>/dev/null || true
+    task "aiepic:$EPIC_ID" modify "epicstate:conflict"
+    task "$GATE_ID" stop
+    echo "ERROR: Merge conflict. Epic $EPIC_ID set to 'conflict' state."
+    echo "  Resolve with: bash taskwarrior/epic-rebase $EPIC_ID"
+    exit 2
+fi
+
+git commit -m "epic: ${EPIC_ID}-${SLUG}"
+
+# Clean up worktree and branch
+git worktree remove "$WORKTREE_DIR" --force 2>/dev/null || true
+git branch -D "$BRANCH_NAME" 2>/dev/null || true
+
+# Update state and release gate
+task "aiepic:$EPIC_ID" modify "epicstate:merged"
+task "$GATE_ID" stop
+
+echo "OK: Epic $EPIC_ID merged to main."

@@ -49,14 +49,16 @@ This creates:
 - `AGENTS.md` -- from `templates/base/AGENTS.md`; project-level AI instructions
 - `ARCHITECTURE.md` -- domain dependency policy registry (populated by agents as domains are introduced)
 - `.taskrc` -- per-project Taskwarrior config
-- `.gitignore` -- ignores `.task/` and `build/`
+- `.gitignore` -- ignores `.task/`, `build/`, and `.worktrees/`
 - `ai-framework/LOGIC.md` -- workflow specification (copied from framework repo root)
 - `ai-framework/project-profile.md` -- to be filled in by you
-- `plan/templates/` -- 8 artifact templates used by agents
+- `plan/templates/` -- 9 artifact templates used by agents (milestone, epic, story, requirement, phase-plan, plan-review-feedback, review-feedback, escalation, discovery)
+- `plan/epics/.gitkeep` -- directory for epic definition files
 - `taskwarrior/setup.sh` -- Taskwarrior UDA configuration script
 - `taskwarrior/env.sh` -- environment setup (sets `TASKRC`, creates `.task/`)
 - `taskwarrior/tw` -- project-local Taskwarrior wrapper (executable)
 - `taskwarrior/recipes.md` -- command reference for agents
+- `taskwarrior/` scripts -- epic lifecycle, story lifecycle, phase transitions, and lock management (see Step 4)
 
 ## Step 2: Copy Cursor Templates
 
@@ -93,21 +95,54 @@ Three files make this work:
 | `taskwarrior/env.sh` | Sets `TASKRC` to point at `.taskrc`, creates `.task/` directory |
 | `taskwarrior/tw` | Executable wrapper: sources `env.sh`, then runs `task` with correct config |
 
-Run the setup script to register the framework's UDAs in your project `.taskrc`:
+Run the setup script with `--main` to register the framework's UDAs in your project `.taskrc` and configure the main worktree:
 
 ```bash
 cd /path/to/your-project
-bash taskwarrior/setup.sh
+bash taskwarrior/setup.sh --main
 ```
+
+> **Note:** The `--worktree` flag exists but you do not need to run it manually. It is called automatically by `epic-fork` when creating a new epic worktree.
 
 Verify the UDAs exist:
 ```bash
-taskwarrior/tw _udas | grep -E 'aiphase|aistate|aistory'
+taskwarrior/tw _udas | grep -E 'aiphase|aistate|aistory|aiepic'
 ```
 
-You should see `aiphase`, `aistate`, and `aistory` listed.
+You should see `aiphase`, `aistate`, `aistory`, and `aiepic` listed.
 
 > **Important:** All agents use `taskwarrior/tw`, never bare `task`. The wrapper ensures every Taskwarrior command reads from the project `.taskrc` and writes to `.task/`, not your global `~/.task/`.
+
+### Taskwarrior Scripts
+
+The `taskwarrior/` directory contains orchestration scripts used by the agents:
+
+| Script | Purpose |
+|--------|---------|
+| `epic-fork` | Create a git worktree and branch for a new epic |
+| `epic-merge` | Merge a completed epic branch back to main |
+| `epic-rebase` | Rebase an epic branch onto latest main |
+| `epic-status` | Show status of all active epics |
+| `epic-mark-ready` | Mark an epic as ready for merge |
+| `epic-gate-status` | Check whether an epic's merge gate is open |
+| `epic-gate-release` | Open an epic's merge gate |
+| `story-init` | Initialize a new story within the current epic |
+| `story-next` | Select the next story to execute |
+| `story-complete` | Mark the current story as complete |
+| `story-merge` | Merge story changes into the epic branch |
+| `phase-start` | Begin a phase within a story |
+| `phase-stop` | Pause or abandon a phase |
+| `phase-transition` | Move to the next phase |
+| `phase-annotate` | Add an annotation to the current phase |
+| `phase-done` | Mark a phase as complete |
+| `phase-block` | Mark a phase as blocked (triggers escalation) |
+| `pm-lock-acquire` | Acquire the PM planning lock |
+| `pm-lock-release` | Release the PM planning lock |
+| `pm-preflight` | PM pre-flight checks before dispatching work |
+| `coordinator-lock-acquire` | Acquire the Coordinator execution lock |
+| `coordinator-lock-release` | Release the Coordinator execution lock |
+| `coordinator-lock-status` | Check whether a Coordinator lock is held |
+| `cleanup-ai-state.sh` | Manual cleanup of stale locks and state |
 
 ## Step 5: Fill in the Project Profile
 
@@ -149,6 +184,9 @@ Open `ai-framework/project-profile.md` and answer every question. This is the mo
 **Domain Tags:**
 - List the valid categories for organizing requirements (e.g. core, rendering, input, audio, network)
 
+**Parallel Limit:**
+- Recommended maximum concurrent epics (e.g. 2-3 for typical projects). This limits how many epic worktrees the PM will have active simultaneously. More epics means more context switches and merge conflicts; fewer means less parallelism. Start with 2 and increase once you're comfortable with the workflow.
+
 ### Examples
 
 **C++ game project:**
@@ -164,6 +202,7 @@ Open `ai-framework/project-profile.md` and answer every question. This is the mo
 - Traceability: // REQ:XXXXX-name in header comments
 - Mock boundaries: File I/O, Network sockets, GPU/Vulkan contexts
 - Domain tags: core, rendering, input, audio, physics
+- Parallel limit: 2
 ```
 
 **Python web app:**
@@ -179,6 +218,7 @@ Open `ai-framework/project-profile.md` and answer every question. This is the mo
 - Traceability: REQ:XXXXX-name in ABC docstrings
 - Mock boundaries: HTTP requests, Database connections, File I/O
 - Domain tags: core, api, auth, storage
+- Parallel limit: 3
 ```
 
 ## Step 6: Create a README and Build Skeleton
@@ -209,27 +249,46 @@ Or verify manually:
 - [ ] `AGENTS.md` exists at project root (deployed from `templates/base/AGENTS.md`)
 - [ ] `ARCHITECTURE.md` exists at project root
 - [ ] `.taskrc` exists at project root
-- [ ] `.gitignore` contains `.task/`
+- [ ] `.gitignore` contains `.task/` and `.worktrees/`
 - [ ] `ai-framework/LOGIC.md` exists (copied from framework repo root `LOGIC.md` in Step 1b)
 - [ ] `ai-framework/project-profile.md` exists and is filled in
-- [ ] `plan/templates/` contains 8 template files (milestone, story, requirement, phase-plan, plan-review-feedback, review-feedback, escalation, discovery)
+- [ ] `plan/templates/` contains 9 template files (milestone, epic, story, requirement, phase-plan, plan-review-feedback, review-feedback, escalation, discovery)
+- [ ] `plan/epics/.gitkeep` exists
 - [ ] `taskwarrior/setup.sh` exists and is executable
 - [ ] `taskwarrior/env.sh` exists and is executable
 - [ ] `taskwarrior/tw` exists and is executable
 - [ ] `taskwarrior/recipes.md` exists
+- [ ] `taskwarrior/` contains 23 orchestration scripts (epic, story, phase, lock management)
 - [ ] `.cursor/agents/` contains 22 agent files
 - [ ] `.cursor/rules/ai-framework.mdc` exists
 - [ ] `.cursor/commands/` contains `ai-status.md` and `ai-next.md`
 - [ ] Taskwarrior UDAs are configured: `taskwarrior/tw _udas | grep aiphase`
-- [ ] Project profile is filled in completely
+- [ ] Project profile is filled in completely (including parallel limit)
 
 ## Step 9: First Run
 
+The framework uses an **epic-based parallel execution model**. The hierarchy is:
+
+```
+Milestone (optional) → Epic (parallel) → Stories (serial within epic)
+```
+
+- **Milestones** group related epics and define high-level goals. They are optional for small projects.
+- **Epics** are the unit of parallel work. Each epic gets its own git worktree and branch, allowing multiple epics to execute concurrently without interference.
+- **Stories** within an epic execute serially, each passing through the full phase pipeline (requirements → architecture → implementation → integration testing).
+
+### Starting the Workflow
+
 1. Open your project in Cursor.
 2. Start a new chat and select the **`project-manager`** agent (not a general agent).
-3. Describe your project goals. The PM will discuss them with you and create the first milestone.
-4. The PM will generate the first 2-3 stories, review them, and start executing via the Coordinator.
-5. Watch the pipeline work. Use `/ai-status` to check progress at any time.
+3. Describe your project goals. The PM will discuss them with you and create a milestone (or work without one for small projects).
+4. The PM defines one or more **epics** -- cohesive units of work that can proceed independently. Each epic gets a definition file in `plan/epics/`.
+5. For each epic, the PM generates 2-5 stories that will execute serially within that epic.
+6. The PM **dispatches** an epic: `epic-fork` creates a worktree and branch, and a Coordinator begins executing stories in that worktree.
+7. Multiple epics can run in parallel (up to your configured parallel limit), each in its own worktree with its own Coordinator.
+8. When an epic completes all stories, it is merged back to main via `epic-merge`.
+
+Use `/ai-status` to check progress across all active epics at any time.
 
 > **Critical:** Always use the `project-manager` agent to start work. Never ask a general/default agent to "implement the plan," "run the Coordinator," or write code. A general agent will bypass the framework pipeline and write code directly, skipping requirements, architecture, test-first development, and review -- losing all the traceability and quality gates the framework provides. The always-on rule in `.cursor/rules/ai-framework.mdc` will remind a general agent to redirect you, but using the correct entry point from the start is the most reliable approach.
 >
@@ -239,7 +298,7 @@ Or verify manually:
 
 If you create plan-level todos (e.g. in a Cursor plan file) to track your project execution, phrase them as **human actions**, not framework-internal steps:
 
-- **Good:** "Start `project-manager` agent chat for milestone 01 stories 00001-00003"
+- **Good:** "Start `project-manager` agent chat for epic-01 (authentication)"
 - **Bad:** "Run Coordinator for stories 00001-00003"
 
 The "good" phrasing makes explicit that *you* open a chat with the PM agent. The "bad" phrasing is ambiguous -- a general agent may interpret "run Coordinator" as "produce the output that the Coordinator would produce" and bypass the pipeline entirely.
@@ -252,15 +311,17 @@ If the upstream framework template is updated, you can selectively merge changes
 - `.cursor/agents/` -- compare and merge agent prompt improvements
 - `.cursor/rules/ai-framework.mdc` -- compare and merge rule changes
 - `plan/templates/` -- compare and merge template changes
+- `taskwarrior/` scripts -- compare and merge new or updated orchestration scripts
 
 Preserve during updates:
 - `ai-framework/project-profile.md` -- your project-specific settings
 - `.taskrc` -- contains UDA definitions added by `setup.sh` and `data.location`
 - `taskwarrior/tw` and `taskwarrior/env.sh` -- unless you haven't customized them
 - `.task/` -- never overwrite or delete the Taskwarrior database
+- `.worktrees/` -- active epic worktrees; do not delete while epics are in progress
 - Any agent customizations you've made
 
-After updating templates, re-run `bash taskwarrior/setup.sh` to pick up any new UDAs.
+After updating templates, re-run `bash taskwarrior/setup.sh --main` to pick up any new UDAs.
 
 ## Troubleshooting
 
@@ -276,3 +337,8 @@ After updating templates, re-run `bash taskwarrior/setup.sh` to pick up any new 
 | Coordinator stuck | State machine confusion or stale active state | Run `/ai-next` to inspect state; use manual cleanup only after confirming no agents are active |
 | Escalation recovery stops | Needs product/scope/interface decision or active agent state is unsafe | Check `plan/escalations/` for the recovery report and give the PM direction |
 | Escalation loop | Recurring failures after recovery | Check `plan/escalations/` for reports describing root cause and recovery |
+| `epic-fork` fails | Branch or worktree already exists | Check `git worktree list`; remove stale worktrees with `git worktree remove <path>` |
+| Worktree has stale changes | Epic branch diverged from main | Run `epic-rebase` to update, or resolve conflicts manually |
+| `epic-merge` conflicts | Parallel epics modified same files | Rebase the epic first (`epic-rebase`), resolve conflicts, then retry merge |
+| Multiple Coordinators in same epic | Stale lock from crashed agent | Confirm no agents are running, then run `bash taskwarrior/cleanup-ai-state.sh` |
+| Epic worktree missing after reboot | `.worktrees/` was deleted or moved | Re-run `epic-fork` for affected epics (stories/tasks are preserved in Taskwarrior) |

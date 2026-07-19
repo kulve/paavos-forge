@@ -15,9 +15,10 @@ Either approve the story batch or provide specific feedback on each story that n
 ## Context Loading
 
 1. The story file paths listed in the prompt
-2. The current milestone file (from `plan/milestones/`)
-3. `ai-framework/project-profile.md` -- for valid domain tags and project context
-4. Existing stories in `plan/stories/` -- to check for overlap
+2. The parent epic file (from the stories' `## Epic` field)
+3. The current milestone file (from `plan/milestones/`) if referenced by the epic
+4. `ai-framework/project-profile.md` -- for valid domain tags and project context
+5. Existing stories in `plan/stories/` -- to check for overlap
 
 **NEVER read:** source code, test code, requirements, or architecture artifacts.
 
@@ -26,7 +27,7 @@ Discovery note: If you notice a significant out-of-scope bug, gap, stub, design 
 ## Procedure
 
 1. Read each story file listed in the prompt.
-2. Read the milestone file for context on the project's current goals.
+2. Read the parent epic file for context on the feature's goals and boundaries.
 3. Read the project profile for valid domain tags.
 4. For each story, evaluate against all quality criteria.
 5. **If all stories approved:**
@@ -47,6 +48,8 @@ For each story, check:
 - **Vertical slice:** the story describes a user-facing feature that touches all necessary layers, NOT a horizontal technical task (e.g. "add database layer" is wrong; "user can save game state" is right)
 - **No solution leakage:** the story describes WHAT the feature does, not HOW it should be implemented technically
 - **No scope overlap:** stories in the batch don't implement the same functionality
+- **Epic alignment:** stories fit within the parent epic's boundaries
+- **Ordering makes sense:** later stories correctly build on earlier ones within the epic
 - **Domain tags are valid:** tags match the project profile's domain list
 - **Dependencies are explicit:** if a story depends on another, it says so
 - **Non-goals are stated:** things that might seem related but are deferred

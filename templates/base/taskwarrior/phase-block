@@ -1,0 +1,23 @@
+#!/bin/bash
+# Block a phase task due to escalation: stop, add +blocked, annotate with escalation path.
+# Usage: phase-block <task-id> <escalation-path>
+set -euo pipefail
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/env.sh"
+
+if [ $# -lt 2 ]; then
+    echo "Usage: phase-block <task-id> <escalation-path>"
+    exit 2
+fi
+
+TASK_ID="$1"
+ESCALATION_PATH="$2"
+
+IS_ACTIVE=$(task "$TASK_ID" +ACTIVE count 2>/dev/null || echo "0")
+if [ "$IS_ACTIVE" -gt 0 ]; then
+    task "$TASK_ID" stop
+fi
+
+task "$TASK_ID" modify +blocked
+task "$TASK_ID" annotate "Escalation: ${ESCALATION_PATH}"
+echo "OK: Task $TASK_ID blocked with escalation at ${ESCALATION_PATH}."

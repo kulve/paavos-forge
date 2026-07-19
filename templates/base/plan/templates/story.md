@@ -1,8 +1,8 @@
 # Story XXXXX: [Title]
 
-## Milestone
+## Epic
 
-[Link: plan/milestones/XX-name.md]
+[Link: plan/epics/EXXXX-slug.md]
 
 ## Goal
 
@@ -37,14 +37,14 @@ Do not describe technical approach. Describe observable behavior.]
 
 ## Dependencies
 
-[Other story IDs that must be complete first, or "None"]
+[Other story IDs within this epic that must be complete first, or "None"]
 
 ## Modifies Stories
 
 [Optional. Include only when this story changes or deprecates behavior from earlier stories.
 List old story files and a brief reason. Never edit old story files in place.]
 
-- plan/stories/XXXXX-old-story.md — [brief reason: changes behavior, deprecates feature, etc.]
+- plan/stories/XXXXX-old-story.md -- [brief reason: changes behavior, deprecates feature, etc.]
 
 ## Non-Goals
 

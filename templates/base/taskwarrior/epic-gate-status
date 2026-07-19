@@ -1,0 +1,31 @@
+#!/bin/bash
+# Show merge gate status. Read-only.
+# Usage: epic-gate-status
+set -euo pipefail
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/env.sh"
+
+GATE_ACTIVE=$(task +MERGE_GATE +ACTIVE count 2>/dev/null || echo "0")
+if [ "$GATE_ACTIVE" -gt 0 ]; then
+    echo "Merge Gate: HELD"
+    task +MERGE_GATE export 2>/dev/null | python3 -c "
+import sys, json
+tasks = json.load(sys.stdin)
+if tasks:
+    t = tasks[0]
+    print(f\"  Task ID: {t.get('id', '?')}\")
+    print(f\"  Since: {t.get('start', 'unknown')}\")
+" 2>/dev/null || true
+    # Check which epic is merging
+    MERGING=$(task "epicstate:merging" export 2>/dev/null | python3 -c "
+import sys, json
+tasks = json.load(sys.stdin)
+for t in tasks:
+    print(f\"  Merging epic: {t.get('aiepic', '?')} - {t.get('description', '')}\")
+" 2>/dev/null || true)
+    if [ -n "$MERGING" ]; then
+        echo "$MERGING"
+    fi
+else
+    echo "Merge Gate: FREE"
+fi

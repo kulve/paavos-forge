@@ -1,0 +1,14 @@
+#!/bin/bash
+# Release the PM singleton lock.
+set -euo pipefail
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/env.sh"
+
+PM_ID=$(task +AI_LOCK airole:pm +ACTIVE ids 2>/dev/null | awk '{print $1}')
+if [ -z "$PM_ID" ]; then
+    echo "OK: PM lock not held (nothing to release)."
+    exit 0
+fi
+
+task "$PM_ID" stop
+echo "OK: PM lock released (task $PM_ID)."

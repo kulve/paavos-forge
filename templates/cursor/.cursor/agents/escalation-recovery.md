@@ -20,7 +20,7 @@ Read these files and task records in this order:
 2. `ai-framework/project-profile.md` -- language, directories, build/test commands, forbidden areas
 3. `ARCHITECTURE.md` at the project root, if it exists
 4. The escalation file path from the PM prompt
-5. The blocked Taskwarrior task export from the PM prompt, or `taskwarrior/tw <id> export` if the PM provided only the task ID
+5. The blocked Taskwarrior task export from the PM prompt, or `ccmd bash taskwarrior/tw <id> export` if the PM provided only the task ID
 6. The story file path from the PM prompt
 7. Only the relevant artifacts needed to diagnose the escalation:
    - upstream requirements, architecture artifacts, tests, source, plans, review feedback, or implementation feedback referenced by the escalation or task annotations
@@ -29,8 +29,8 @@ Read these files and task records in this order:
 Before making any edits, run these read-only safety checks:
 
 ```bash
-taskwarrior/tw +AI_LOCK airole:coordinator +ACTIVE count
-taskwarrior/tw +ACTIVE -AI_LOCK count
+ccmd bash taskwarrior/coordinator-lock-status
+ccmd bash taskwarrior/tw +ACTIVE -AI_LOCK count
 ```
 
 Both counts must be `0`. If either count is nonzero, stop with outcome `needs-human`. Do not edit files. The PM is responsible for reporting or cleaning runtime state.
@@ -74,9 +74,9 @@ You must not create new stories, milestones, discoveries, or escalation files. Y
 You may run read-only Taskwarrior queries to inspect the blocked task and safety preflights:
 
 ```bash
-taskwarrior/tw <id> export
-taskwarrior/tw +AI_LOCK airole:coordinator +ACTIVE count
-taskwarrior/tw +ACTIVE -AI_LOCK count
+ccmd bash taskwarrior/tw <id> export
+ccmd bash taskwarrior/coordinator-lock-status
+ccmd bash taskwarrior/tw +ACTIVE -AI_LOCK count
 ```
 
 Do not modify Taskwarrior. The PM owns all recovery state cleanup:
