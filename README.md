@@ -1,11 +1,14 @@
 # AI Execution Framework
 
-A generic template that enables AI agents to autonomously implement large projects from high-level goals. Deploy it into a downstream project, describe what you want to build, and the framework drives epics through requirements, architecture, tests, and implementation -- each phase planned, written, and reviewed by specialized agents. Multiple epics execute in parallel via git worktrees.
+A generic template that enables AI agents to autonomously implement large projects from high-level goals. Your product goals live in **Paavo Notes** (an MCP-served knowledge base); this framework reads those goals and drives them to completion. Deploy it into a downstream project, point it at your Paavo Notes project, and the framework drives epics through requirements, architecture, tests, and implementation -- each phase planned, written, and reviewed by specialized agents. Multiple epics execute in parallel via git worktrees.
+
+Paavo Notes owns *what* to build (product intent). This framework owns *how* it gets built: it caches a pinned execution roadmap in `plan/project.md` and never invents product goals of its own.
 
 ## What It Does
 
-You give a high-level goal (e.g. "implement a multiplayer game"). The framework:
+You define your product goals in **Paavo Notes** (e.g. the vision and features for a multiplayer game). The framework reads those goals via MCP and:
 
+0. Synthesizes an ordered milestone roadmap from your Paavo Notes goals, pinned to a closed version in `plan/project.md`
 1. Organizes work into **epics** (independent feature areas) and **stories** (vertical slices within each epic)
 2. Dispatches each epic to its own **git worktree** for isolated parallel execution
 3. For each story, runs four phases in sequence: **requirements -> architecture -> integration tests -> implementation**
@@ -40,8 +43,9 @@ See [DEPLOY.md](DEPLOY.md) for the full deployment guide. The short version:
 2. Copy root `LOGIC.md` to `ai-framework/LOGIC.md` in your project
 3. Copy `templates/cursor/.cursor/` into your project root
 4. Run `bash taskwarrior/setup.sh --main` to configure PM-level Taskwarrior state
-5. Fill in `ai-framework/project-profile.md` with your project's details
-6. Start a chat with the `project-manager` agent
+5. Fill in `ai-framework/project-profile.md` with your project's details, including the Paavo Notes project name and MCP endpoint
+6. Register the Paavo Notes MCP in Cursor and confirm it's reachable (your product goals must already live there in a closed version)
+7. Start a chat with the `project-manager` agent -- on first run it reads your Paavo Notes goals and synthesizes `plan/project.md`
 
 ## Architecture
 
