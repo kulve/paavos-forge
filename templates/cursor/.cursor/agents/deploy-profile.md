@@ -31,6 +31,7 @@ Produce a fully filled-in `ai-framework/project-profile.md` with no remaining `[
    - Test commands (integration, full suite, lint/typecheck)
    - Architecture conventions (artifact type, traceability syntax)
    - Mock boundaries (what may be mocked)
+   - Verification tooling (internal-state inspection convention; UI kind of web/game/TUI/none; and if a UI exists, how to launch/drive/screenshot named states and where screenshots are written)
    - Review standards (project-specific quality rules)
    - Forbidden (project-specific items; leave the framework write gates unchanged)
    - Domain tags (valid requirement categories)

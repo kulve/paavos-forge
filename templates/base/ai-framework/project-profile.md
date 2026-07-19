@@ -39,6 +39,40 @@ Only mock these system boundaries in tests:
 
 Do NOT mock internal collaborators.
 
+## Verification Tooling
+
+This section guides the implementation agent's self-verification during the impl phase. The tooling described here is real code the implementation agent builds and runs while implementing a story -- it is distinct from the frozen shift-left integration tests. Keep entries concrete and deterministic so a weak model can rely on them.
+
+### Internal State Inspection
+
+How the app exposes a deterministic, read-only snapshot/query of internal state for verification:
+
+- [e.g. "Core exposes `World::snapshot()` returning a value struct of entity/component state"]
+- [e.g. "Python: a `state()` dataclass on the top-level service"]
+- [e.g. "Web: a Redux/store selector, or `data-testid`-addressable DOM state"]
+
+Rules:
+- The inspection surface must be **derived from real runtime state**, never a parallel bookkeeping field the implementation updates by hand.
+- It must be read-only and side-effect free.
+
+### UI Kind
+
+- UI kind: [one of: web / game / TUI / none]
+
+If `none`, the visual verification step is not applicable; the implementation agent skips screenshots and verifies via state inspection and scenario checks only. Do not invent screenshots for a library or CLI.
+
+### UI Harness (only if UI kind is not `none`)
+
+How to launch the app in a drivable mode, drive it into a named state, and capture a screenshot to a file path:
+
+- Launch/drive command: [e.g. "Playwright: `npx playwright test --project=chromium`", or a game debug hook `./game --screenshot <state-name> <out.png>`]
+- Named states to capture: [e.g. "main-menu, in-play, game-over" -- the states referenced by story visual acceptance criteria]
+- Screenshot output path: [e.g. `tmp/verify/<state-name>.png`]
+
+Rules:
+- Setup for each named state must be **deterministic/seeded** so a screenshot is a stable oracle (no random layout, no wall-clock-dependent content).
+- Screenshot artifacts belong in a scratch/ignored directory, not committed.
+
 ## Review Standards
 
 - [e.g. "All public functions must have error handling for invalid inputs"]

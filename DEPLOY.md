@@ -177,6 +177,11 @@ You can fill this in by hand, or open a chat with the `deploy-profile` agent, wh
 - What may be mocked in tests? (e.g. file I/O, network, hardware)
 - Everything else must use real objects.
 
+**Verification Tooling:**
+- How does the app expose a deterministic, read-only snapshot of internal state for verification? (e.g. `World::snapshot()`, a `state()` dataclass, a store selector)
+- What is the UI kind? (web / game / TUI / none)
+- If it has a UI: how to launch/drive it to a named state and capture a screenshot, which named states to capture, and where screenshots are written. This lets the implementation agent self-verify behavior and visuals while building.
+
 **Review Standards:**
 - Any project-specific quality requirements? (e.g. "no raw pointers", "all functions documented")
 

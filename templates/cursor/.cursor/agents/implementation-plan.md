@@ -37,6 +37,7 @@ Produce a plan that specifies which files to create/modify, the implementation a
    - How to handle error cases from requirements
    - Expected order of implementation to get tests passing incrementally
    - Build steps to verify compilation
+   - **Verification tooling** the Write agent will build and use to self-verify (see the project profile's "Verification Tooling" section): the internal-state inspection surface, any scenario-driver helpers, and -- for UI stories -- how to drive named states and capture screenshots. List these files/paths and the named UI states to capture (from the story's Visual Acceptance Criteria). If the project profile declares UI kind `none`, skip the screenshot tooling.
 8. Write (or revise) the plan to `plan/implementation-plans/XXXXX-slug.md`.
 9. Annotate: `ccmd bash taskwarrior/phase-annotate <id> Plan plan/implementation-plans/XXXXX-slug.md`
 10. Advance: `ccmd bash taskwarrior/phase-transition <id> plan-review`
@@ -59,6 +60,7 @@ ccmd bash taskwarrior/phase-transition <id> plan-review
 - Plan addresses error handling from requirements
 - Plan specifies a concrete order of implementation
 - Plan includes build/test verification commands
+- Plan identifies the verification tooling to build (state inspection, scenario driver, and screenshots for UI stories) per the project profile
 - Plan is actionable (the Write agent can follow it step by step)
 
 ## Anti-Patterns (NEVER DO)

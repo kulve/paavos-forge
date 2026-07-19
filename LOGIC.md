@@ -481,6 +481,8 @@ Shift-left tests written BEFORE implementation. They enforce interface contracts
 - Never mock internal collaborators
 - Tests must compile/parse against the architecture artifacts even before implementation exists
 
+These frozen contract tests are distinct from the **verification tooling** the implementation agent builds and runs during the impl phase (state inspection, scenario checks, screenshot capture -- see Section 13.2). Contract tests constrain the implementation up front; verification tooling lets the implementation agent confirm the feature actually works while building it.
+
 ### 10.7 Phase Plans (`plan/*-plans/XXXXX-slug.md`)
 
 Written by Plan agents. Specify what the Write agent should do: which files to create/modify, the approach, risks, and verification steps.
@@ -605,6 +607,11 @@ Implementation agents must never:
 - Add dependencies not justified by requirements
 - Silently deviate from the architecture
 
+Implementation agents must also self-verify before review. Beyond passing the frozen integration tests, the implementation agent builds and runs **verification tooling** (defined by the project profile's "Verification Tooling" section) to confirm the feature actually works:
+- Verify acceptance-criteria scenarios via a read-only internal-state inspection surface (snapshot -> act -> snapshot -> assert the observable delta). The inspection surface must be derived from real runtime state, never a hand-maintained parallel field.
+- For projects with a UI, verify each Visual Acceptance Criterion by driving the app to a named state, capturing a screenshot, and reasoning about the image with the agent's own vision. Verifying screenshots with image-processing scripts (histograms, pixel/color counts) does not count as visual verification.
+- The implementation-review agent independently re-runs these checks; it must not approve verifiable behavior or visuals on code-reading alone.
+
 ### 13.3 Domain Dependency Compliance
 
 All architecture artifacts and implementation source files must respect the dependency DAG defined in `ARCHITECTURE.md`.
@@ -624,6 +631,7 @@ The framework is designed to be extended via the project profile. Downstream pro
 - **Test commands**: integration tests, full suite, lint/typecheck
 - **Architecture conventions**: what architecture artifacts look like
 - **Mock boundaries**: what may be mocked in tests
+- **Verification tooling**: UI kind, the UI harness (launch/drive/screenshot commands), and internal-state inspection conventions used by the implementation agent to self-verify
 - **Review standards**: project-specific quality requirements
 - **Forbidden areas**: directories and actions agents must never touch
 - **Domain tags**: valid categories for organizing requirements

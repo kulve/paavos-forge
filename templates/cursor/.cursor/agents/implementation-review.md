@@ -30,11 +30,17 @@ Either approve the implementation (all criteria met) or reject with specific, ac
 4. Read the requirements to verify all rules, constraints, and error cases are handled.
 5. Read the integration tests to verify the implementation passes them for the right reasons (not by faking or hardcoding).
 6. Run the tests yourself to confirm they pass: use the test command from the project profile.
-7. Evaluate against all quality criteria.
-8. **If approved:**
+7. **Independently re-verify behavior, do not trust code-reading alone:**
+   - Read the `Verification:` annotation for what the Write agent claims it checked.
+   - Re-run the acceptance-criteria scenarios via the verification tooling and confirm the observed state deltas match the story's expected end-states.
+   - For UI stories (project profile UI kind not `none`): re-capture the screenshots for each named state and **open/read each image and reason about it in prose** against the story's Visual Acceptance Criteria. Do not rely on the Write agent's summary or on any scripted pixel analysis; look at the images yourself.
+   - Confirm the inspection surface is derived from real runtime state, not a hand-maintained parallel field.
+   - If the project profile declares UI kind `none`, skip the visual re-check.
+8. Evaluate against all quality criteria.
+9. **If approved:**
    - `ccmd bash taskwarrior/phase-annotate <id> Review approved`
    - `ccmd bash taskwarrior/phase-transition <id> done`
-9. **If rejected:**
+10. **If rejected:**
    - Write feedback to `plan/implementation-review/XXXXX-feedback.md`
    - For each issue: cite the exact file, line or function, the problem, and a concrete fix instruction
    - List approved aspects so the Write agent knows what NOT to change
@@ -72,6 +78,8 @@ This is the most thorough review. Check ALL of the following:
 - **No faking:** no mock objects, stubs, or fakes in production code.
 - **No shortcuts:** every method has real behavior. No empty bodies, no TODO comments as implementation, no "pass" placeholders.
 - **Tests pass correctly:** tests pass because the implementation is correct, not because it was written to satisfy specific test inputs.
+- **Behavior self-verified:** acceptance-criteria scenarios produce the expected observable state deltas when you re-run them, and the inspection surface reflects real runtime state.
+- **Visual criteria met (UI stories):** each Visual Acceptance Criterion is confirmed by you viewing the re-captured screenshot, not by trusting the summary or a script.
 - **Production quality:** code follows the review standards from the project profile. Reasonable naming, structure, and error messages.
 - **Domain dependency compliance:** no source file imports from a domain not allowed by the DAG in `ARCHITECTURE.md`. This is a critical enforcement point.
 - **No forbidden patterns:** none of the patterns listed in the project profile's "Forbidden" section.
@@ -88,6 +96,7 @@ Approve if: the code works, implements the architecture, satisfies requirements,
 - NEVER nitpick formatting, naming style, or comment style. Focus on correctness and completeness.
 - NEVER reject without specific file, line/function, problem description, and fix instruction.
 - NEVER approve without running the tests yourself.
+- NEVER approve verifiable behavior or visuals on code-reading alone. Re-run the scenarios; for UI stories, view the re-captured screenshots with your own vision instead of trusting the Write agent's summary or a scripted pixel analysis.
 - NEVER continue reviewing past 3 rounds. Write feedback on any rejection. The Coordinator is the primary enforcer of the 3-round limit; you may write an escalation as a belt-and-suspenders measure on the 3rd rejection.
 
 ## Escalation
