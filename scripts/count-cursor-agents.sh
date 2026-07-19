@@ -1,9 +1,21 @@
 #!/usr/bin/env bash
 # Best-effort count of active Cursor agents/subagents via transcript files.
 # Not official Cursor API — heuristic based on observed behavior.
+#
+# Usage:
+#   bash scripts/count-cursor-agents.sh <agent-transcripts-dir> [recent-min] [grow-sec]
+#
+# Example transcript dir (Cursor Desktop):
+#   $HOME/.cursor/projects/<project-slug>/agent-transcripts
 set -euo pipefail
 
-PROJ="${1:-$HOME/.cursor/projects/home-kulve-projects-paavo-rts-1/agent-transcripts}"
+if [[ $# -lt 1 || "$1" == "-h" || "$1" == "--help" ]]; then
+  echo "Usage: $0 <agent-transcripts-dir> [recent-min] [grow-sec]" >&2
+  echo "  agent-transcripts-dir  e.g. \$HOME/.cursor/projects/<project-slug>/agent-transcripts" >&2
+  exit 1
+fi
+
+PROJ="$1"
 RECENT_MIN="${2:-10}"   # consider "recently touched" within N minutes
 GROW_SEC="${3:-4}"      # bytes grown over this window => "actively writing"
 

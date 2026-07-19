@@ -5,3 +5,7 @@
 
 # Cursor IDE local config at repo root only (not deployable templates)
 /.cursor/
+
+# Local Taskwarrior / worktree state (never commit)
+.task/
+.worktrees/
