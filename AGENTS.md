@@ -55,6 +55,8 @@ This template must work for C++, Python, TypeScript, and other languages. When m
 - Use "architecture artifacts" instead of "headers" in generic contexts
 - Test your changes mentally against at least C++ and Python use cases
 
+**Exception -- Paavo Notes:** This framework intentionally couples to Paavo Notes as the hard dependency for product intent (MCP knowledge source). Naming Paavo Notes in `LOGIC.md`, agent prompts, the project profile, and deployment docs is allowed and required. Do not "genericize" that coupling away unless the user explicitly requests it. Still do not hardcode MCP tool names/signatures -- agents discover them via MCP.
+
 ### Keep Templates and Docs Consistent
 
 Agent prompts reference artifact templates, Taskwarrior recipes, and LOGIC.md sections. When updating any of these:
@@ -65,12 +67,14 @@ Agent prompts reference artifact templates, Taskwarrior recipes, and LOGIC.md se
 
 ### No Project-Specific Leakage
 
-Never add content that assumes a specific downstream project. This includes:
+Never add content that assumes a specific *downstream application* project. This includes:
 
-- Specific class names, module names, or API endpoints
+- Specific class names, module names, or API endpoints of a deployed product
 - Specific test frameworks (always reference "the test framework from the project profile")
 - Specific build commands (always reference "the build command from the project profile")
 - Hardcoded directory paths (always reference "the directory from the project profile")
+
+Paavo Notes as the product-intent knowledge source is a framework dependency, not leakage (see Preserve Genericity exception above).
 
 ## Script Protocol (`taskwarrior/`)
 
@@ -98,7 +102,7 @@ templates/base/                            # Copied to downstream project root
   .gitignore                               # Ignores .task/, .worktrees/, build/
   ai-framework/project-profile.md          # Filled by deploying user
   ai-framework/README.md                   # Notes that LOGIC.md is copied at deploy time
-  plan/templates/*.md                      # 9 artifact templates (incl. epic.md)
+  plan/templates/*.md                      # 10 artifact templates (incl. project.md, epic.md)
   plan/epics/.gitkeep                      # Epic artifacts directory
   taskwarrior/setup.sh                     # UDA setup (--main / --worktree modes)
   taskwarrior/env.sh                       # Sets TASKRC, creates .task/
@@ -112,7 +116,7 @@ templates/base/                            # Copied to downstream project root
   taskwarrior/coordinator-lock-*           # Coordinator lock scripts (3)
 
 templates/cursor/.cursor/                  # Copied to downstream .cursor/
-  agents/*.md                              # 22 agent prompts
+  agents/*.md                              # 23 agent prompts (incl. roadmap-planner)
   rules/ai-framework.mdc                   # Always-on rules
   commands/*.md                            # Slash commands
 

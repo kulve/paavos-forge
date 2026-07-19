@@ -15,13 +15,17 @@ Either approve the requirements (all criteria met) or reject with specific, acti
 ## Context Loading
 
 1. Read the story file (path provided in prompt)
-2. `ARCHITECTURE.md` at the project root -- to verify domain correctness and dependency compliance
-3. Read all requirement files linked to this story via task annotations (look for `Artifact:` annotations)
-4. If annotations are incomplete, search `plan/requirements/` for files that mention this story's ID
+2. `plan/project.md` -- pinned Paavo Notes project id and closed version
+3. `ARCHITECTURE.md` at the project root -- to verify domain correctness and dependency compliance
+4. Read all requirement files linked to this story via task annotations (look for `Artifact:` annotations)
+5. If annotations are incomplete, search `plan/requirements/` for files that mention this story's ID
+6. Optionally Paavo Notes (via MCP) at the **pinned closed version** -- read-only, to verify requirements trace to product intent. Discover tools on the fly. Do not post open questions unless recording a blocking product-intent gap.
 
-**NEVER read:** source code, header files, test code, architecture artifacts.
+**NEVER read:** source code, header files, test code, architecture artifacts (except `ARCHITECTURE.md` as listed above).
 
-Discovery note: If you notice a significant out-of-scope bug, gap, stub, design flaw, or risk, write one new file under `plan/discoveries/` using `plan/templates/discovery.md`, then continue your assigned task. Never read, list, search, modify, deduplicate, or delete existing discovery files.
+If the Paavo Notes MCP is unreachable when you need it for verification: escalate.
+
+Discovery note: If you notice a significant out-of-scope bug, gap, stub, design flaw, or risk in code/impl, write one new file under `plan/discoveries/` using `plan/templates/discovery.md`, then continue your assigned task. Never read, list, search, modify, deduplicate, or delete existing discovery files.
 
 ## Procedure
 

@@ -1,5 +1,13 @@
 # Milestone XX: [Name]
 
+## Project
+
+[Link: plan/project.md -- this milestone must be traceable to a roadmap entry]
+
+## Status
+
+[Done | In Progress | TODO]
+
 ## Vision
 
 [2-3 sentences: what the project looks like when this milestone is done]

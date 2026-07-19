@@ -8,6 +8,8 @@ This document is the single source of truth for the AI execution framework. All 
 
 This framework enables AI agents to autonomously implement large projects from high-level goals. It relies on:
 
+- **Line-of-sight Project layer**: a mandatory project roadmap (`plan/project.md`) pins product goals from Paavo Notes and orders milestones from now to product completion
+- **External product intent**: Paavo Notes owns product goals (versioned knowledge base); the framework caches a pinned execution roadmap locally and never invents product intent
 - **Strict isolation of concerns**: each agent has a narrow role and limited context
 - **Explicit state management**: Taskwarrior owns execution state, not filesystem layout
 - **Parallel epic execution**: independent epics run in isolated git worktrees; stories within an epic execute serially
@@ -16,7 +18,7 @@ This framework enables AI agents to autonomously implement large projects from h
 - **Single active subagent per worktree**: at most one Taskwarrior task may be `+ACTIVE` at any time within a given worktree; the Coordinator enforces this via scripts
 - **Top-level singleton locks**: only one PM may run at any time (global); only one Coordinator may run per worktree
 
-The framework is optimized for C++ projects but supports other languages (Python, TypeScript, etc.) through the project profile.
+The framework is optimized for C++ projects but supports other languages (Python, TypeScript, etc.) through the project profile. Paavo Notes is a hard dependency for product intent (see Section 16).
 
 ---
 
@@ -24,19 +26,25 @@ The framework is optimized for C++ projects but supports other languages (Python
 
 ### 2.1 Project Manager (PM)
 
-The top-level orchestrator. Talks to the user, defines milestones, creates epics, generates stories in rolling batches, and dispatches epics to worktrees for parallel execution. The PM never touches code. Operates in the main project tree.
+The top-level orchestrator. Talks to the user, owns `plan/project.md`, derives milestones from the project roadmap, creates epics, generates stories in rolling batches, and dispatches epics to worktrees for parallel execution. The PM never touches code. Operates in the main project tree. The PM may read Paavo Notes (via MCP) for project goals and may post open questions; it does not invent product intent.
 
 ### 2.2 Coordinator
 
-A deterministic state machine that drives all stories within a single epic through all four phases. The Coordinator is not creative -- it reads Taskwarrior state via scripts, decides which subagent to invoke next, and halts on escalations. It never reads code or artifact content directly. It invokes exactly one subagent at a time. Operates within an epic's worktree.
+A deterministic state machine that drives all stories within a single epic through all four phases. The Coordinator is not creative -- it reads Taskwarrior state via scripts, decides which subagent to invoke next, and halts on escalations. It never reads code or artifact content directly. It never accesses Paavo Notes. It invokes exactly one subagent at a time. Operates within an epic's worktree.
 
 ### 2.3 Phase Agents
 
 Sixteen specialized agents (4 phases x 4 states: plan, plan-review, write, review) that produce and verify artifacts. Each has a narrow context window and strict input/output contracts. Plan-review agents verify plans before execution begins; review agents verify the artifacts produced by write agents.
 
+**Paavo Notes access**: only the four requirements-phase agents may read Paavo Notes (and requirements-plan/write may post open questions). Architecture, integration-test, and implementation agents must never access Paavo Notes.
+
 ### 2.4 Support Agents
 
-Story Review, Escalation Analysis, and Escalation Recovery agents that assist the PM and Coordinator with quality assurance, failure diagnosis, and bounded automatic recovery.
+Story Review, Escalation Analysis, Escalation Recovery, and Roadmap Planner agents that assist the PM and Coordinator with quality assurance, failure diagnosis, bounded automatic recovery, and project roadmap synthesis.
+
+### 2.4.1 Roadmap Planner
+
+A PM-invoked support agent that synthesizes or revises `plan/project.md` from Paavo Notes product goals. It runs at project init and at post-milestone re-evaluation (when the PM asks for a roadmap rewrite). It proposes an end-to-end milestone roadmap with rolling detail (near milestones detailed, far milestones brief), discusses refinements with the user/PM, then writes the project file pinning a Paavo Notes project id and closed version. It is not part of the Coordinator's dispatch table.
 
 ### 2.5 Escalation Recovery
 
@@ -67,11 +75,14 @@ ccmd bash taskwarrior/cleanup-ai-state.sh --apply
 ### 3.1 Hierarchy
 
 ```
-Milestone (optional)
-└── Epic (parallel execution, one worktree per epic)
-    └── Story (serial execution within epic)
-        └── Phase tasks (req → arch → test → impl)
+Project (mandatory: plan/project.md — pins Paavo Notes version + milestone roadmap)
+└── Milestone (derived from roadmap; Status: Done | In Progress | TODO)
+    └── Epic (parallel execution, one worktree per epic)
+        └── Story (serial execution within epic)
+            └── Phase tasks (req → arch → test → impl)
 ```
+
+The Project layer is mandatory. Milestones are no longer optional standalone starting points: every milestone must be traceable to an entry in `plan/project.md`. A milestone may still group multiple epics for release planning.
 
 ### 3.2 Epic States (tracked in main tree Taskwarrior)
 
@@ -161,52 +172,61 @@ The Coordinator reads these annotations (via `story-next` script output) to cons
 
 ## 4. PM Loop (Parallel Epic Dispatch)
 
-The PM operates in the main project tree. It defines epics and dispatches them for parallel execution.
+The PM operates in the main project tree. It owns the project roadmap, defines milestones from that roadmap, and dispatches epics for parallel execution.
 
-1. **Milestone definition** (optional): PM writes `plan/milestones/XX-name.md` containing high-level goals, epic list, boundaries, and done criteria. PM discusses goals with user in chat; important decisions are captured in the milestone file.
+0. **Paavo Notes hard dependency**: Before any planning or execution work, the PM verifies the Paavo Notes MCP is reachable (using Cursor MCP discovery / a lightweight tool call). If unreachable, the PM stops all framework work and reports to the user. This is a hard stop -- already-planned work must not continue while product intent is unavailable. See Section 16.
 
-2. **Epic definition**: PM writes `plan/epics/EXXXX-slug.md` containing goal, boundaries, ordered story list, done criteria, and epic dependencies. Epics are coherent feature areas that can execute independently.
+1. **Project init**: If `plan/project.md` does not exist, the PM invokes the `roadmap-planner` subagent (foreground, human-in-loop). The planner synthesizes a milestone roadmap from Paavo Notes and writes `plan/project.md`, pinning the Paavo Notes project id and a closed version. The PM discusses refinements with the user, then commits `plan/project.md` to `main`. Project init must complete before any milestone is created.
 
-3. **Story generation**: PM reads the epic, existing stories, and codebase README, then writes the next 2-3 stories to `plan/stories/XXXXX-slug.md`. Stories are vertical feature slices, not horizontal technical layers. When new behavior conflicts with or replaces behavior from an earlier story, the new story must include a **Modifies Stories** section.
+2. **Milestone definition**: PM writes `plan/milestones/XX-name.md` for the current In-Progress (or next TODO) roadmap entry. The milestone must be traceable to `plan/project.md`. It contains high-level goals, epic list, boundaries, Status, and done criteria. Important decisions from chat are captured in the milestone file. Mark the matching roadmap entry In Progress; at most one milestone is In Progress at a time.
 
-4. **Story review**: PM invokes the story-review subagent for the batch. PM addresses feedback by updating story files directly.
+3. **Epic definition**: PM writes `plan/epics/EXXXX-slug.md` containing goal, boundaries, ordered story list, done criteria, and epic dependencies. Epics are coherent feature areas that can execute independently.
 
-5. **Epic dispatch**: PM runs the preflight check and forks the epic:
+4. **Story generation**: PM reads the epic, existing stories, and codebase README, then writes the next 2-3 stories to `plan/stories/XXXXX-slug.md`. Stories are vertical feature slices, not horizontal technical layers. When new behavior conflicts with or replaces behavior from an earlier story, the new story must include a **Modifies Stories** section.
+
+5. **Story review**: PM invokes the story-review subagent for the batch. PM addresses feedback by updating story files directly.
+
+6. **Epic dispatch**: PM runs the preflight check and forks the epic:
    ```
    ccmd bash taskwarrior/pm-preflight
    ccmd bash taskwarrior/epic-fork EXXXX slug
    ```
-   The fork script checks the merge gate, creates the worktree, initializes Taskwarrior, and registers the epic.
+   The fork script checks the merge gate, creates the worktree, initializes Taskwarrior, and registers the epic. Preflight for the PM also includes the Paavo Notes reachability check from step 0.
 
-6. **Coordinator invocation**: PM launches a Coordinator subagent with `working_directory` set to the epic's worktree path. The Coordinator may run in background (`run_in_background: true`) to allow the PM to dispatch additional epics.
+7. **Coordinator invocation**: PM launches a Coordinator subagent with `working_directory` set to the epic's worktree path. The Coordinator may run in background (`run_in_background: true`) to allow the PM to dispatch additional epics.
 
-7. **Parallel dispatch**: PM may repeat steps 2-6 for additional independent epics. Multiple epics execute simultaneously in their own worktrees.
+8. **Parallel dispatch**: PM may repeat steps 3-7 for additional independent epics. Multiple epics execute simultaneously in their own worktrees.
 
-8. **Monitoring**: PM periodically checks status:
+9. **Monitoring**: PM periodically checks status:
    ```
    ccmd bash taskwarrior/epic-status
    ccmd bash taskwarrior/pm-preflight
    ```
 
-9. **Epic completion**: When a Coordinator signals that all stories are done (epic becomes merge-ready):
-   ```
-   ccmd bash taskwarrior/epic-mark-ready EXXXX
-   ```
+10. **Epic completion**: When a Coordinator signals that all stories are done (epic becomes merge-ready):
+    ```
+    ccmd bash taskwarrior/epic-mark-ready EXXXX
+    ```
 
-10. **Merge**: PM merges completed epics to main:
+11. **Merge**: PM merges completed epics to main:
     ```
     ccmd bash taskwarrior/epic-merge EXXXX
     ```
     If exit 1 (gate blocked): another merge in progress, wait and retry.
     If exit 2 (conflict): report to user, suggest `epic-rebase`.
 
-11. **Re-evaluation**: After epic merge, PM re-reads the codebase and milestone file. If milestone goals are met, PM performs discovery triage before discussing the next milestone with the user.
+12. **Re-evaluation**: After epic merge, PM re-reads the milestone file and `plan/project.md`. If milestone done criteria are met:
+    - Mark the milestone Status Done (immutable history) in both the milestone file and the roadmap entry in `plan/project.md`
+    - Perform discovery triage (step 15)
+    - Advance the next TODO roadmap entry to In Progress, or rewrite/reorder remaining TODO milestones (optionally re-invoke `roadmap-planner`) based on Paavo Notes and user direction
+    - If the product Definition of Done in `plan/project.md` is met, declare the product complete
+    - **Version migration**: if Paavo Notes has a newer closed version the user wants to adopt, the PM re-pins `plan/project.md` to the new version, scopes changes via the MCP per-step change/diff tools (one call per version step), and inserts one or more **migration milestones** (Status TODO / In Progress as appropriate) before continuing normal roadmap work
 
-12. **Git for planning artifacts**: PM commits milestone, epic, and story files to `main` directly, before dispatching the epic.
+13. **Git for planning artifacts**: PM commits project, milestone, epic, and story files to `main` directly, before dispatching the epic.
 
-13. **Escalation received**: When a Coordinator returns due to escalation, PM reads the escalation file, verifies the Coordinator lock is inactive (via worktree status), then invokes `escalation-recovery` in foreground within the epic's worktree. If recovery succeeds, PM clears the resolved escalation state via scripts and launches a fresh Coordinator for the same epic.
+14. **Escalation received**: When a Coordinator returns due to escalation, PM reads the escalation file, verifies the Coordinator lock is inactive (via worktree status), then invokes `escalation-recovery` in foreground within the epic's worktree. If recovery succeeds, PM clears the resolved escalation state via scripts and launches a fresh Coordinator for the same epic.
 
-14. **Discovery triage**: Once a milestone is otherwise complete (all epics merged), the PM reads `plan/discoveries/`, groups findings, writes `plan/discoveries/triage-XX.md`, and summarizes proposed handling for the user.
+15. **Discovery triage**: Once a milestone is otherwise complete (all epics merged), the PM reads `plan/discoveries/`, groups findings, writes `plan/discoveries/triage-XX.md`, and summarizes proposed handling for the user. Product-intent gaps that belong in Paavo Notes are surfaced as open questions there (Section 16), not as local discoveries.
 
 ---
 
@@ -309,7 +329,7 @@ The Coordinator drives all stories within a single epic through all four phases.
 - **Commit after each reviewed phase**: `git commit -am "phase(req): XXXXX"`, `phase(arch): XXXXX`, `phase(test): XXXXX`, `phase(impl): XXXXX`.
 - **Squash-merge story to epic branch**: when all four phases are done and tests pass.
 - **Squash-merge epic to main**: when all stories are done, via `epic-merge` with merge gate.
-- **Planning artifacts on main**: PM commits milestone, epic, and story files to `main` directly.
+- **Planning artifacts on main**: PM commits project, milestone, epic, and story files to `main` directly.
 - **No automatic rollback on escalation**: escalations halt the Coordinator and return control to the PM; git state is preserved for recovery.
 
 ---
@@ -391,7 +411,7 @@ The project profile may specify a recommended concurrency limit.
 
 Escalations halt Coordinator work and surface the problem to the PM. The PM may attempt one bounded automatic recovery only after proving that no Coordinator or phase subagent is still active.
 
-1. **Trigger**: a subagent hits an impossible constraint, a contradiction it cannot resolve, or the Coordinator detects the 3rd plan-review or review rejection for the same phase.
+1. **Trigger**: a subagent hits an impossible constraint, a contradiction it cannot resolve, the Coordinator detects the 3rd plan-review or review rejection for the same phase, the Paavo Notes MCP is unreachable when required, or a product-intent gap cannot be resolved from the pinned Paavo Notes version (blocking). Non-blocking product-intent gaps may instead be posted as open questions to Paavo Notes (Section 16) without escalating.
 
 2. **Report**: the subagent (or Coordinator on reject limit) writes `plan/escalations/XXXXX-phase-slug.md` using the escalation template, annotates the task with `Escalation: <path>`, and exits immediately. The subagent does not continue working after writing the escalation.
 
@@ -417,15 +437,19 @@ Escalations halt Coordinator work and surface the problem to the PM. The PM may 
 
 7. **Resume**: PM launches a fresh Coordinator for the same epic in foreground. The Coordinator picks up from the restored task state.
 
-8. **Human stop conditions**: PM stops and asks the user when recovery requires changing story intent, widening acceptance criteria, changing public interfaces, adding dependencies, creating or skipping stories, skipping phases, clearing stale/duplicate locks, clearing orphaned active phase tasks, or resolving the same root cause repeatedly.
+8. **Human stop conditions**: PM stops and asks the user when recovery requires changing story intent, widening acceptance criteria, changing public interfaces, adding dependencies, creating or skipping stories, skipping phases, clearing stale/duplicate locks, clearing orphaned active phase tasks, resolving the same root cause repeatedly, or adopting a new Paavo Notes version / rewriting product goals.
 
 ---
 
 ## 10. Artifact Definitions
 
+### 10.0 Projects (`plan/project.md`)
+
+Mandatory living document owned by the PM (produced by the Roadmap Planner). Pins the Paavo Notes project identity and a closed integer version, states the product vision and product-level Definition of Done, and lists an ordered milestone roadmap. Each roadmap entry has Status `Done` (immutable), `In Progress` (at most one), or `TODO` (freely rewritable on re-evaluation). Near milestones are detailed; far milestones may be brief bullets. Includes a Version Migration Log when the pinned Paavo Notes version changes.
+
 ### 10.1 Milestones (`plan/milestones/XX-name.md`)
 
-High-level planning documents. Contain vision, goals, boundaries, epic list, and done criteria. Updated by the PM as epics are generated and completed.
+High-level planning documents derived from the project roadmap. Contain a backlink to `plan/project.md`, Status (`Done` / `In Progress` / `TODO`), vision, goals, boundaries, epic list, and done criteria. Updated by the PM as epics are generated and completed. **Migration milestones** are a special kind used when adopting a newer Paavo Notes version: their scope is the product-intent delta between the old and new pinned versions (scoped via MCP per-step change/diff tools).
 
 ### 10.2 Epics (`plan/epics/EXXXX-slug.md`)
 
@@ -607,8 +631,9 @@ The framework is designed to be extended via the project profile. Downstream pro
 - **Forbidden areas**: directories and actions agents must never touch
 - **Domain tags**: valid categories for organizing requirements
 - **Parallel limit**: recommended maximum concurrent epics
+- **Paavo Notes MCP**: endpoint URL (Cursor MCP registration) and Paavo Notes project name/id. The pinned closed version lives in `plan/project.md`, not the profile.
 
-Agent prompts read the project profile to adapt their behavior. The core workflow (phases, states, script protocol, git policy) remains fixed.
+Agent prompts read the project profile to adapt their behavior. The core workflow (phases, states, script protocol, git policy) remains fixed. Paavo Notes is a hard dependency of this framework (see Section 16); it is not a generic swappable knowledge-source plug-in.
 
 ---
 
@@ -625,3 +650,48 @@ Discoveries preserve important out-of-scope observations without derailing the c
 4. **Continue current task**: after writing the discovery, the subagent continues its assigned task.
 
 5. **PM triage**: once a milestone is otherwise complete, the PM reads all files in `plan/discoveries/`, groups duplicates, writes `plan/discoveries/triage-XX.md`, and summarizes proposed handling for the user.
+
+**Discoveries vs open questions**: local discoveries capture code/implementation findings that belong in the repo. Product-intent gaps (unclear goals, missing product rules, ambiguous user-facing behavior) belong in Paavo Notes as open questions (Section 16), not as discovery files.
+
+---
+
+## 16. Project Knowledge Source Protocol (Paavo Notes)
+
+Product intent lives in Paavo Notes. The framework caches a pinned execution roadmap in `plan/project.md`. Agents discover MCP tool names and signatures via Cursor's MCP tool listing -- this specification does **not** hardcode tool APIs.
+
+### 16.1 Hard dependency
+
+The Paavo Notes MCP is required for all framework work. If it is unreachable, the PM hard-stops (Section 4 step 0) and requirements agents escalate. Do not invent product goals or continue execution while product intent is unavailable.
+
+### 16.2 Identity and pinning
+
+- The project profile names the Paavo Notes project (name and/or id) and how the MCP is registered in Cursor.
+- `plan/project.md` pins the Paavo Notes `project_id` and a **closed integer version**.
+- Every Paavo Notes read for a given project run uses that single pinned closed version. Do not query the open/live version. Do not silently switch versions mid-milestone.
+
+### 16.3 Intent-level retrieval (agents select tools on the fly)
+
+Agents that may access Paavo Notes pursue these outcomes, choosing appropriate MCP tools themselves:
+
+1. Discover/resolve the project by the name/id from the profile.
+2. Confirm or select a closed (published/frozen) version; pin it in `plan/project.md` when creating or migrating the roadmap.
+3. Read the project overview and domain structure; search for relevant topics; fetch specific articles as needed.
+4. For version migration: use per-step change/diff tools (one step per version bump for multi-version jumps), then fetch article bodies for changed items as needed.
+
+### 16.4 Who may access Paavo Notes
+
+- **Allowed**: PM, Roadmap Planner, and the four requirements-phase agents (plan, plan-review, write, review).
+- **Forbidden**: Coordinator, architecture / integration-test / implementation agents, story-review, escalation-analysis, escalation-recovery, fixer, and general agents.
+
+Requirements-plan and requirements-write may post open questions. Review agents may read the pinned version to verify traceability but should not post open questions unless needed to record a blocking product-intent gap.
+
+### 16.5 Open questions (append-only)
+
+Open questions are metadata attached to a frozen Paavo Notes version (clarifications / deferred product decisions), not mutations of KB content.
+
+Rules (mirror the Discovery Protocol):
+
+- Allowed agents may **post** a new open question against the pinned closed version, then continue their task.
+- Agents must **never** list, search, read, deduplicate, modify, answer, or delete existing open questions as part of framework work.
+- Non-blocking product-intent gap: post an open question and continue.
+- Blocking product-intent gap (cannot proceed without changed/clarified intent): escalate (and optionally also post an open question so the gap is captured at the source). Answers and classification (clarification vs real change for a future version) happen in the Paavo Notes web UI / user process, not in the framework.

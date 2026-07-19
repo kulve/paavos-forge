@@ -46,12 +46,16 @@ if ! grep -q 'ai-framework/LOGIC.md' DEPLOY.md; then
     fail "DEPLOY.md must document copying LOGIC.md to ai-framework/LOGIC.md"
 fi
 
-echo "--- Plan templates (9 required) ---"
-for tmpl in milestone story epic requirement phase-plan plan-review-feedback review-feedback escalation discovery; do
+echo "--- Plan templates (10 required) ---"
+for tmpl in project milestone story epic requirement phase-plan plan-review-feedback review-feedback escalation discovery; do
     if [ ! -f "templates/base/plan/templates/${tmpl}.md" ]; then
         fail "Missing plan template: templates/base/plan/templates/${tmpl}.md"
     fi
 done
+
+if ! grep -q 'Paavo Notes' templates/base/ai-framework/project-profile.md; then
+    fail "project-profile.md must include a Paavo Notes MCP section"
+fi
 
 echo "--- Epic directory ---"
 if [ ! -d "templates/base/plan/epics" ]; then
@@ -77,11 +81,14 @@ if [ ! -d "templates/cursor/.cursor/agents" ]; then
     fail "Missing Cursor agent prompt directory"
 else
     AGENT_COUNT=$(find templates/cursor/.cursor/agents -maxdepth 1 -type f -name '*.md' | wc -l | tr -d ' ')
-    if [ "$AGENT_COUNT" -ne 22 ]; then
-        fail "Expected 22 Cursor agent prompt files, found $AGENT_COUNT"
+    if [ "$AGENT_COUNT" -ne 23 ]; then
+        fail "Expected 23 Cursor agent prompt files, found $AGENT_COUNT"
     fi
     if [ ! -f "templates/cursor/.cursor/agents/escalation-recovery.md" ]; then
         fail "Missing escalation recovery agent prompt"
+    fi
+    if [ ! -f "templates/cursor/.cursor/agents/roadmap-planner.md" ]; then
+        fail "Missing roadmap planner agent prompt"
     fi
 fi
 

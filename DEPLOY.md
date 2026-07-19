@@ -52,7 +52,7 @@ This creates:
 - `.gitignore` -- ignores `.task/`, `build/`, and `.worktrees/`
 - `ai-framework/LOGIC.md` -- workflow specification (copied from framework repo root)
 - `ai-framework/project-profile.md` -- to be filled in by you
-- `plan/templates/` -- 9 artifact templates used by agents (milestone, epic, story, requirement, phase-plan, plan-review-feedback, review-feedback, escalation, discovery)
+- `plan/templates/` -- 10 artifact templates used by agents (project, milestone, epic, story, requirement, phase-plan, plan-review-feedback, review-feedback, escalation, discovery)
 - `plan/epics/.gitkeep` -- directory for epic definition files
 - `taskwarrior/setup.sh` -- Taskwarrior UDA configuration script
 - `taskwarrior/env.sh` -- environment setup (sets `TASKRC`, creates `.task/`)
@@ -69,7 +69,7 @@ cp -r "$FRAMEWORK/templates/cursor/.cursor" "$PROJECT/"
 ```
 
 This creates:
-- `.cursor/agents/` -- 22 agent prompt files (PM, Coordinator, 16 phase agents, 3 support agents, and fixer)
+- `.cursor/agents/` -- 23 agent prompt files (PM, Coordinator, 16 phase agents, Roadmap Planner, Story Review, Escalation Analysis, Escalation Recovery, and Fixer)
 - `.cursor/rules/ai-framework.mdc` -- always-on framework rules
 - `.cursor/commands/` -- `ai-status` and `ai-next` slash commands
 
@@ -187,6 +187,13 @@ Open `ai-framework/project-profile.md` and answer every question. This is the mo
 **Parallel Limit:**
 - Recommended maximum concurrent epics (e.g. 2-3 for typical projects). This limits how many epic worktrees the PM will have active simultaneously. More epics means more context switches and merge conflicts; fewer means less parallelism. Start with 2 and increase once you're comfortable with the workflow.
 
+**Project Knowledge Source (Paavo Notes MCP):**
+- MCP endpoint URL (e.g. `http://127.0.0.1:8770/mcp`)
+- Exact Paavo Notes project name (and optional id after first discovery)
+- Optional roadmap-relevant entry domains
+
+Paavo Notes is a hard dependency. Fill this section before the first PM run.
+
 ### Examples
 
 **C++ game project:**
@@ -221,11 +228,25 @@ Open `ai-framework/project-profile.md` and answer every question. This is the mo
 - Parallel limit: 3
 ```
 
-## Step 6: Create a README and Build Skeleton
+## Step 6: Register Paavo Notes MCP and Create a README
+
+### Paavo Notes MCP (required)
+
+Product intent lives in Paavo Notes. Register the Paavo Notes MCP server in the project's Cursor MCP configuration so agents can discover tools (streamable HTTP, typically `http://127.0.0.1:8770/mcp`). Ensure:
+
+1. The Paavo Notes MCP process is running and reachable.
+2. The project profile's Paavo Notes project name matches a real project with at least one **closed** (published) version.
+3. Cursor can list MCP tools for that server.
+
+Agents discover tool names and signatures via MCP -- the framework does not hardcode the API. If the MCP is unreachable, the PM hard-stops and requirements agents escalate; do not invent product goals.
+
+The pinned closed version for a run is stored in `plan/project.md` (created by the `roadmap-planner` on first PM run), not only in the profile.
+
+### README and build skeleton
 
 Before invoking the PM agent, create at least a brief `README.md` so the PM has context about your project. Also set up any minimal build skeleton your project needs (e.g. `CMakeLists.txt`, `pyproject.toml`).
 
-The PM reads `README.md` on its first run to understand the project scope.
+The PM reads `README.md` on its first run and invokes `roadmap-planner` to create `plan/project.md` from Paavo Notes.
 
 ## Step 7: Customize Agents (Optional)
 
@@ -252,43 +273,46 @@ Or verify manually:
 - [ ] `.gitignore` contains `.task/` and `.worktrees/`
 - [ ] `ai-framework/LOGIC.md` exists (copied from framework repo root `LOGIC.md` in Step 1b)
 - [ ] `ai-framework/project-profile.md` exists and is filled in
-- [ ] `plan/templates/` contains 9 template files (milestone, epic, story, requirement, phase-plan, plan-review-feedback, review-feedback, escalation, discovery)
+- [ ] `plan/templates/` contains 10 template files (project, milestone, epic, story, requirement, phase-plan, plan-review-feedback, review-feedback, escalation, discovery)
 - [ ] `plan/epics/.gitkeep` exists
 - [ ] `taskwarrior/setup.sh` exists and is executable
 - [ ] `taskwarrior/env.sh` exists and is executable
 - [ ] `taskwarrior/tw` exists and is executable
 - [ ] `taskwarrior/recipes.md` exists
 - [ ] `taskwarrior/` contains 23 orchestration scripts (epic, story, phase, lock management)
-- [ ] `.cursor/agents/` contains 22 agent files
+- [ ] `.cursor/agents/` contains 23 agent files (including `roadmap-planner.md`)
 - [ ] `.cursor/rules/ai-framework.mdc` exists
 - [ ] `.cursor/commands/` contains `ai-status.md` and `ai-next.md`
 - [ ] Taskwarrior UDAs are configured: `taskwarrior/tw _udas | grep aiphase`
-- [ ] Project profile is filled in completely (including parallel limit)
+- [ ] Project profile is filled in completely (including parallel limit and Paavo Notes MCP section)
+- [ ] Paavo Notes MCP is registered in Cursor and reachable
 
 ## Step 9: First Run
 
-The framework uses an **epic-based parallel execution model**. The hierarchy is:
+The framework uses a **project → milestone → epic** model with parallel epic execution. The hierarchy is:
 
 ```
-Milestone (optional) → Epic (parallel) → Stories (serial within epic)
+Project (mandatory: plan/project.md) → Milestone → Epic (parallel) → Stories (serial within epic)
 ```
 
-- **Milestones** group related epics and define high-level goals. They are optional for small projects.
+- **Project** (`plan/project.md`) is mandatory. It pins a Paavo Notes closed version and lists an ordered milestone roadmap to product completion. Created via the `roadmap-planner` agent on first PM run.
+- **Milestones** are derived from the roadmap. They group related epics and define high-level goals. Status: Done / In Progress / TODO.
 - **Epics** are the unit of parallel work. Each epic gets its own git worktree and branch, allowing multiple epics to execute concurrently without interference.
-- **Stories** within an epic execute serially, each passing through the full phase pipeline (requirements → architecture → implementation → integration testing).
+- **Stories** within an epic execute serially, each passing through the full phase pipeline (requirements → architecture → integration tests → implementation).
 
 ### Starting the Workflow
 
-1. Open your project in Cursor.
+1. Open your project in Cursor with the Paavo Notes MCP registered and running.
 2. Start a new chat and select the **`project-manager`** agent (not a general agent).
-3. Describe your project goals. The PM will discuss them with you and create a milestone (or work without one for small projects).
-4. The PM defines one or more **epics** -- cohesive units of work that can proceed independently. Each epic gets a definition file in `plan/epics/`.
-5. For each epic, the PM generates 2-5 stories that will execute serially within that epic.
-6. The PM **dispatches** an epic: `epic-fork` creates a worktree and branch, and a Coordinator begins executing stories in that worktree.
-7. Multiple epics can run in parallel (up to your configured parallel limit), each in its own worktree with its own Coordinator.
-8. When an epic completes all stories, it is merged back to main via `epic-merge`.
+3. Confirm the Paavo Notes project name in the profile. The PM verifies MCP reachability (hard-stop if down).
+4. If `plan/project.md` is missing, the PM invokes **`roadmap-planner`** to synthesize a milestone roadmap from Paavo Notes (human-in-loop). Refine and accept the roadmap.
+5. The PM creates the current In Progress milestone from the roadmap, then defines one or more **epics** in `plan/epics/`.
+6. For each epic, the PM generates stories in rolling batches of 2-3 that execute serially within that epic.
+7. The PM **dispatches** an epic: `epic-fork` creates a worktree and branch, and a Coordinator begins executing stories in that worktree.
+8. Multiple epics can run in parallel (up to your configured parallel limit), each in its own worktree with its own Coordinator.
+9. When an epic completes all stories, it is merged back to main via `epic-merge`. After a milestone completes, the PM updates roadmap statuses and may rewrite TODO milestones or migrate to a newer Paavo Notes version.
 
-Use `/ai-status` to check progress across all active epics at any time.
+Use `/ai-status` to check project/roadmap progress and all active epics at any time.
 
 > **Critical:** Always use the `project-manager` agent to start work. Never ask a general/default agent to "implement the plan," "run the Coordinator," or write code. A general agent will bypass the framework pipeline and write code directly, skipping requirements, architecture, test-first development, and review -- losing all the traceability and quality gates the framework provides. The always-on rule in `.cursor/rules/ai-framework.mdc` will remind a general agent to redirect you, but using the correct entry point from the start is the most reliable approach.
 >
@@ -331,7 +355,9 @@ After updating templates, re-run `bash taskwarrior/setup.sh --main` to pick up a
 | Setup hangs on "Are you sure you want to add" | `confirmation=off` missing | Check `.taskrc` has `confirmation=off` |
 | UDAs missing in project but `task _udas` works | Verified wrong database (global `~/.taskrc`) | Use `taskwarrior/tw _udas`, not bare `task` |
 | Tasks from project A appear in project B | Shared `~/.task` | Per-project `data.location=.task` in `.taskrc` |
-| PM has no context on first run | No `README.md` | Create a brief README before invoking PM (Step 6) |
+| PM has no context on first run | No `README.md` / no project roadmap | Create a brief README; ensure Paavo Notes MCP is up and profile names the project (Step 6) |
+| PM hard-stops immediately | Paavo Notes MCP unreachable | Start the MCP server; fix Cursor MCP registration; verify a closed version exists |
+| Roadmap invents goals | MCP not used / wrong project | Check profile project name; re-run `roadmap-planner` against Paavo Notes |
 | Coordinator fails on git merge/reset | Command wrapper blocking local git | Allow local git merge, reset, checkout in wrapper config |
 | Agent not found | Missing `.cursor/agents/` files | Verify Step 2 copied `.cursor/` directory |
 | Coordinator stuck | State machine confusion or stale active state | Run `/ai-next` to inspect state; use manual cleanup only after confirming no agents are active |

@@ -20,20 +20,34 @@ Project-specific conventions (language, directories, test commands, architecture
 
 ## Execution Model
 
-The framework uses a three-level hierarchy:
+The framework uses a four-level hierarchy:
 
-- **Milestone** (optional): groups related epics for release planning
+- **Project** (mandatory): `plan/project.md` pins a Paavo Notes closed version and an ordered milestone roadmap to product completion
+- **Milestone**: derived from the roadmap; groups related epics; Status Done / In Progress / TODO
 - **Epic**: the unit of parallel execution; each epic gets its own git worktree
 - **Story**: a vertical feature slice; stories within an epic execute serially
 
 Multiple epics run in parallel in isolated git worktrees. Each worktree has its own Taskwarrior database. A merge gate ensures only one epic merges to main at a time.
 
+## Paavo Notes (Hard Dependency)
+
+Product intent lives in Paavo Notes (MCP). The framework caches a pinned execution roadmap in `plan/project.md`.
+
+- If the Paavo Notes MCP is unreachable, the PM hard-stops and requirements agents escalate. Do not invent product goals.
+- Always read the closed integer version pinned in `plan/project.md`.
+- Agents discover MCP tool signatures via Cursor; do not hardcode tool APIs.
+- **Who may access Paavo Notes**: PM, Roadmap Planner, and the four requirements-phase agents.
+- Architecture, test, and implementation agents must never access Paavo Notes.
+- Open questions may be posted append-only against the pinned version; agents must not list/read existing open questions.
+- Local discoveries are for code/impl findings; product-intent gaps belong in Paavo Notes.
+
 ## Agent Roles
 
 Agents follow a strict hierarchy:
 
-- **Project Manager** (`project-manager`): defines milestones and epics, generates stories, dispatches epics for parallel execution, merges back to main, orchestrates escalation recovery
-- **Coordinator** (`coordinator`): drives all stories in an epic through phases, manages Taskwarrior and git within its worktree
+- **Project Manager** (`project-manager`): owns `plan/project.md`, defines milestones from the roadmap, creates epics, generates stories, dispatches epics for parallel execution, merges back to main, orchestrates escalation recovery
+- **Roadmap Planner** (`roadmap-planner`): PM-invoked; synthesizes `plan/project.md` from Paavo Notes
+- **Coordinator** (`coordinator`): drives all stories in an epic through phases, manages Taskwarrior and git within its worktree (never accesses Paavo Notes)
 - **Phase Agents**: specialized agents for each phase (requirements, architecture, tests, implementation) and state (plan, plan-review, write, review)
 - **Support Agents**: story review, escalation analysis, escalation recovery
 - **Fixer** (`fixer`): fixes bugs in existing code outside the PM pipeline; invoked directly by the user
@@ -75,9 +89,12 @@ All Taskwarrior read-only commands must use `taskwarrior/tw`, never bare `task`.
 10. Stale locks and gates require manual user recovery via `cleanup-ai-state.sh`.
 11. The PM must not invoke a Coordinator while one is already running in that worktree.
 12. Agents may record significant out-of-scope findings as discoveries; only PM triages them.
+13. Paavo Notes MCP is a hard dependency; never invent product intent when it is unavailable.
+14. `plan/project.md` is mandatory before milestone/epic work; create it via `roadmap-planner`.
 
 ## Artifact Locations
 
+- Project roadmap: `plan/project.md`
 - Milestones: `plan/milestones/`
 - Epics: `plan/epics/`
 - Stories: `plan/stories/`

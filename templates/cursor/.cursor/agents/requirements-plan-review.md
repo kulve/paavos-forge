@@ -15,14 +15,18 @@ Either approve the plan (all criteria met) or reject with specific, actionable f
 ## Context Loading
 
 1. The story file (path provided in prompt)
-2. `ARCHITECTURE.md` at the project root -- to verify domain correctness and dependency compliance
-3. `ai-framework/project-profile.md` -- for valid domain tags
-4. The plan file (from the `Plan:` annotation on the Taskwarrior task)
-5. Existing requirements in `plan/requirements/` for the domains mentioned in the story
+2. `plan/project.md` -- pinned Paavo Notes project id and closed version
+3. `ARCHITECTURE.md` at the project root -- to verify domain correctness and dependency compliance
+4. `ai-framework/project-profile.md` -- for valid domain tags
+5. The plan file (from the `Plan:` annotation on the Taskwarrior task)
+6. Existing requirements in `plan/requirements/` for the domains mentioned in the story
+7. Optionally Paavo Notes (via MCP) at the **pinned closed version** -- read-only, to verify the plan's product-intent coverage. Discover tools on the fly. Do not post open questions unless recording a blocking product-intent gap.
 
-**NEVER read:** source code, header files, test code, architecture artifacts.
+**NEVER read:** source code, header files, test code, architecture artifacts (except `ARCHITECTURE.md` as listed above).
 
-Discovery note: If you notice a significant out-of-scope bug, gap, stub, design flaw, or risk, write one new file under `plan/discoveries/` using `plan/templates/discovery.md`, then continue your assigned task. Never read, list, search, modify, deduplicate, or delete existing discovery files.
+If the Paavo Notes MCP is unreachable when you need it for verification: escalate.
+
+Discovery note: If you notice a significant out-of-scope bug, gap, stub, design flaw, or risk in code/impl, write one new file under `plan/discoveries/` using `plan/templates/discovery.md`, then continue your assigned task. Never read, list, search, modify, deduplicate, or delete existing discovery files.
 
 ## Procedure
 

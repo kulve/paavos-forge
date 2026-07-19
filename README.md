@@ -47,20 +47,21 @@ See [DEPLOY.md](DEPLOY.md) for the full deployment guide. The short version:
 
 The framework has a layered agent hierarchy:
 
-- **Project Manager**: talks to the user, defines milestones and epics, generates stories, dispatches epics to worktrees for parallel execution, merges completed epics back to main
+- **Project Manager**: owns the project roadmap, defines milestones from Paavo Notes goals, creates epics, generates stories, dispatches epics to worktrees for parallel execution, merges completed epics back to main
 - **Coordinator**: deterministic state machine that drives all stories in one epic through all four phases (operates within an epic's worktree)
 - **Phase Agents** (16 total): 4 phases x 4 states (plan/plan-review/write/review), each with narrow context
-- **Support Agents**: story review, escalation analysis, escalation recovery
+- **Support Agents**: roadmap planner, story review, escalation analysis, escalation recovery
 
-All state mutations go through deterministic scripts under `taskwarrior/`. Scripts enforce preconditions and mutual exclusion (merge gate, active-task guards). Context passes through Taskwarrior annotations. Agents never talk to each other directly.
+Product intent comes from **Paavo Notes** (MCP hard dependency). The framework caches a pinned milestone roadmap in `plan/project.md`. All state mutations go through deterministic scripts under `taskwarrior/`. Scripts enforce preconditions and mutual exclusion (merge gate, active-task guards). Context passes through Taskwarrior annotations. Agents never talk to each other directly.
 
 ### Execution Model
 
 ```
-Milestone (optional)
-└── Epic (parallel, one git worktree each)
-    └── Story (serial within epic)
-        └── Phase tasks (req → arch → test → impl)
+Project (mandatory: plan/project.md — pins Paavo Notes version + roadmap)
+└── Milestone (Done / In Progress / TODO)
+    └── Epic (parallel, one git worktree each)
+        └── Story (serial within epic)
+            └── Phase tasks (req → arch → test → impl)
 ```
 
 ## Contributing

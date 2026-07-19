@@ -74,3 +74,14 @@ Valid domain tags for organizing requirements in this project:
 
 - core
 - [add project-specific domains here]
+
+## Project Knowledge Source (Paavo Notes MCP)
+
+Paavo Notes is a hard dependency. Register the MCP server in the project's Cursor MCP config (see `DEPLOY.md`). Agents discover tool names/signatures via MCP -- do not hardcode them here.
+
+- MCP endpoint URL: [e.g. `http://127.0.0.1:8770/mcp`]
+- Paavo Notes project name: [exact project name]
+- Paavo Notes project id: [optional; filled after first MCP discovery]
+- Roadmap-relevant entry domains: [optional hints, e.g. "Product Goals", "Roadmap"]
+
+The pinned closed version for a run lives in `plan/project.md`, not in this profile.

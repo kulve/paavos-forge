@@ -17,13 +17,25 @@ These rules apply to ALL agents working in this project. They are non-negotiable
 
 ## Hierarchy
 
-The framework uses a three-level hierarchy:
+The framework uses a four-level hierarchy:
 
-- **Milestone** (optional): groups related epics for release planning
+- **Project** (mandatory): `plan/project.md` pins a Paavo Notes closed version and an ordered milestone roadmap to product completion
+- **Milestone**: derived from the roadmap; groups related epics; Status Done / In Progress / TODO
 - **Epic**: the unit of parallel execution; gets its own git worktree; contains ordered stories
 - **Story**: a vertical feature slice executed serially within its epic
 
 Epics run in parallel (separate worktrees). Stories within an epic run serially (same worktree).
+
+## Paavo Notes MCP (Hard Dependency)
+
+- Product intent lives in Paavo Notes. The framework caches a pinned execution roadmap in `plan/project.md`.
+- The Paavo Notes MCP is required for all framework work. If unreachable, the PM hard-stops and requirements agents escalate. Do not invent product goals.
+- Always read a single **closed integer version** pinned in `plan/project.md`. Never query the open/live version for execution.
+- Agents discover MCP tool names/signatures via Cursor MCP tool listing. Do not hardcode tool APIs.
+- **Who may access Paavo Notes**: PM, Roadmap Planner, and the four requirements-phase agents only.
+- **Who must not**: Coordinator, architecture / integration-test / implementation agents, story-review, escalation agents, fixer, and general agents.
+- Open questions: PM and requirements-plan/write may **post** append-only open questions against the pinned version. Agents must never list, read, deduplicate, answer, or delete existing open questions. Non-blocking gaps: post and continue. Blocking gaps: escalate.
+- Local discoveries are for code/impl findings; product-intent gaps belong in Paavo Notes.
 
 ## Script-Only State Mutations
 
@@ -94,11 +106,13 @@ Scripts enforce preconditions, validate transitions, and exit non-zero on violat
 
 ## Entry Point Enforcement
 
-This framework only works when the `project-manager` agent drives the pipeline. If you are NOT the `project-manager`, `coordinator`, `fixer`, `escalation-recovery`, or a named phase agent, you are a **general agent**:
+This framework only works when the `project-manager` agent drives the pipeline. If you are NOT the `project-manager`, `coordinator`, `fixer`, `escalation-recovery`, `roadmap-planner`, or a named phase agent, you are a **general agent**:
 
 - You must NOT write code, requirements, architecture artifacts, tests, or framework artifacts.
 - You must NOT invoke the Coordinator or phase agents yourself.
 - If the user asks to implement a feature or "run the Coordinator," tell them to open a new chat with the **`project-manager`** agent.
+
+The `roadmap-planner` agent may write `plan/project.md` only when the PM invokes it.
 
 Only designated phase-write agents may create or modify files in their respective directories.
 

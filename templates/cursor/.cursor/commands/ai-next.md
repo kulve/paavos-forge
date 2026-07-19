@@ -34,6 +34,7 @@ Then for each active worktree, show the next task.
 
 ### Present Results As
 
+0. **Project context**: pinned Paavo Notes version and current In Progress milestone from `plan/project.md` (if missing, say project init is required)
 1. **Epic**: which epic this task belongs to
 2. **Story**: story ID and slug
 3. **Phase**: req/arch/test/impl

@@ -17,30 +17,35 @@ Produce a plan file that specifies which requirement files to create, which doma
 Read these files from the prompt and Taskwarrior annotations:
 
 1. The story file (path provided in prompt)
-2. `ARCHITECTURE.md` at the project root -- to understand which domains exist and their dependency relationships
-3. `ai-framework/project-profile.md` -- for valid domain tags
-4. Existing requirements in `plan/requirements/` for the domains mentioned in the story's domain tags
+2. `plan/project.md` -- pinned Paavo Notes project id and closed version
+3. `ARCHITECTURE.md` at the project root -- to understand which domains exist and their dependency relationships
+4. `ai-framework/project-profile.md` -- for valid domain tags and Paavo Notes project name
+5. Existing requirements in `plan/requirements/` for the domains mentioned in the story's domain tags
+6. Paavo Notes (via MCP) at the **pinned closed version** from `plan/project.md` -- discover tools on the fly; retrieve overview/domains/search/articles as needed for product intent behind the story
 
-**NEVER read:** source code, header files, test code, architecture artifacts.
+**NEVER read:** source code, header files, test code, architecture artifacts (except `ARCHITECTURE.md` as listed above).
 
-Discovery note: If you notice a significant out-of-scope bug, gap, stub, design flaw, or risk, write one new file under `plan/discoveries/` using `plan/templates/discovery.md`, then continue your assigned task. Never read, list, search, modify, deduplicate, or delete existing discovery files.
+If the Paavo Notes MCP is unreachable: escalate (do not invent product rules).
+
+Discovery note: If you notice a significant out-of-scope bug, gap, stub, design flaw, or risk in code/impl, write one new file under `plan/discoveries/` using `plan/templates/discovery.md`, then continue your assigned task. Never read, list, search, modify, deduplicate, or delete existing discovery files. Product-intent gaps belong as Paavo Notes open questions (post append-only against the pinned version; never list/read existing questions).
 
 ## Procedure
 
 1. Read the task ID from the prompt.
 2. Check task annotations for a `Plan-feedback:` annotation. If present, read the feedback file -- this is a re-plan after plan review rejection. Address every blocking issue raised.
 3. Read the story file to understand the feature, acceptance criteria, and domain tags.
-4. Read existing requirements in the relevant domains to understand what already exists.
-5. If the story has a **Modifies Stories** section, find all requirements linked to those old stories. Classify each as: (a) update in place (add new story as parent, revise rules), (b) delete (fully superseded), or (c) leave alone. Include this classification in the plan.
-6. Determine which domains need new requirement files and which existing requirements need updates.
-7. Write (or revise) the plan file at `plan/requirement-plans/XXXXX-slug.md` using the template from `plan/templates/phase-plan.md`:
+4. Confirm Paavo Notes MCP reachability and read relevant product intent at the pinned closed version (search/fetch as needed). Non-blocking intent gaps: post an open question and continue. Blocking gaps: escalate (optionally also post an open question).
+5. Read existing requirements in the relevant domains to understand what already exists.
+6. If the story has a **Modifies Stories** section, find all requirements linked to those old stories. Classify each as: (a) update in place (add new story as parent, revise rules), (b) delete (fully superseded), or (c) leave alone. Include this classification in the plan.
+7. Determine which domains need new requirement files and which existing requirements need updates.
+8. Write (or revise) the plan file at `plan/requirement-plans/XXXXX-slug.md` using the template from `plan/templates/phase-plan.md`:
    - List which domains will get new requirement files
    - Estimate the number of requirement files needed
    - Describe what each file will cover
    - Note which existing requirements may need updates
    - Flag any ambiguities in the story that should be resolved
-8. Annotate the task: `ccmd bash taskwarrior/phase-annotate <id> Plan plan/requirement-plans/XXXXX-slug.md`
-9. Advance state: `ccmd bash taskwarrior/phase-transition <id> plan-review`
+9. Annotate the task: `ccmd bash taskwarrior/phase-annotate <id> Plan plan/requirement-plans/XXXXX-slug.md`
+10. Advance state: `ccmd bash taskwarrior/phase-transition <id> plan-review`
 
 ## Output Specification
 
@@ -71,4 +76,4 @@ ccmd bash taskwarrior/phase-transition <id> plan-review
 
 ## Escalation
 
-If the story has contradictory acceptance criteria or references domains that don't exist in the project profile, write an escalation to `plan/escalations/XXXXX-req-ambiguity.md` and annotate the task.
+If the story has contradictory acceptance criteria, references domains that don't exist in the project profile, the Paavo Notes MCP is unreachable, or a blocking product-intent gap cannot be resolved from the pinned version, write an escalation to `plan/escalations/XXXXX-req-ambiguity.md` and annotate the task.

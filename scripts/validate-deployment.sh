@@ -66,7 +66,8 @@ echo "--- Project Profile ---"
 check_nonempty "ai-framework/project-profile.md"
 check_placeholder "ai-framework/project-profile.md"
 
-echo "--- Plan Templates (9 required) ---"
+echo "--- Plan Templates (10 required) ---"
+check_file "plan/templates/project.md"
 check_file "plan/templates/milestone.md"
 check_file "plan/templates/story.md"
 check_file "plan/templates/epic.md"
@@ -76,6 +77,11 @@ check_file "plan/templates/plan-review-feedback.md"
 check_file "plan/templates/review-feedback.md"
 check_file "plan/templates/escalation.md"
 check_file "plan/templates/discovery.md"
+
+if ! grep -q 'Paavo Notes' ai-framework/project-profile.md 2>/dev/null; then
+    echo "ERROR: ai-framework/project-profile.md must include a Paavo Notes MCP section"
+    ERRORS=$((ERRORS + 1))
+fi
 
 echo "--- Plan Directories ---"
 check_dir "plan/epics"
@@ -114,10 +120,11 @@ echo "--- .gitignore ---"
 check_gitignore_entry ".task/"
 check_gitignore_entry ".worktrees/"
 
-echo "--- Cursor Agents (22 required) ---"
+echo "--- Cursor Agents (23 required) ---"
 check_file ".cursor/agents/project-manager.md"
 check_file ".cursor/agents/coordinator.md"
 check_file ".cursor/agents/fixer.md"
+check_file ".cursor/agents/roadmap-planner.md"
 check_file ".cursor/agents/story-review.md"
 check_file ".cursor/agents/requirements-plan.md"
 check_file ".cursor/agents/requirements-plan-review.md"
