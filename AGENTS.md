@@ -35,6 +35,16 @@ Downstream projects never edit workflow rules in place. They receive a copy of r
 
 ## Key Principles
 
+### Public Repository -- No Secrets or Local References
+
+This repository is **public**. Everything committed here is world-readable. Never commit:
+
+- Secrets of any kind: API keys, tokens, passwords, credentials, private keys.
+- Personal or private data: private email addresses, real names tied to accounts, phone numbers.
+- Machine-local references: absolute home paths (`/home/<user>/...`, `/Users/<user>/...`), internal hostnames, private IPs, machine-specific project slugs, or personal directory defaults.
+
+Instead, use placeholders or required arguments (e.g. `<project-slug>`, `$HOME/.cursor/projects/<project-slug>/...`), and keep local state gitignored (`.task/`, `.worktrees/`, `/.cursor/`). When adding scripts or docs, prefer an explicit required argument over a personal default value. Before committing, scan your diff for the patterns above.
+
 ### LOGIC.md is Authoritative
 
 Root `LOGIC.md` is the single source of truth for the workflow specification. Do not maintain a second editable copy under `templates/base/`. If you need to change how the framework works (phases, states, Taskwarrior protocol, git policy, escalation protocol), change root `LOGIC.md` first, then update all files that reference those rules:
