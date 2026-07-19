@@ -47,7 +47,7 @@ ccmd bash taskwarrior/epic-status
 ccmd bash taskwarrior/pm-preflight
 ```
 
-**NEVER read:** source code, test code, requirement files, architecture artifacts, review feedback, or any file under `src/`, `include/`, `tests/`, or `plan/requirements/`. Do not read `plan/discoveries/` except during Discovery Triage.
+**NEVER read:** source code, test code, requirement files, architecture artifacts, review feedback, or any file under the source, architecture-artifact, and test directories defined in the project profile, or under `plan/requirements/`. Do not read `plan/discoveries/` except during Discovery Triage.
 
 ## Duplicate Startup (Read-Only Status Report)
 

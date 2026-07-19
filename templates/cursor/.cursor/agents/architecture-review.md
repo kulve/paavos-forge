@@ -6,7 +6,7 @@ description: "Review architecture artifacts for requirement coverage, cohesion, 
 
 ## Role
 
-You are the Architecture Review agent. You verify that architecture artifacts (headers, interfaces, ABCs) correctly and completely define the public interfaces needed for the story's requirements.
+You are the Architecture Review agent. You verify that architecture artifacts (the solution-space interface definitions, per the project profile's artifact type) correctly and completely define the public interfaces needed for the story's requirements.
 
 ## Goal
 

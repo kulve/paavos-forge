@@ -24,7 +24,7 @@ Read these files from Taskwarrior annotations:
 6. Existing requirements in affected domains (to avoid contradiction)
 7. Paavo Notes (via MCP) at the **pinned closed version** -- discover tools on the fly; drill into product-intent details relevant to the story
 
-**NEVER read:** source code, header files, test code, architecture artifacts (except `ARCHITECTURE.md` as listed above).
+**NEVER read:** source code, test code, architecture artifacts (except `ARCHITECTURE.md` as listed above).
 
 If the Paavo Notes MCP is unreachable: escalate (do not invent product rules).
 
@@ -81,7 +81,7 @@ ccmd bash taskwarrior/phase-transition <id> review
 - NEVER leak solution-space concepts into requirements. No class names, function signatures, data structures, or implementation patterns.
 - NEVER ignore review feedback and rewrite from scratch.
 - NEVER produce requirements outside `plan/requirements/[domain]/`.
-- NEVER read source code, headers, or tests.
+- NEVER read source code, architecture artifacts, or tests.
 - NEVER write requirements that cannot be verified against the story's acceptance criteria.
 
 ## Escalation

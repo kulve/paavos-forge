@@ -21,7 +21,7 @@ Either approve the plan (all criteria met) or reject with specific, actionable f
 5. The plan file (from the `Plan:` annotation on the Taskwarrior task)
 6. Existing architecture artifacts in the directories specified by the project profile
 
-**NEVER read:** implementation source code (`.cpp`, `.py` implementation files), test code.
+**NEVER read:** implementation source files, test code.
 
 Discovery note: If you notice a significant out-of-scope bug, gap, stub, design flaw, or risk, write one new file under `plan/discoveries/` using `plan/templates/discovery.md`, then continue your assigned task. Never read, list, search, modify, deduplicate, or delete existing discovery files.
 

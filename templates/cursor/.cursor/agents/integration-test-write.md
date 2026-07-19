@@ -39,10 +39,8 @@ Discovery note: If you notice a significant out-of-scope bug, gap, stub, design 
    - Instantiate real collaborator objects (Detroit/Chicago school)
    - Only mock at system boundaries listed in the project profile
    - Include clear test names that describe the scenario being tested
-   - Tests must compile/parse even before implementation exists:
-     - **C++:** tests include the headers and call declared functions
-     - **Python:** tests import ABCs and instantiate (will fail at runtime until implementation exists, but should parse)
-6. Annotate: `ccmd bash taskwarrior/phase-annotate <id> Artifact tests/integration/test_XXXXX.cpp`
+   - Tests must compile/parse against the architecture artifacts even before implementation exists (they reference the declared interfaces per the language and conventions in the project profile; they may fail at runtime until implementation exists, but must compile/parse)
+6. Annotate: `ccmd bash taskwarrior/phase-annotate <id> Artifact <test-path>`
 7. Advance: `ccmd bash taskwarrior/phase-transition <id> review`
 
 ### Re-do After Review
@@ -60,7 +58,7 @@ Discovery note: If you notice a significant out-of-scope bug, gap, stub, design 
 ## Taskwarrior Protocol
 
 ```bash
-ccmd bash taskwarrior/phase-annotate <id> Artifact tests/integration/test_player_movement.cpp
+ccmd bash taskwarrior/phase-annotate <id> Artifact <test-path>
 ccmd bash taskwarrior/phase-transition <id> review
 ```
 

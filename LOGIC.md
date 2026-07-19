@@ -18,7 +18,7 @@ This framework enables AI agents to autonomously implement large projects from h
 - **Single active subagent per worktree**: at most one Taskwarrior task may be `+ACTIVE` at any time within a given worktree; the Coordinator enforces this via scripts
 - **Top-level singleton locks**: only one PM may run at any time (global); only one Coordinator may run per worktree
 
-The framework is optimized for C++ projects but supports other languages (Python, TypeScript, etc.) through the project profile. Paavo Notes is a hard dependency for product intent (see Section 16).
+The framework is language-agnostic. All language, build system, directory layout, and architecture-artifact conventions come from the project profile, so the same workflow supports C++, Python, TypeScript, Rust, and other languages without changes to the core spec or agent prompts. Paavo Notes is a hard dependency for product intent (see Section 16).
 
 ---
 
@@ -471,10 +471,7 @@ When a later story modifies behavior covered by an existing requirement, the Req
 
 ### 10.5 Architecture Artifacts
 
-Solution-space definitions. The exact form depends on the project profile:
-- **C++**: header files in `include/[domain]/` -- declarations only
-- **Python**: abstract base classes or typed interface modules
-- **Other languages**: as specified in the project profile
+Solution-space interface definitions: declarations and signatures only, with no implementation bodies. The artifact type, location, and requirement-traceability syntax are defined by the project profile (for example, C++ header files under `include/[domain]/`, Python abstract base classes, TypeScript interfaces, or Rust trait definitions).
 
 ### 10.6 Integration Tests (`tests/integration/` or as specified in profile)
 

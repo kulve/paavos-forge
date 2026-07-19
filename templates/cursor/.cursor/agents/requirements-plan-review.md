@@ -22,7 +22,7 @@ Either approve the plan (all criteria met) or reject with specific, actionable f
 6. Existing requirements in `plan/requirements/` for the domains mentioned in the story
 7. Optionally Paavo Notes (via MCP) at the **pinned closed version** -- read-only, to verify the plan's product-intent coverage. Discover tools on the fly. Do not post open questions unless recording a blocking product-intent gap.
 
-**NEVER read:** source code, header files, test code, architecture artifacts (except `ARCHITECTURE.md` as listed above).
+**NEVER read:** source code, test code, architecture artifacts (except `ARCHITECTURE.md` as listed above).
 
 If the Paavo Notes MCP is unreachable when you need it for verification: escalate.
 

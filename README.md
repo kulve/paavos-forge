@@ -17,7 +17,7 @@ You give a high-level goal (e.g. "implement a multiplayer game"). The framework:
 ## What It Is Not
 
 - Not an AI model or runtime -- it's a set of agent prompts, workflow rules, scripts, and templates
-- Not tied to a single language -- optimized for C++ but works with Python, TypeScript, etc. via a project profile
+- Not tied to a single language -- language-agnostic; works with C++, Python, TypeScript, Rust, and others via a project profile
 - Not a CI/CD tool -- it orchestrates AI agents within an IDE (currently Cursor)
 - Not a replacement for human judgment -- the PM agent discusses goals with the user and stops when recovery needs a product or scope decision
 

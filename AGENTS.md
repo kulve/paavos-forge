@@ -116,7 +116,7 @@ templates/base/                            # Copied to downstream project root
   taskwarrior/coordinator-lock-*           # Coordinator lock scripts (3)
 
 templates/cursor/.cursor/                  # Copied to downstream .cursor/
-  agents/*.md                              # 23 agent prompts (incl. roadmap-planner)
+  agents/*.md                              # 24 agent prompts (incl. roadmap-planner, deploy-profile)
   rules/ai-framework.mdc                   # Always-on rules
   commands/*.md                            # Slash commands
 

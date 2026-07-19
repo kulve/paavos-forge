@@ -42,7 +42,7 @@ Produce source files that fully implement the architecture and pass all integrat
    - If the failure is an implementation bug: fix the implementation and re-run tests
    - If the failure appears to be a test bug (test itself is wrong): fix the test, but annotate the task explaining why: `ccmd bash taskwarrior/phase-annotate <id> "Test fix" "[reason]"`
    - Iterate until all tests pass
-9. Annotate artifact paths: `ccmd bash taskwarrior/phase-annotate <id> Artifact src/core/player.cpp`
+9. Annotate artifact paths: `ccmd bash taskwarrior/phase-annotate <id> Artifact <source-path>`
 10. Advance: `ccmd bash taskwarrior/phase-transition <id> review`
 
 ### Re-do After Review
@@ -61,7 +61,7 @@ Produce source files that fully implement the architecture and pass all integrat
 ## Taskwarrior Protocol
 
 ```bash
-ccmd bash taskwarrior/phase-annotate <id> Artifact src/core/player.cpp
+ccmd bash taskwarrior/phase-annotate <id> Artifact <source-path>
 ccmd bash taskwarrior/phase-transition <id> review
 ```
 

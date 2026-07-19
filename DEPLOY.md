@@ -148,16 +148,18 @@ The `taskwarrior/` directory contains orchestration scripts used by the agents:
 
 Open `ai-framework/project-profile.md` and answer every question. This is the most important customization step -- it tells all agents how your project works.
 
+You can fill this in by hand, or open a chat with the `deploy-profile` agent, which interviews you with the questions below and writes the profile for you (it edits only `project-profile.md`).
+
 ### Questions to Answer
 
 **Language and Build:**
-- What language? (e.g. C++17, Python 3.12)
-- What build system? (e.g. CMake, pip, npm)
-- What build command? (e.g. `cmake --build build`)
+- What language? (e.g. C++17, Python 3.12, Rust 2021)
+- What build system? (e.g. CMake, pip, npm, cargo)
+- What build command? (e.g. `cmake --build build`, `cargo build`)
 
 **Directory Layout:**
 - Where is source code? (e.g. `src/`)
-- Where are architecture artifacts? (e.g. `include/` for C++ headers, `src/interfaces/` for Python ABCs)
+- Where are architecture artifacts? (e.g. `include/` for C++ headers, `src/interfaces/` for Python ABCs, a `-api` crate or trait modules for Rust)
 - Where are integration tests? (e.g. `tests/integration/`)
 - Where are unit tests? (e.g. `tests/unit/`)
 - What directories are generated and should never be edited? (e.g. `build/`)
@@ -168,7 +170,7 @@ Open `ai-framework/project-profile.md` and answer every question. This is the mo
 - How to lint/typecheck? (e.g. `mypy src/`)
 
 **Architecture Conventions:**
-- What type of architecture artifact? (e.g. "C++ header files", "Python abstract base classes")
+- What type of architecture artifact? (e.g. "C++ header files", "Python abstract base classes", "Rust trait definitions")
 - How are requirement IDs traced in code? (e.g. `// REQ:XXXXX-name`)
 
 **Mock Boundaries:**
@@ -227,6 +229,25 @@ Paavo Notes is a hard dependency. Fill this section before the first PM run.
 - Domain tags: core, api, auth, storage
 - Parallel limit: 3
 ```
+
+**Rust service:**
+```
+- Primary language: Rust 2021
+- Build system: cargo
+- Build command: cargo build
+- Source code: src/
+- Architecture artifacts: crates/<name>-api/ (trait definitions)
+- Integration tests: tests/
+- Test command: cargo test
+- Architecture artifact type: Rust trait definitions (signatures only, no bodies)
+- Traceability: // REQ:XXXXX-name above trait items
+- Mock boundaries: Network I/O, Filesystem, Clock/time
+- Review standards: No `unsafe` blocks without escalation; `cargo clippy` clean
+- Domain tags: core, api, storage, worker
+- Parallel limit: 2
+```
+
+Note: adapting the framework to a language requires editing only `ai-framework/project-profile.md` (plus your `README.md` and build skeleton). Do not edit the agent prompts under `.cursor/agents/` per language -- they read the profile at runtime, and keeping them untouched lets you merge upstream framework updates cleanly.
 
 ## Step 6: Register Paavo Notes MCP and Create a README
 

@@ -27,7 +27,7 @@ Do not describe technical approach. Describe observable behavior.]
 
 ## Acceptance Criteria
 
-- [ ] [Binary, verifiable fact. e.g. "Running `make test` passes all new tests"]
+- [ ] [Binary, verifiable fact. e.g. "Running the project's full test command (from the project profile) passes all new tests"]
 - [ ] [Observable outcome. e.g. "A file is created at path X with format Y"]
 - [ ] [Negative case. e.g. "Invalid input produces error message Z, not a crash"]
 

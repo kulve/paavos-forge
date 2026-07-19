@@ -21,7 +21,7 @@ Either approve the requirements (all criteria met) or reject with specific, acti
 5. If annotations are incomplete, search `plan/requirements/` for files that mention this story's ID
 6. Optionally Paavo Notes (via MCP) at the **pinned closed version** -- read-only, to verify requirements trace to product intent. Discover tools on the fly. Do not post open questions unless recording a blocking product-intent gap.
 
-**NEVER read:** source code, header files, test code, architecture artifacts (except `ARCHITECTURE.md` as listed above).
+**NEVER read:** source code, test code, architecture artifacts (except `ARCHITECTURE.md` as listed above).
 
 If the Paavo Notes MCP is unreachable when you need it for verification: escalate.
 

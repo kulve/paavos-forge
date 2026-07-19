@@ -30,7 +30,12 @@ fi
 if [ "$RUN_TESTS" = "--run-tests" ]; then
     PROFILE="${SCRIPT_DIR}/../ai-framework/project-profile.md"
     if [ -f "$PROFILE" ]; then
-        TEST_CMD=$(grep -A1 "full test suite\|all tests" "$PROFILE" | grep -v "^--" | grep -v "test suite" | head -1 | sed 's/^[- ]*//' | sed 's/`//g' || true)
+        # The command lives inline on the "Run all tests:" line of the profile.
+        RAW=$(grep -i "^- *Run all tests:" "$PROFILE" | head -1 | sed 's/^[^:]*:[[:space:]]*//' | sed 's/`//g' || true)
+        case "$RAW" in
+            "["*) TEST_CMD="" ;;  # unfilled placeholder, e.g. "[e.g. cargo test]"
+            *)    TEST_CMD="$RAW" ;;
+        esac
         if [ -n "$TEST_CMD" ]; then
             echo "Running tests: $TEST_CMD"
             if ! eval "$TEST_CMD"; then

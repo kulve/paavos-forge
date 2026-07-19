@@ -23,7 +23,7 @@ Read these files from the prompt and Taskwarrior annotations:
 5. Existing requirements in `plan/requirements/` for the domains mentioned in the story's domain tags
 6. Paavo Notes (via MCP) at the **pinned closed version** from `plan/project.md` -- discover tools on the fly; retrieve overview/domains/search/articles as needed for product intent behind the story
 
-**NEVER read:** source code, header files, test code, architecture artifacts (except `ARCHITECTURE.md` as listed above).
+**NEVER read:** source code, test code, architecture artifacts (except `ARCHITECTURE.md` as listed above).
 
 If the Paavo Notes MCP is unreachable: escalate (do not invent product rules).
 
@@ -70,7 +70,7 @@ ccmd bash taskwarrior/phase-transition <id> plan-review
 
 - NEVER read, list, search, modify, deduplicate, or delete existing discovery files under `plan/discoveries/`. You may only create a new discovery file for a significant out-of-scope finding, then continue your assigned task.
 - NEVER write requirement files. Only write the plan.
-- NEVER read source code, headers, or test files.
+- NEVER read source code, architecture artifacts, or test files.
 - NEVER include class names, function signatures, or implementation details in the plan.
 - NEVER create more than one plan file per invocation.
 

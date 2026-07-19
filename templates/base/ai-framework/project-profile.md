@@ -4,27 +4,27 @@ Fill in this file when deploying the AI execution framework. Agents read this to
 
 ## Language and Build
 
-- Primary language: [e.g. C++17, Python 3.12, TypeScript 5.x]
-- Build system: [e.g. CMake, pip/poetry, npm/yarn]
-- Build command: [e.g. `cmake --build build`, `python -m build`]
+- Primary language: [e.g. C++17, Python 3.12, TypeScript 5.x, Rust 2021]
+- Build system: [e.g. CMake, pip/poetry, npm/yarn, cargo]
+- Build command: [e.g. `cmake --build build`, `python -m build`, `cargo build`]
 
 ## Directory Layout
 
 - Source code: [e.g. `src/`]
-- Architecture artifacts: [e.g. `include/` for C++ headers, `src/interfaces/` for Python ABCs]
+- Architecture artifacts: [e.g. `include/` for C++ headers, `src/interfaces/` for Python ABCs, a `-api` crate or trait modules for Rust]
 - Integration tests: [e.g. `tests/integration/`]
 - Unit tests: [e.g. `tests/unit/`]
 - Generated/build output (agents must never edit): [e.g. `build/`, `dist/`]
 
 ## Test Commands
 
-- Run integration tests: [e.g. `ctest --test-dir build`, `pytest tests/integration/`]
-- Run all tests: [e.g. `make test`, `pytest`]
-- Lint/typecheck: [e.g. `clang-tidy src/`, `mypy src/`, `eslint .`]
+- Run integration tests: [e.g. `ctest --test-dir build`, `pytest tests/integration/`, `cargo test --test '*'`]
+- Run all tests: [e.g. `make test`, `pytest`, `cargo test`]
+- Lint/typecheck: [e.g. `clang-tidy src/`, `mypy src/`, `eslint .`, `cargo clippy`]
 
 ## Architecture Conventions
 
-- Architecture artifact type: [e.g. "C++ header files", "Python abstract base classes", "TypeScript interfaces"]
+- Architecture artifact type: [e.g. "C++ header files", "Python abstract base classes", "TypeScript interfaces", "Rust trait definitions"]
 - Architecture artifacts list requirements in: [e.g. "comments above declarations", "docstrings on abstract methods"]
 - Requirement-to-code traceability syntax: [e.g. `// REQ:XXXXX-name` in header comments]
 
