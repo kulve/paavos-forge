@@ -19,12 +19,12 @@ Take product goals from Paavo Notes, maintain a pinned project roadmap, break wo
 **Before reading any files or doing any work**, check for a running PM:
 
 ```bash
-ccmd bash taskwarrior/pm-lock-acquire
+bash taskwarrior/pm-lock-acquire
 ```
 
 If exit code is 1: another PM session is already running. As a duplicate PM you must run only read-only queries (see Duplicate Startup below) and exit immediately.
 
-If exit code is 2: PM lock task missing (run `ccmd bash taskwarrior/setup.sh --main`).
+If exit code is 2: PM lock task missing (run `bash taskwarrior/setup.sh --main`).
 
 If exit code is 0: lock acquired successfully. Proceed with work.
 
@@ -43,8 +43,8 @@ You may use Paavo Notes MCP tools (discover signatures on the fly) for product i
 
 To check progress:
 ```bash
-ccmd bash taskwarrior/epic-status
-ccmd bash taskwarrior/pm-preflight
+bash taskwarrior/epic-status
+bash taskwarrior/pm-preflight
 ```
 
 **NEVER read:** source code, test code, requirement files, architecture artifacts, review feedback, or any file under the source, architecture-artifact, and test directories defined in the project profile, or under `plan/requirements/`. Do not read `plan/discoveries/` except during Discovery Triage.
@@ -54,11 +54,11 @@ ccmd bash taskwarrior/pm-preflight
 If `pm-lock-acquire` exits 1, run only:
 
 ```bash
-ccmd bash taskwarrior/epic-status
-ccmd bash taskwarrior/pm-preflight
+bash taskwarrior/epic-status
+bash taskwarrior/pm-preflight
 ```
 
-Tell the user: "A PM session is already running. The above is the current status. If you believe the previous PM is no longer active, run `ccmd bash taskwarrior/cleanup-ai-state.sh --apply` after confirming no agents are active."
+Tell the user: "A PM session is already running. The above is the current status. If you believe the previous PM is no longer active, run `bash taskwarrior/cleanup-ai-state.sh --apply` after confirming no agents are active."
 
 Do NOT modify any file, task, or git state.
 
@@ -101,8 +101,8 @@ If `plan/project.md` already exists, skip steps 2-3 and continue from the In-Pro
 
 15. Confirm Paavo Notes is still reachable. Run preflight and fork the epic:
     ```bash
-    ccmd bash taskwarrior/pm-preflight
-    ccmd bash taskwarrior/epic-fork EXXXX slug
+    bash taskwarrior/pm-preflight
+    bash taskwarrior/epic-fork EXXXX slug
     ```
     If `epic-fork` exits 1 (merge gate held): wait for the current merge to complete, then retry.
     If `epic-fork` exits 2: error, investigate.
@@ -119,23 +119,23 @@ If `plan/project.md` already exists, skip steps 2-3 and continue from the In-Pro
 
 18. Periodically check epic status:
     ```bash
-    ccmd bash taskwarrior/epic-status
+    bash taskwarrior/epic-status
     ```
 
 ### Epic Completion and Merge
 
 19. When a Coordinator signals completion (all stories done), mark the epic merge-ready:
     ```bash
-    ccmd bash taskwarrior/epic-mark-ready EXXXX
+    bash taskwarrior/epic-mark-ready EXXXX
     ```
 
 20. Merge the epic to main:
     ```bash
-    ccmd bash taskwarrior/epic-merge EXXXX
+    bash taskwarrior/epic-merge EXXXX
     ```
     - Exit 0: success. Epic merged, worktree removed.
     - Exit 1: merge gate held by another merge. Wait and retry.
-    - Exit 2: conflict. Report to user, suggest: `ccmd bash taskwarrior/epic-rebase EXXXX`
+    - Exit 2: conflict. Report to user, suggest: `bash taskwarrior/epic-rebase EXXXX`
 
 ### Re-evaluation
 
@@ -167,7 +167,7 @@ When a Coordinator returns due to an escalation:
 1. Read the escalation file returned by the Coordinator.
 2. Verify the Coordinator lock is released in the epic's worktree:
    ```bash
-   cd <worktree-path> && ccmd bash taskwarrior/coordinator-lock-status
+   cd <worktree-path> && bash taskwarrior/coordinator-lock-status
    ```
 3. If Coordinator lock is HELD, do not recover. Report and wait for user.
 4. Invoke the `escalation-recovery` subagent in foreground (`run_in_background: false`) with `working_directory` set to the epic's worktree. The prompt must include:
@@ -178,8 +178,8 @@ When a Coordinator returns due to an escalation:
 6. If outcome is `resolved`: clear the escalation state using scripts in the worktree:
    ```bash
    cd <worktree-path>
-   ccmd bash taskwarrior/phase-annotate <id> Recovery "<summary>"
-   ccmd bash taskwarrior/phase-transition <id> <resume-state>
+   bash taskwarrior/phase-annotate <id> Recovery "<summary>"
+   bash taskwarrior/phase-transition <id> <resume-state>
    ```
 7. Launch a fresh Coordinator for the same epic. Never resume the old one.
 
@@ -189,9 +189,9 @@ If an epic's Coordinator appears to have stopped without completing (worktree ex
 
 1. Run read-only status in the worktree:
    ```bash
-   cd <worktree-path> && ccmd bash taskwarrior/coordinator-lock-status
-   cd <worktree-path> && ccmd bash taskwarrior/tw +ACTIVE -AI_LOCK count
-   cd <worktree-path> && ccmd bash taskwarrior/tw ainext
+   cd <worktree-path> && bash taskwarrior/coordinator-lock-status
+   cd <worktree-path> && bash taskwarrior/tw +ACTIVE -AI_LOCK count
+   cd <worktree-path> && bash taskwarrior/tw ainext
    ```
 2. Report the state to the user.
 3. Do NOT auto-resume or clear state. Wait for user direction.
@@ -202,21 +202,21 @@ The PM uses scripts for all state mutations. It may use `taskwarrior/tw` directl
 
 ```bash
 # Read-only queries (allowed directly):
-ccmd bash taskwarrior/epic-status
-ccmd bash taskwarrior/pm-preflight
-ccmd bash taskwarrior/epic-gate-status
+bash taskwarrior/epic-status
+bash taskwarrior/pm-preflight
+bash taskwarrior/epic-gate-status
 
 # State mutations (via scripts only):
-ccmd bash taskwarrior/pm-lock-acquire
-ccmd bash taskwarrior/pm-lock-release
-ccmd bash taskwarrior/epic-fork EXXXX slug
-ccmd bash taskwarrior/epic-merge EXXXX
-ccmd bash taskwarrior/epic-mark-ready EXXXX
+bash taskwarrior/pm-lock-acquire
+bash taskwarrior/pm-lock-release
+bash taskwarrior/epic-fork EXXXX slug
+bash taskwarrior/epic-merge EXXXX
+bash taskwarrior/epic-mark-ready EXXXX
 ```
 
 Release the PM lock only when PM work is intentionally complete:
 ```bash
-ccmd bash taskwarrior/pm-lock-release
+bash taskwarrior/pm-lock-release
 ```
 
 ## Quality Criteria

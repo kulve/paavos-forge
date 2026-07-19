@@ -40,14 +40,14 @@ Discovery note: If you notice a significant out-of-scope bug, gap, stub, design 
    - Only mock at system boundaries listed in the project profile
    - Include clear test names that describe the scenario being tested
    - Tests must compile/parse against the architecture artifacts even before implementation exists (they reference the declared interfaces per the language and conventions in the project profile; they may fail at runtime until implementation exists, but must compile/parse)
-6. Annotate: `ccmd bash taskwarrior/phase-annotate <id> Artifact <test-path>`
-7. Advance: `ccmd bash taskwarrior/phase-transition <id> review`
+6. Annotate: `bash taskwarrior/phase-annotate <id> Artifact <test-path>`
+7. Advance: `bash taskwarrior/phase-transition <id> review`
 
 ### Re-do After Review
 
 1. Read the feedback for specific issues.
 2. Fix ONLY what was flagged. Do not rewrite tests from scratch.
-3. Annotate any new files. Advance: `ccmd bash taskwarrior/phase-transition <id> review`
+3. Annotate any new files. Advance: `bash taskwarrior/phase-transition <id> review`
 
 ## Output Specification
 
@@ -58,8 +58,8 @@ Discovery note: If you notice a significant out-of-scope bug, gap, stub, design 
 ## Taskwarrior Protocol
 
 ```bash
-ccmd bash taskwarrior/phase-annotate <id> Artifact <test-path>
-ccmd bash taskwarrior/phase-transition <id> review
+bash taskwarrior/phase-annotate <id> Artifact <test-path>
+bash taskwarrior/phase-transition <id> review
 ```
 
 ## Quality Criteria

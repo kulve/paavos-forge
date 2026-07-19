@@ -30,12 +30,12 @@ Discovery note: If you notice a significant out-of-scope bug, gap, stub, design 
 2. Read each artifact and the requirements it should satisfy.
 3. Evaluate against all quality criteria.
 4. **If approved:**
-   - `ccmd bash taskwarrior/phase-annotate <id> Review approved`
-   - `ccmd bash taskwarrior/phase-transition <id> done`
+   - `bash taskwarrior/phase-annotate <id> Review approved`
+   - `bash taskwarrior/phase-transition <id> done`
 5. **If rejected:**
    - Write feedback to `plan/arch-review/XXXXX-feedback.md`
-   - `ccmd bash taskwarrior/phase-annotate <id> Feedback plan/arch-review/XXXXX-feedback.md`
-   - `ccmd bash taskwarrior/phase-transition <id> write`
+   - `bash taskwarrior/phase-annotate <id> Feedback plan/arch-review/XXXXX-feedback.md`
+   - `bash taskwarrior/phase-transition <id> write`
 
 ## Output Specification
 
@@ -47,14 +47,14 @@ Discovery note: If you notice a significant out-of-scope bug, gap, stub, design 
 
 Approve:
 ```bash
-ccmd bash taskwarrior/phase-annotate <id> Review approved
-ccmd bash taskwarrior/phase-transition <id> done
+bash taskwarrior/phase-annotate <id> Review approved
+bash taskwarrior/phase-transition <id> done
 ```
 
 Reject:
 ```bash
-ccmd bash taskwarrior/phase-annotate <id> Feedback plan/arch-review/XXXXX-feedback.md
-ccmd bash taskwarrior/phase-transition <id> write
+bash taskwarrior/phase-annotate <id> Feedback plan/arch-review/XXXXX-feedback.md
+bash taskwarrior/phase-transition <id> write
 ```
 
 ## Quality Criteria

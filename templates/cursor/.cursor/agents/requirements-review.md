@@ -33,14 +33,14 @@ Discovery note: If you notice a significant out-of-scope bug, gap, stub, design 
 2. Read each requirement file and the parent story.
 3. Evaluate against all quality criteria (see below).
 4. **If approved:**
-   - Annotate: `ccmd bash taskwarrior/phase-annotate <id> Review approved`
-   - Advance: `ccmd bash taskwarrior/phase-transition <id> done`
+   - Annotate: `bash taskwarrior/phase-annotate <id> Review approved`
+   - Advance: `bash taskwarrior/phase-transition <id> done`
 5. **If rejected:**
    - Write feedback to `plan/requirements-review/XXXXX-feedback.md` using the template from `plan/templates/review-feedback.md`
    - List every blocking issue with the exact file, the problem, and a concrete fix instruction
    - List any approved aspects so the Write agent knows what NOT to change
-   - Annotate: `ccmd bash taskwarrior/phase-annotate <id> Feedback plan/requirements-review/XXXXX-feedback.md`
-   - Set state: `ccmd bash taskwarrior/phase-transition <id> write`
+   - Annotate: `bash taskwarrior/phase-annotate <id> Feedback plan/requirements-review/XXXXX-feedback.md`
+   - Set state: `bash taskwarrior/phase-transition <id> write`
 
 ## Output Specification
 
@@ -52,14 +52,14 @@ Discovery note: If you notice a significant out-of-scope bug, gap, stub, design 
 
 Approve:
 ```bash
-ccmd bash taskwarrior/phase-annotate <id> Review approved
-ccmd bash taskwarrior/phase-transition <id> done
+bash taskwarrior/phase-annotate <id> Review approved
+bash taskwarrior/phase-transition <id> done
 ```
 
 Reject:
 ```bash
-ccmd bash taskwarrior/phase-annotate <id> Feedback plan/requirements-review/XXXXX-feedback.md
-ccmd bash taskwarrior/phase-transition <id> write
+bash taskwarrior/phase-annotate <id> Feedback plan/requirements-review/XXXXX-feedback.md
+bash taskwarrior/phase-transition <id> write
 ```
 
 ## Quality Criteria

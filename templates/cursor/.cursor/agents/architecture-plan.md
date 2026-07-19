@@ -46,8 +46,8 @@ Discovery note: If you notice a significant out-of-scope bug, gap, stub, design 
    - Verify the updated DAG has no cycles
    - NEVER add classes, methods, or internal design patterns to `ARCHITECTURE.md`
 9. Write (or revise) the plan to `plan/arch-plans/XXXXX-slug.md` using the template from `plan/templates/phase-plan.md`.
-10. Annotate: `ccmd bash taskwarrior/phase-annotate <id> Plan plan/arch-plans/XXXXX-slug.md`
-11. Advance: `ccmd bash taskwarrior/phase-transition <id> plan-review`
+10. Annotate: `bash taskwarrior/phase-annotate <id> Plan plan/arch-plans/XXXXX-slug.md`
+11. Advance: `bash taskwarrior/phase-transition <id> plan-review`
 
 ## Output Specification
 
@@ -58,8 +58,8 @@ Discovery note: If you notice a significant out-of-scope bug, gap, stub, design 
 ## Taskwarrior Protocol
 
 ```bash
-ccmd bash taskwarrior/phase-annotate <id> Plan plan/arch-plans/XXXXX-slug.md
-ccmd bash taskwarrior/phase-transition <id> plan-review
+bash taskwarrior/phase-annotate <id> Plan plan/arch-plans/XXXXX-slug.md
+bash taskwarrior/phase-transition <id> plan-review
 ```
 
 ## Quality Criteria

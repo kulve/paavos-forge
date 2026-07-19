@@ -37,14 +37,14 @@ Discovery note: If you notice a significant out-of-scope bug, gap, stub, design 
 6. For each architecture artifact (all must comply with `ARCHITECTURE.md` -- an artifact in domain X may only import/include from domains listed as allowed dependencies of X):
    - Write the artifact of the type and to the location defined in the project profile, with declarations/signatures only (no implementation bodies).
    - List the requirement IDs each artifact satisfies using the traceability syntax from the project profile.
-5. Annotate the task with each artifact path: `ccmd bash taskwarrior/phase-annotate <id> Artifact <architecture-artifact-path>`
-6. Advance: `ccmd bash taskwarrior/phase-transition <id> review`
+5. Annotate the task with each artifact path: `bash taskwarrior/phase-annotate <id> Artifact <architecture-artifact-path>`
+6. Advance: `bash taskwarrior/phase-transition <id> review`
 
 ### Re-do After Review
 
 1. Read the feedback file for specific issues.
 2. Fix ONLY what the review flagged. Do not rewrite from scratch.
-3. Annotate any new files. Advance: `ccmd bash taskwarrior/phase-transition <id> review`
+3. Annotate any new files. Advance: `bash taskwarrior/phase-transition <id> review`
 
 ## Output Specification
 
@@ -54,8 +54,8 @@ Discovery note: If you notice a significant out-of-scope bug, gap, stub, design 
 ## Taskwarrior Protocol
 
 ```bash
-ccmd bash taskwarrior/phase-annotate <id> Artifact <architecture-artifact-path>
-ccmd bash taskwarrior/phase-transition <id> review
+bash taskwarrior/phase-annotate <id> Artifact <architecture-artifact-path>
+bash taskwarrior/phase-transition <id> review
 ```
 
 ## Quality Criteria

@@ -39,8 +39,8 @@ Produce a plan that specifies which files to create/modify, the implementation a
    - Build steps to verify compilation
    - **Verification tooling** the Write agent will build and use to self-verify (see the project profile's "Verification Tooling" section): the internal-state inspection surface, any scenario-driver helpers, and -- for UI stories -- how to drive named states and capture screenshots. List these files/paths and the named UI states to capture (from the story's Visual Acceptance Criteria). If the project profile declares UI kind `none`, skip the screenshot tooling.
 8. Write (or revise) the plan to `plan/implementation-plans/XXXXX-slug.md`.
-9. Annotate: `ccmd bash taskwarrior/phase-annotate <id> Plan plan/implementation-plans/XXXXX-slug.md`
-10. Advance: `ccmd bash taskwarrior/phase-transition <id> plan-review`
+9. Annotate: `bash taskwarrior/phase-annotate <id> Plan plan/implementation-plans/XXXXX-slug.md`
+10. Advance: `bash taskwarrior/phase-transition <id> plan-review`
 
 ## Output Specification
 
@@ -50,8 +50,8 @@ Produce a plan that specifies which files to create/modify, the implementation a
 ## Taskwarrior Protocol
 
 ```bash
-ccmd bash taskwarrior/phase-annotate <id> Plan plan/implementation-plans/XXXXX-slug.md
-ccmd bash taskwarrior/phase-transition <id> plan-review
+bash taskwarrior/phase-annotate <id> Plan plan/implementation-plans/XXXXX-slug.md
+bash taskwarrior/phase-transition <id> plan-review
 ```
 
 ## Quality Criteria

@@ -57,14 +57,14 @@ Scripts enforce preconditions, validate transitions, and exit non-zero on violat
 - Only one PM may run at a time (global lock in main tree). Use `pm-lock-acquire`.
 - Only one Coordinator may run per epic worktree. Use `coordinator-lock-acquire`.
 - Duplicate PM/Coordinator agents must not modify state. They report status and exit.
-- Stale locks and orphaned active tasks must only be cleared by the user after confirming no agents are running, via `ccmd bash taskwarrior/cleanup-ai-state.sh --apply`.
+- Stale locks and orphaned active tasks must only be cleared by the user after confirming no agents are running, via `bash taskwarrior/cleanup-ai-state.sh --apply`.
 
 ## Merge Gate
 
 - Only one epic may merge to main at a time. The merge gate is enforced by `epic-merge`.
 - No new epic worktrees may be created while a merge is in progress (`epic-fork` checks the gate).
 - The PM never directly manipulates the gate. Only `epic-merge` and `epic-fork` scripts interact with it.
-- Stale gate recovery: `ccmd bash taskwarrior/epic-gate-release --force` (manual only, after confirming no merge is in progress).
+- Stale gate recovery: `bash taskwarrior/epic-gate-release --force` (manual only, after confirming no merge is in progress).
 
 ## Review Standards
 
@@ -85,7 +85,7 @@ Scripts enforce preconditions, validate transitions, and exit non-zero on violat
 
 ## Escalation
 
-- If an agent cannot complete its task, it must write an escalation file to `plan/escalations/`, annotate the task via `ccmd bash taskwarrior/phase-annotate`, and **exit immediately**.
+- If an agent cannot complete its task, it must write an escalation file to `plan/escalations/`, annotate the task via `bash taskwarrior/phase-annotate`, and **exit immediately**.
 - Escalation files use the template from `plan/templates/escalation.md`.
 - Escalations halt Coordinator work. The Coordinator blocks the task via `phase-block`, releases its lock, and returns control to the PM.
 - The PM may invoke `escalation-recovery` only after verifying the Coordinator lock is free in the worktree.

@@ -20,37 +20,37 @@ All scripts follow:
 ### Acquire/Release PM Lock
 
 ```bash
-ccmd bash taskwarrior/pm-lock-acquire    # exit 1 if already held
-ccmd bash taskwarrior/pm-lock-release
+bash taskwarrior/pm-lock-acquire    # exit 1 if already held
+bash taskwarrior/pm-lock-release
 ```
 
 ### Preflight Check
 
 ```bash
-ccmd bash taskwarrior/pm-preflight       # read-only status across all worktrees
+bash taskwarrior/pm-preflight       # read-only status across all worktrees
 ```
 
 ### Epic Lifecycle
 
 ```bash
 # Fork a new epic (creates worktree, initializes TW, registers epic)
-ccmd bash taskwarrior/epic-fork EXXXX slug       # exit 1 if gate held
+bash taskwarrior/epic-fork EXXXX slug       # exit 1 if gate held
 
 # Check status of all epics
-ccmd bash taskwarrior/epic-status
+bash taskwarrior/epic-status
 
 # Mark epic ready for merge (after Coordinator completes)
-ccmd bash taskwarrior/epic-mark-ready EXXXX      # exit 2 if not 'active'
+bash taskwarrior/epic-mark-ready EXXXX      # exit 2 if not 'active'
 
 # Merge epic to main (acquires gate, squash-merges, cleans up)
-ccmd bash taskwarrior/epic-merge EXXXX           # exit 1 if gate held, exit 2 if conflict
+bash taskwarrior/epic-merge EXXXX           # exit 1 if gate held, exit 2 if conflict
 
 # Rebase epic branch on latest main
-ccmd bash taskwarrior/epic-rebase EXXXX          # exit 2 if conflict
+bash taskwarrior/epic-rebase EXXXX          # exit 2 if conflict
 
 # Merge gate inspection
-ccmd bash taskwarrior/epic-gate-status
-ccmd bash taskwarrior/epic-gate-release --force  # manual recovery only
+bash taskwarrior/epic-gate-status
+bash taskwarrior/epic-gate-release --force  # manual recovery only
 ```
 
 ---
@@ -60,25 +60,25 @@ ccmd bash taskwarrior/epic-gate-release --force  # manual recovery only
 ### Acquire/Release Coordinator Lock
 
 ```bash
-ccmd bash taskwarrior/coordinator-lock-acquire   # exit 1 if already held
-ccmd bash taskwarrior/coordinator-lock-release
-ccmd bash taskwarrior/coordinator-lock-status    # read-only
+bash taskwarrior/coordinator-lock-acquire   # exit 1 if already held
+bash taskwarrior/coordinator-lock-release
+bash taskwarrior/coordinator-lock-status    # read-only
 ```
 
 ### Story Lifecycle
 
 ```bash
 # Initialize story (creates 4 phase tasks + git branch)
-ccmd bash taskwarrior/story-init XXXXX slug
+bash taskwarrior/story-init XXXXX slug
 
 # Query next actionable task (returns JSON or "NONE")
-ccmd bash taskwarrior/story-next XXXXX
+bash taskwarrior/story-next XXXXX
 
 # Verify all phases done, optionally run tests
-ccmd bash taskwarrior/story-complete XXXXX --run-tests   # exit 1 if not done, exit 2 if tests fail
+bash taskwarrior/story-complete XXXXX --run-tests   # exit 1 if not done, exit 2 if tests fail
 
 # Merge story branch into epic branch
-ccmd bash taskwarrior/story-merge XXXXX slug
+bash taskwarrior/story-merge XXXXX slug
 ```
 
 ---
@@ -89,17 +89,17 @@ ccmd bash taskwarrior/story-merge XXXXX slug
 
 ```bash
 # Start a phase task (guards against other active tasks)
-ccmd bash taskwarrior/phase-start <task-id>      # exit 1 if another task active
+bash taskwarrior/phase-start <task-id>      # exit 1 if another task active
 
 # Stop a phase task
-ccmd bash taskwarrior/phase-stop <task-id>
+bash taskwarrior/phase-stop <task-id>
 ```
 
 ### State Transitions
 
 ```bash
 # Validated state change (checks transition is legal)
-ccmd bash taskwarrior/phase-transition <task-id> <new-state>
+bash taskwarrior/phase-transition <task-id> <new-state>
 
 # Legal transitions:
 #   plan → plan-review
@@ -115,7 +115,7 @@ ccmd bash taskwarrior/phase-transition <task-id> <new-state>
 
 ```bash
 # Add a validated annotation
-ccmd bash taskwarrior/phase-annotate <task-id> <prefix> <value>
+bash taskwarrior/phase-annotate <task-id> <prefix> <value>
 
 # Valid prefixes:
 #   Plan          - plan file path
@@ -134,10 +134,10 @@ ccmd bash taskwarrior/phase-annotate <task-id> <prefix> <value>
 
 ```bash
 # Mark phase done (sets aistate:done, completes task)
-ccmd bash taskwarrior/phase-done <task-id>
+bash taskwarrior/phase-done <task-id>
 
 # Block task with escalation
-ccmd bash taskwarrior/phase-block <task-id> <escalation-path>
+bash taskwarrior/phase-block <task-id> <escalation-path>
 ```
 
 ---
@@ -146,18 +146,18 @@ ccmd bash taskwarrior/phase-block <task-id> <escalation-path>
 
 ```bash
 # Export task JSON
-ccmd bash taskwarrior/tw <task-id> export
+bash taskwarrior/tw <task-id> export
 
 # Count tasks
-ccmd bash taskwarrior/tw status:pending aistory:XXXXX count
-ccmd bash taskwarrior/tw +ACTIVE -AI_LOCK count
+bash taskwarrior/tw status:pending aistory:XXXXX count
+bash taskwarrior/tw +ACTIVE -AI_LOCK count
 
 # Custom reports
-ccmd bash taskwarrior/tw ainext       # next actionable task
-ccmd bash taskwarrior/tw aistory      # all story tasks
-ccmd bash taskwarrior/tw ailocks      # lock status
-ccmd bash taskwarrior/tw aiactive     # active phase tasks
-ccmd bash taskwarrior/tw aiepics      # all epics (main tree only)
+bash taskwarrior/tw ainext       # next actionable task
+bash taskwarrior/tw aistory      # all story tasks
+bash taskwarrior/tw ailocks      # lock status
+bash taskwarrior/tw aiactive     # active phase tasks
+bash taskwarrior/tw aiepics      # all epics (main tree only)
 ```
 
 ---
@@ -166,19 +166,19 @@ ccmd bash taskwarrior/tw aiepics      # all epics (main tree only)
 
 ```bash
 # Cleanup stale state (dry-run first, then --apply)
-ccmd bash taskwarrior/cleanup-ai-state.sh
-ccmd bash taskwarrior/cleanup-ai-state.sh --apply
+bash taskwarrior/cleanup-ai-state.sh
+bash taskwarrior/cleanup-ai-state.sh --apply
 
 # Scope to specific epic
-ccmd bash taskwarrior/cleanup-ai-state.sh --apply --epic EXXXX
+bash taskwarrior/cleanup-ai-state.sh --apply --epic EXXXX
 
 # Clear escalations
-ccmd bash taskwarrior/cleanup-ai-state.sh --apply --epic EXXXX --clear-escalations
+bash taskwarrior/cleanup-ai-state.sh --apply --epic EXXXX --clear-escalations
 
 # Release stuck merge gate
-ccmd bash taskwarrior/cleanup-ai-state.sh --apply --release-gate
+bash taskwarrior/cleanup-ai-state.sh --apply --release-gate
 # or directly:
-ccmd bash taskwarrior/epic-gate-release --force
+bash taskwarrior/epic-gate-release --force
 ```
 
 ---
@@ -188,27 +188,27 @@ ccmd bash taskwarrior/epic-gate-release --force
 ### PM: Dispatch an Epic
 
 ```bash
-ccmd bash taskwarrior/pm-lock-acquire
-ccmd bash taskwarrior/pm-preflight
-ccmd bash taskwarrior/epic-fork E0001 auth-system
+bash taskwarrior/pm-lock-acquire
+bash taskwarrior/pm-preflight
+bash taskwarrior/epic-fork E0001 auth-system
 # Launch Coordinator subagent pointed at .worktrees/epic-E0001-auth-system/
 ```
 
 ### PM: Merge a Completed Epic
 
 ```bash
-ccmd bash taskwarrior/epic-mark-ready E0001
-ccmd bash taskwarrior/epic-merge E0001
+bash taskwarrior/epic-mark-ready E0001
+bash taskwarrior/epic-merge E0001
 ```
 
 ### Coordinator: Process a Story Phase
 
 ```bash
-ccmd bash taskwarrior/story-next 00001
+bash taskwarrior/story-next 00001
 # → JSON with task_id, phase, state, annotations
-ccmd bash taskwarrior/phase-start 5
+bash taskwarrior/phase-start 5
 # invoke subagent...
-ccmd bash taskwarrior/phase-stop 5
+bash taskwarrior/phase-stop 5
 # check outcome from annotations
 ```
 
@@ -216,14 +216,14 @@ ccmd bash taskwarrior/phase-stop 5
 
 ```bash
 # Plan agent:
-ccmd bash taskwarrior/phase-annotate 5 Plan plan/requirement-plans/00001-auth.md
-ccmd bash taskwarrior/phase-transition 5 plan-review
+bash taskwarrior/phase-annotate 5 Plan plan/requirement-plans/00001-auth.md
+bash taskwarrior/phase-transition 5 plan-review
 
 # Review agent (approve):
-ccmd bash taskwarrior/phase-annotate 5 Review approved
-ccmd bash taskwarrior/phase-transition 5 done
+bash taskwarrior/phase-annotate 5 Review approved
+bash taskwarrior/phase-transition 5 done
 
 # Review agent (reject):
-ccmd bash taskwarrior/phase-annotate 5 Feedback plan/requirements-review/00001-feedback.md
-ccmd bash taskwarrior/phase-transition 5 write
+bash taskwarrior/phase-annotate 5 Feedback plan/requirements-review/00001-feedback.md
+bash taskwarrior/phase-transition 5 write
 ```

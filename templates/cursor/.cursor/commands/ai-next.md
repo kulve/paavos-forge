@@ -13,13 +13,13 @@ Show the next actionable pipeline step, optionally scoped to a specific epic.
 Run from within that epic's worktree:
 
 ```bash
-ccmd bash taskwarrior/story-next <story-id>
+bash taskwarrior/story-next <story-id>
 ```
 
 Or if no specific story is given, find the active story:
 
 ```bash
-ccmd bash taskwarrior/tw status:pending +READY -AI_LOCK aistory.any: export
+bash taskwarrior/tw status:pending +READY -AI_LOCK aistory.any: export
 ```
 
 ### If no epic specified
@@ -27,7 +27,7 @@ ccmd bash taskwarrior/tw status:pending +READY -AI_LOCK aistory.any: export
 Run from the main tree to show all active epics:
 
 ```bash
-ccmd bash taskwarrior/epic-status
+bash taskwarrior/epic-status
 ```
 
 Then for each active worktree, show the next task.

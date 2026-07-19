@@ -38,14 +38,14 @@ Either approve the implementation (all criteria met) or reject with specific, ac
    - If the project profile declares UI kind `none`, skip the visual re-check.
 8. Evaluate against all quality criteria.
 9. **If approved:**
-   - `ccmd bash taskwarrior/phase-annotate <id> Review approved`
-   - `ccmd bash taskwarrior/phase-transition <id> done`
+   - `bash taskwarrior/phase-annotate <id> Review approved`
+   - `bash taskwarrior/phase-transition <id> done`
 10. **If rejected:**
    - Write feedback to `plan/implementation-review/XXXXX-feedback.md`
    - For each issue: cite the exact file, line or function, the problem, and a concrete fix instruction
    - List approved aspects so the Write agent knows what NOT to change
-   - `ccmd bash taskwarrior/phase-annotate <id> Feedback plan/implementation-review/XXXXX-feedback.md`
-   - `ccmd bash taskwarrior/phase-transition <id> write`
+   - `bash taskwarrior/phase-annotate <id> Feedback plan/implementation-review/XXXXX-feedback.md`
+   - `bash taskwarrior/phase-transition <id> write`
 
 ## Output Specification
 
@@ -57,14 +57,14 @@ Either approve the implementation (all criteria met) or reject with specific, ac
 
 Approve:
 ```bash
-ccmd bash taskwarrior/phase-annotate <id> Review approved
-ccmd bash taskwarrior/phase-transition <id> done
+bash taskwarrior/phase-annotate <id> Review approved
+bash taskwarrior/phase-transition <id> done
 ```
 
 Reject:
 ```bash
-ccmd bash taskwarrior/phase-annotate <id> Feedback plan/implementation-review/XXXXX-feedback.md
-ccmd bash taskwarrior/phase-transition <id> write
+bash taskwarrior/phase-annotate <id> Feedback plan/implementation-review/XXXXX-feedback.md
+bash taskwarrior/phase-transition <id> write
 ```
 
 ## Quality Criteria

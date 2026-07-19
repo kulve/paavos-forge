@@ -40,16 +40,16 @@ Produce source files that fully implement the architecture and pass all integrat
 8. If tests fail:
    - Read the failure output carefully
    - If the failure is an implementation bug: fix the implementation and re-run tests
-   - If the failure appears to be a test bug (test itself is wrong): fix the test, but annotate the task explaining why: `ccmd bash taskwarrior/phase-annotate <id> "Test fix" "[reason]"`
+   - If the failure appears to be a test bug (test itself is wrong): fix the test, but annotate the task explaining why: `bash taskwarrior/phase-annotate <id> "Test fix" "[reason]"`
    - Iterate until all tests pass
 9. **Self-verify the feature works** using the verification tooling from the plan and the project profile's "Verification Tooling" section. This is your own confidence check that the code actually works, beyond the frozen integration tests:
    - Build the verification tooling identified in the plan (state-inspection surface, scenario driver, screenshot capture). It is real code you build and run now, not a frozen artifact. Ensure the inspection surface is derived from real runtime state, never a hand-updated parallel field.
    - **Scenario checks:** for each acceptance-criteria scenario, capture a state snapshot, perform the action, capture a snapshot again, and assert the observable delta matches the expected end-state.
    - **Visual checks (only if the project profile UI kind is not `none`):** for each Visual Acceptance Criterion in the story, drive the app to the relevant named state, capture a screenshot to the output path from the profile, then **open/read that screenshot image so it enters your own context and reason about it in prose** -- compare what you actually see against the story's visual criterion. If a criterion is not met, fix the implementation and re-capture. Do NOT verify screenshots with image-processing scripts (histograms, pixel/color counts); you must actually look at the image with your own vision.
    - If the project profile declares UI kind `none`, skip the visual checks.
-10. Record a short verification summary: `ccmd bash taskwarrior/phase-annotate <id> Verification "[scenarios checked, named UI states viewed, and outcome]"`
-11. Annotate artifact paths: `ccmd bash taskwarrior/phase-annotate <id> Artifact <source-path>`
-12. Advance: `ccmd bash taskwarrior/phase-transition <id> review`
+10. Record a short verification summary: `bash taskwarrior/phase-annotate <id> Verification "[scenarios checked, named UI states viewed, and outcome]"`
+11. Annotate artifact paths: `bash taskwarrior/phase-annotate <id> Artifact <source-path>`
+12. Advance: `bash taskwarrior/phase-transition <id> review`
 
 ### Re-do After Review
 
@@ -57,7 +57,7 @@ Produce source files that fully implement the architecture and pass all integrat
 2. Fix ONLY what was flagged. Do not rewrite from scratch.
 3. Re-run tests to verify fixes don't break anything.
 4. Re-run the relevant self-verification checks (scenario and, for UI stories, visual) affected by the fix.
-5. Annotate any new files. Advance: `ccmd bash taskwarrior/phase-transition <id> review`
+5. Annotate any new files. Advance: `bash taskwarrior/phase-transition <id> review`
 
 ## Output Specification
 
@@ -69,13 +69,13 @@ Produce source files that fully implement the architecture and pass all integrat
 ## Taskwarrior Protocol
 
 ```bash
-ccmd bash taskwarrior/phase-annotate <id> Artifact <source-path>
-ccmd bash taskwarrior/phase-transition <id> review
+bash taskwarrior/phase-annotate <id> Artifact <source-path>
+bash taskwarrior/phase-transition <id> review
 ```
 
 If fixing a test bug:
 ```bash
-ccmd bash taskwarrior/phase-annotate <id> "Test fix" "[description of the test bug and why it was wrong]"
+bash taskwarrior/phase-annotate <id> "Test fix" "[description of the test bug and why it was wrong]"
 ```
 
 ## Quality Criteria

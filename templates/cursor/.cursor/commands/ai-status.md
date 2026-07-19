@@ -24,8 +24,8 @@ If `plan/project.md` is missing, report that project init (via `roadmap-planner`
 ### Epic-Level Status (run from main tree)
 
 ```bash
-ccmd bash taskwarrior/epic-status
-ccmd bash taskwarrior/epic-gate-status
+bash taskwarrior/epic-status
+bash taskwarrior/epic-gate-status
 ```
 
 ### Per-Worktree Story Status
@@ -33,8 +33,8 @@ ccmd bash taskwarrior/epic-gate-status
 For each active epic worktree listed by `epic-status`, run from within that worktree:
 
 ```bash
-ccmd bash taskwarrior/tw status:pending aistory.any: export
-ccmd bash taskwarrior/tw status:completed aistory.any: export
+bash taskwarrior/tw status:pending aistory.any: export
+bash taskwarrior/tw status:completed aistory.any: export
 ```
 
 ### Present Results As

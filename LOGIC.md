@@ -64,8 +64,8 @@ A lightweight bug-fix agent that operates entirely outside the PM pipeline. The 
 
 **Stale lock recovery**: agents must never auto-clear stale locks. If the user confirms no Cursor agents or subagents are still running for the workspace, the user may run the manual cleanup script:
 ```
-ccmd bash taskwarrior/cleanup-ai-state.sh
-ccmd bash taskwarrior/cleanup-ai-state.sh --apply
+bash taskwarrior/cleanup-ai-state.sh
+bash taskwarrior/cleanup-ai-state.sh --apply
 ```
 
 ---
@@ -188,8 +188,8 @@ The PM operates in the main project tree. It owns the project roadmap, defines m
 
 6. **Epic dispatch**: PM runs the preflight check and forks the epic:
    ```
-   ccmd bash taskwarrior/pm-preflight
-   ccmd bash taskwarrior/epic-fork EXXXX slug
+   bash taskwarrior/pm-preflight
+   bash taskwarrior/epic-fork EXXXX slug
    ```
    The fork script checks the merge gate, creates the worktree, initializes Taskwarrior, and registers the epic. Preflight for the PM also includes the Paavo Notes reachability check from step 0.
 
@@ -199,18 +199,18 @@ The PM operates in the main project tree. It owns the project roadmap, defines m
 
 9. **Monitoring**: PM periodically checks status:
    ```
-   ccmd bash taskwarrior/epic-status
-   ccmd bash taskwarrior/pm-preflight
+   bash taskwarrior/epic-status
+   bash taskwarrior/pm-preflight
    ```
 
 10. **Epic completion**: When a Coordinator signals that all stories are done (epic becomes merge-ready):
     ```
-    ccmd bash taskwarrior/epic-mark-ready EXXXX
+    bash taskwarrior/epic-mark-ready EXXXX
     ```
 
 11. **Merge**: PM merges completed epics to main:
     ```
-    ccmd bash taskwarrior/epic-merge EXXXX
+    bash taskwarrior/epic-merge EXXXX
     ```
     If exit 1 (gate blocked): another merge in progress, wait and retry.
     If exit 2 (conflict): report to user, suggest `epic-rebase`.
@@ -238,7 +238,7 @@ The Coordinator drives all stories within a single epic through all four phases.
 
 2. Acquire Coordinator lock:
    ```
-   ccmd bash taskwarrior/coordinator-lock-acquire
+   bash taskwarrior/coordinator-lock-acquire
    ```
    If exit 1 (already held): report and exit as duplicate.
 
@@ -246,12 +246,12 @@ The Coordinator drives all stories within a single epic through all four phases.
 
 4. Initialize story tasks:
    ```
-   ccmd bash taskwarrior/story-init XXXXX slug
+   bash taskwarrior/story-init XXXXX slug
    ```
 
 5. **Story loop start**: Query next actionable task:
    ```
-   ccmd bash taskwarrior/story-next XXXXX
+   bash taskwarrior/story-next XXXXX
    ```
 
 6. If output is "NONE" and all tasks complete, go to step 14.
@@ -280,7 +280,7 @@ The Coordinator drives all stories within a single epic through all four phases.
 
 10. Start the phase task:
     ```
-    ccmd bash taskwarrior/phase-start <task-id>
+    bash taskwarrior/phase-start <task-id>
     ```
     If exit 1 (another task active): stop and investigate.
 
@@ -288,13 +288,13 @@ The Coordinator drives all stories within a single epic through all four phases.
 
 12. Stop the phase task:
     ```
-    ccmd bash taskwarrior/phase-stop <task-id>
+    bash taskwarrior/phase-stop <task-id>
     ```
 
 13. Process outcome. Track a reject counter per phase (plan-review rejections and review rejections counted separately):
     - If plan-review approved (annotation says `Plan-review: approved`): state is already `write`, continue loop; reset plan-review reject counter
     - If plan-review rejected (annotation says `Plan-feedback:`): state is already `plan`, continue loop; increment plan-review reject counter; if counter reaches 3, go to step 15
-    - If review approved (annotation says `Review: approved`): call `ccmd bash taskwarrior/phase-done <task-id>`, commit phase artifacts: `git commit -am "phase(PHASE): XXXXX"`; reset review reject counter
+    - If review approved (annotation says `Review: approved`): call `bash taskwarrior/phase-done <task-id>`, commit phase artifacts: `git commit -am "phase(PHASE): XXXXX"`; reset review reject counter
     - If review rejected (feedback file annotated): state is already `write`; increment review reject counter; if counter reaches 3, go to step 15; otherwise continue loop
     - If escalation annotated: go to step 15
 
@@ -302,21 +302,21 @@ The Coordinator drives all stories within a single epic through all four phases.
 
 14. **Story complete**: Verify and merge within worktree:
     ```
-    ccmd bash taskwarrior/story-complete XXXXX --run-tests
-    ccmd bash taskwarrior/story-merge XXXXX slug
+    bash taskwarrior/story-complete XXXXX --run-tests
+    bash taskwarrior/story-merge XXXXX slug
     ```
     If tests fail: write an escalation for the implementation phase, block the task, and go to step 15.
     Otherwise: proceed to the next story in the epic (go to step 4 with next story).
 
 15. **Escalation halt** (reject limit reached or subagent wrote escalation):
     - If reject limit: write `plan/escalations/XXXXX-<phase>-reject-loop.md` using the escalation template and annotate the task
-    - Block the task: `ccmd bash taskwarrior/phase-block <task-id> <escalation-path>`
-    - Release the Coordinator lock: `ccmd bash taskwarrior/coordinator-lock-release`
+    - Block the task: `bash taskwarrior/phase-block <task-id> <escalation-path>`
+    - Release the Coordinator lock: `bash taskwarrior/coordinator-lock-release`
     - Return control to the PM with the escalation file path. Do not roll back git. Do not reopen upstream phases. Do not continue the loop.
 
 16. **All stories done**: Release Coordinator lock:
     ```
-    ccmd bash taskwarrior/coordinator-lock-release
+    bash taskwarrior/coordinator-lock-release
     ```
     Signal completion (the PM detects this via `epic-status` or checks the worktree state).
 
@@ -365,7 +365,7 @@ PM writes `plan/epics/EXXXX-slug.md` using the epic template. The file contains 
 
 PM commits the epic file and stories to `main`, then forks:
 ```
-ccmd bash taskwarrior/epic-fork EXXXX slug
+bash taskwarrior/epic-fork EXXXX slug
 ```
 This creates the worktree at `.worktrees/epic-EXXXX-slug/`, initializes a fresh Taskwarrior database, and registers the epic as `active` in the main tree.
 
@@ -377,21 +377,21 @@ PM launches a Coordinator subagent pointed at the worktree. The Coordinator proc
 
 When the Coordinator finishes all stories and releases its lock, the PM marks the epic merge-ready:
 ```
-ccmd bash taskwarrior/epic-mark-ready EXXXX
+bash taskwarrior/epic-mark-ready EXXXX
 ```
 
 ### 8.5 Merge
 
 PM merges the epic to main:
 ```
-ccmd bash taskwarrior/epic-merge EXXXX
+bash taskwarrior/epic-merge EXXXX
 ```
 The script acquires the merge gate, performs a squash-merge, removes the worktree, and updates epic state to `merged`.
 
 ### 8.6 Conflict Resolution
 
 If `epic-merge` fails with a conflict (exit 2), the epic enters `conflict` state. The PM may:
-- Run `ccmd bash taskwarrior/epic-rebase EXXXX` to rebase on latest main
+- Run `bash taskwarrior/epic-rebase EXXXX` to rebase on latest main
 - Report the conflict to the user for manual resolution
 
 After successful rebase, the epic returns to `merge-ready` and merge can be retried.
@@ -415,11 +415,11 @@ Escalations halt Coordinator work and surface the problem to the PM. The PM may 
 
 2. **Report**: the subagent (or Coordinator on reject limit) writes `plan/escalations/XXXXX-phase-slug.md` using the escalation template, annotates the task with `Escalation: <path>`, and exits immediately. The subagent does not continue working after writing the escalation.
 
-3. **Coordinator halt**: the Coordinator detects the `Escalation:` annotation or reject limit, blocks the task via `ccmd bash taskwarrior/phase-block <task-id> <path>`, releases the Coordinator lock via `ccmd bash taskwarrior/coordinator-lock-release`, and returns control to the PM. No git rollback. No upstream phase reopening.
+3. **Coordinator halt**: the Coordinator detects the `Escalation:` annotation or reject limit, blocks the task via `bash taskwarrior/phase-block <task-id> <path>`, releases the Coordinator lock via `bash taskwarrior/coordinator-lock-release`, and returns control to the PM. No git rollback. No upstream phase reopening.
 
 4. **PM recovery preflight**: before invoking recovery, the PM must verify the worktree state:
    ```
-   ccmd bash taskwarrior/coordinator-lock-status    # (run in worktree) must show FREE
+   bash taskwarrior/coordinator-lock-status    # (run in worktree) must show FREE
    ```
    If the Coordinator lock is held, the PM must not recover automatically.
 
@@ -430,8 +430,8 @@ Escalations halt Coordinator work and surface the problem to the PM. The PM may 
 
 6. **PM state restoration**: if recovery returns `resolved`, the PM uses scripts to clear the escalation and restore the task:
    ```
-   ccmd bash taskwarrior/phase-annotate <id> Recovery "<summary>"
-   ccmd bash taskwarrior/phase-transition <id> <resume-state>
+   bash taskwarrior/phase-annotate <id> Recovery "<summary>"
+   bash taskwarrior/phase-transition <id> <resume-state>
    ```
    (The `phase-transition` script handles clearing `+blocked` when transitioning from blocked state.)
 

@@ -17,7 +17,7 @@ Process every story in the epic serially, driving each through all four phases u
 **Before doing any work**, acquire the Coordinator lock:
 
 ```bash
-ccmd bash taskwarrior/coordinator-lock-acquire
+bash taskwarrior/coordinator-lock-acquire
 ```
 
 If exit code is 1: another Coordinator is already running in this worktree. Run read-only status and exit (see Duplicate Startup below).
@@ -36,8 +36,8 @@ Then read:
 If `coordinator-lock-acquire` exits 1:
 
 ```bash
-ccmd bash taskwarrior/coordinator-lock-status
-ccmd bash taskwarrior/tw ainext
+bash taskwarrior/coordinator-lock-status
+bash taskwarrior/tw ainext
 ```
 
 Report: "A Coordinator is already running in this worktree." and exit without modifying anything.
@@ -55,13 +55,13 @@ Report: "A Coordinator is already running in this worktree." and exit without mo
 
 4. Initialize story tasks:
    ```bash
-   ccmd bash taskwarrior/story-init XXXXX slug
+   bash taskwarrior/story-init XXXXX slug
    ```
    This creates 4 phase tasks with dependencies and the story branch.
 
 5. **Phase loop start**: query the next actionable task:
    ```bash
-   ccmd bash taskwarrior/story-next XXXXX
+   bash taskwarrior/story-next XXXXX
    ```
 
 6. If output is "NONE: All tasks for story XXXXX are complete." -- go to step 14.
@@ -104,7 +104,7 @@ Report: "A Coordinator is already running in this worktree." and exit without mo
 
 10. Start the phase task:
     ```bash
-    ccmd bash taskwarrior/phase-start <task_id>
+    bash taskwarrior/phase-start <task_id>
     ```
     If exit 1 (another task active): stop and investigate. This should not happen.
 
@@ -112,12 +112,12 @@ Report: "A Coordinator is already running in this worktree." and exit without mo
 
 12. Stop the phase task:
     ```bash
-    ccmd bash taskwarrior/phase-stop <task_id>
+    bash taskwarrior/phase-stop <task_id>
     ```
 
 13. **Process outcome**. Query updated annotations:
     ```bash
-    ccmd bash taskwarrior/story-next XXXXX
+    bash taskwarrior/story-next XXXXX
     ```
     Check what the subagent annotated on the task (read from the previous or new `story-next` output, or query directly with `taskwarrior/tw <task_id> export`).
 
@@ -125,7 +125,7 @@ Report: "A Coordinator is already running in this worktree." and exit without mo
 
     - **Plan-review approved** (annotation `Plan-review: approved`): state is now `write`. Reset plan-review reject counter. Continue loop (go to step 5).
     - **Plan-review rejected** (annotation `Plan-feedback: <path>`): state is now `plan`. Increment plan-review reject counter. If counter reaches 3, go to step 15. Otherwise continue loop.
-    - **Review approved** (annotation `Review: approved`): call `ccmd bash taskwarrior/phase-done <task_id>`. Commit phase artifacts: `git commit -am "phase(<phase>): XXXXX"`. Reset review reject counter. Continue loop.
+    - **Review approved** (annotation `Review: approved`): call `bash taskwarrior/phase-done <task_id>`. Commit phase artifacts: `git commit -am "phase(<phase>): XXXXX"`. Reset review reject counter. Continue loop.
     - **Review rejected** (annotation `Feedback: <path>`): state is now `write`. Increment review reject counter. If counter reaches 3, go to step 15. Otherwise continue loop.
     - **Escalation** (annotation `Escalation: <path>`): go to step 15.
 
@@ -135,11 +135,11 @@ Report: "A Coordinator is already running in this worktree." and exit without mo
 
 14. All four phases are done. Verify and merge:
     ```bash
-    ccmd bash taskwarrior/story-complete XXXXX --run-tests
+    bash taskwarrior/story-complete XXXXX --run-tests
     ```
     If exit 0 (tests pass):
     ```bash
-    ccmd bash taskwarrior/story-merge XXXXX slug
+    bash taskwarrior/story-merge XXXXX slug
     ```
     Then proceed to the next story in the epic (go to step 3 with the next story).
 
@@ -151,11 +151,11 @@ Report: "A Coordinator is already running in this worktree." and exit without mo
     - If reject limit reached: write `plan/escalations/XXXXX-<phase>-reject-loop.md` using the escalation template.
     - Block the task:
       ```bash
-      ccmd bash taskwarrior/phase-block <task_id> plan/escalations/XXXXX-<phase>-slug.md
+      bash taskwarrior/phase-block <task_id> plan/escalations/XXXXX-<phase>-slug.md
       ```
     - Release the Coordinator lock:
       ```bash
-      ccmd bash taskwarrior/coordinator-lock-release
+      bash taskwarrior/coordinator-lock-release
       ```
     - Report the escalation file path to the PM and exit. Do not roll back git. Do not reopen upstream phases. Do not continue the loop.
 
@@ -164,7 +164,7 @@ Report: "A Coordinator is already running in this worktree." and exit without mo
 16. All stories in the epic are complete and merged to the epic branch.
     - Release the Coordinator lock:
       ```bash
-      ccmd bash taskwarrior/coordinator-lock-release
+      bash taskwarrior/coordinator-lock-release
       ```
     - Report completion to the PM: "All stories in epic EXXXX complete. Epic branch ready for merge."
 

@@ -2,19 +2,6 @@
 
 This file is for AI agents maintaining the AI execution framework template repository itself. If you are an agent working in a downstream project that deployed this framework, read your project's `AGENTS.md` and `ai-framework/LOGIC.md` instead.
 
-## Shell Commands (`ccmd`)
-
-All shell commands in this repository must run through `ccmd`. This avoids per-command approval prompts in Cursor.
-
-- Prefix every command with `ccmd`. Never run bare `git`, `ls`, `bash`, etc.
-- Piping: wrap each stage -- `ccmd ls -la | ccmd grep foo` (not `ccmd ls | grep foo`).
-- Do not pass shell metacharacter bundles as one argument (e.g. avoid `ccmd "ls && rm -rf ."`).
-- If blocked, `ccmd` exits 1 with `ccmd: blocked: <reason>`. Do not retry with bypass syntax; use a safe alternative.
-
-**Git (allowed):** `ccmd git status`, `ccmd git diff`, `ccmd git log`, `ccmd git add`, `ccmd git commit`, `ccmd git init`, `ccmd git show`, `ccmd git fetch`, `ccmd git blame`, `ccmd git ls-files`.
-
-**Git (blocked):** `ccmd git push`, `ccmd git rebase`, `ccmd git reset --hard`, and other destructive operations unless the user explicitly requests them.
-
 ## Repository Purpose
 
 This repository is a generic, deployable template. It does not build or run anything on its own. Its outputs are documentation and template files that get copied into downstream projects.
@@ -95,7 +82,7 @@ When updating agent prompts or command references:
 - Verify read-only queries use `taskwarrior/tw`
 - Verify script names match what exists in `templates/base/taskwarrior/`
 
-AI lock and gate recovery is manual-only. Agents must never clear stale locks or gates automatically. Point users to `ccmd bash taskwarrior/cleanup-ai-state.sh` or `ccmd bash taskwarrior/epic-gate-release --force`.
+AI lock and gate recovery is manual-only. Agents must never clear stale locks or gates automatically. Point users to `bash taskwarrior/cleanup-ai-state.sh` or `bash taskwarrior/epic-gate-release --force`.
 
 ## File Structure
 

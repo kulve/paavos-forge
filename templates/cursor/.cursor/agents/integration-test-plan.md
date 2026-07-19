@@ -38,8 +38,8 @@ Discovery note: If you notice a significant out-of-scope bug, gap, stub, design 
    - What the mock boundary is (only system boundaries from the project profile)
    - How tests should be organized (by feature, by interface, by scenario)
 7. Write (or revise) the plan to `plan/integration-test-plans/XXXXX-slug.md`.
-8. Annotate: `ccmd bash taskwarrior/phase-annotate <id> Plan plan/integration-test-plans/XXXXX-slug.md`
-9. Advance: `ccmd bash taskwarrior/phase-transition <id> plan-review`
+8. Annotate: `bash taskwarrior/phase-annotate <id> Plan plan/integration-test-plans/XXXXX-slug.md`
+9. Advance: `bash taskwarrior/phase-transition <id> plan-review`
 
 ## Output Specification
 
@@ -49,8 +49,8 @@ Discovery note: If you notice a significant out-of-scope bug, gap, stub, design 
 ## Taskwarrior Protocol
 
 ```bash
-ccmd bash taskwarrior/phase-annotate <id> Plan plan/integration-test-plans/XXXXX-slug.md
-ccmd bash taskwarrior/phase-transition <id> plan-review
+bash taskwarrior/phase-annotate <id> Plan plan/integration-test-plans/XXXXX-slug.md
+bash taskwarrior/phase-transition <id> plan-review
 ```
 
 ## Quality Criteria

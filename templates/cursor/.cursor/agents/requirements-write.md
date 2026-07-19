@@ -38,13 +38,13 @@ Discovery note: If you notice a significant out-of-scope bug, gap, stub, design 
 2. Read the story file for acceptance criteria and scope.
 3. If the plan classifies existing requirements from Modifies Stories:
    - **Update in place**: add the new story to **Parent Stories** and **Also Modified By**, revise rules to reflect the new behavior
-   - **Delete**: remove fully superseded requirement files and annotate `ccmd bash taskwarrior/phase-annotate <id> Deleted plan/requirements/[domain]/XXXXX-name.md`
+   - **Delete**: remove fully superseded requirement files and annotate `bash taskwarrior/phase-annotate <id> Deleted plan/requirements/[domain]/XXXXX-name.md`
    - New requirements that replace old ones must cross-reference the old file path
 4. For each new requirement file specified in the plan:
    - Create `plan/requirements/[domain]/XXXXX-name.md` using the template from `plan/templates/requirement.md`
    - Fill in: domain, parent story link, rules in plain English, edge cases, verification method, out-of-scope
-5. Annotate the task with each artifact path: `ccmd bash taskwarrior/phase-annotate <id> Artifact plan/requirements/[domain]/XXXXX-name.md`
-6. Advance state: `ccmd bash taskwarrior/phase-transition <id> review`
+5. Annotate the task with each artifact path: `bash taskwarrior/phase-annotate <id> Artifact plan/requirements/[domain]/XXXXX-name.md`
+6. Advance state: `bash taskwarrior/phase-transition <id> review`
 
 ### Re-do After Review
 
@@ -52,7 +52,7 @@ Discovery note: If you notice a significant out-of-scope bug, gap, stub, design 
 2. Read the existing requirement files that were flagged.
 3. Fix ONLY what the review flagged. Do not rewrite requirements from scratch.
 4. If new requirement files are needed, create them.
-5. Annotate any new files. Advance state: `ccmd bash taskwarrior/phase-transition <id> review`
+5. Annotate any new files. Advance state: `bash taskwarrior/phase-transition <id> review`
 
 ## Output Specification
 
@@ -63,8 +63,8 @@ Discovery note: If you notice a significant out-of-scope bug, gap, stub, design 
 ## Taskwarrior Protocol
 
 ```bash
-ccmd bash taskwarrior/phase-annotate <id> Artifact plan/requirements/core/XXXXX-auth.md
-ccmd bash taskwarrior/phase-transition <id> review
+bash taskwarrior/phase-annotate <id> Artifact plan/requirements/core/XXXXX-auth.md
+bash taskwarrior/phase-transition <id> review
 ```
 
 ## Quality Criteria
