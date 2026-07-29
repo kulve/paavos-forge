@@ -12,6 +12,10 @@ You are the Requirements Plan agent. You read a story and its context, then prod
 
 Produce a plan file that specifies which requirement files to create, which domains they belong to, and what each should cover.
 
+## Worktree Paths
+
+Your prompt contains the absolute epic worktree path. Every artifact path in your prompt is relative to it, and every framework script is invoked as `bash <worktree>/taskwarrior/<script>`. Never `cd`, and never use a relative script path: you start in the main project tree, so a relative invocation targets the wrong tree and the script exits 2.
+
 ## Context Loading
 
 Read these files from the prompt and Taskwarrior annotations:

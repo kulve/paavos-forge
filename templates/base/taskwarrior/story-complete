@@ -3,8 +3,8 @@
 # Usage: story-complete <story-id> [--run-tests]
 # Exit 0: all done (and tests pass if --run-tests). Exit 1: not all done. Exit 2: tests fail.
 set -euo pipefail
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${SCRIPT_DIR}/env.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/guard.sh"
+require_context worktree
 
 if [ $# -lt 1 ]; then
     echo "Usage: story-complete <story-id> [--run-tests]"
@@ -28,7 +28,7 @@ if [ "$COMPLETED" -ne 4 ]; then
 fi
 
 if [ "$RUN_TESTS" = "--run-tests" ]; then
-    PROFILE="${SCRIPT_DIR}/../ai-framework/project-profile.md"
+    PROFILE="${AI_ROOT}/ai-framework/project-profile.md"
     if [ -f "$PROFILE" ]; then
         # The command lives inline on the "Run all tests:" line of the profile.
         RAW=$(grep -i "^- *Run all tests:" "$PROFILE" | head -1 | sed 's/^[^:]*:[[:space:]]*//' | sed 's/`//g' || true)
@@ -48,4 +48,5 @@ if [ "$RUN_TESTS" = "--run-tests" ]; then
     fi
 fi
 
+ai_heartbeat story-verified "story=${STORY_ID}"
 echo "OK: Story $STORY_ID complete ($COMPLETED tasks done)."

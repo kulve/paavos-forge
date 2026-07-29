@@ -1,0 +1,88 @@
+#!/bin/bash
+# Record Coordinator liveness and progress for the epic worktree.
+# Usage: coordinator-heartbeat <event> [key=value ...]
+#   recognized keys: story, phase, state, agent, detail, escalation
+#
+# Writes .task/coordinator-status.json (latest snapshot) and appends one line to
+# .task/coordinator-events.log (history). Both live under .task/, which is
+# gitignored, so telemetry never touches the working tree.
+#
+# This script never fails its caller: write errors print a warning and exit 0.
+# Called automatically by the lifecycle scripts, so progress reporting does not
+# depend on an agent remembering to report.
+set -uo pipefail
+source "$(dirname "${BASH_SOURCE[0]}")/guard.sh"
+require_context worktree
+
+if [ $# -lt 1 ]; then
+    echo "Usage: coordinator-heartbeat <event> [key=value ...]" >&2
+    echo "  recognized keys: story, phase, state, agent, detail, escalation" >&2
+    exit 2
+fi
+
+EVENT="$1"
+shift
+
+BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
+
+if ! python3 - "$AI_ROOT" "$TASKDATA" "$EVENT" "$BRANCH" "$@" <<'PY'
+import json, os, re, sys, time
+
+ai_root, taskdata, event, branch = sys.argv[1:5]
+pairs = sys.argv[5:]
+
+RECOGNIZED = ("story", "phase", "state", "agent", "detail", "escalation")
+fields = {k: "" for k in RECOGNIZED}
+for item in pairs:
+    if "=" not in item:
+        continue
+    key, value = item.split("=", 1)
+    if key in fields:
+        fields[key] = value
+
+# Epic id from the worktree directory name: epic-E0001-slug -> E0001
+match = re.match(r"^epic-([^-]+)-", os.path.basename(ai_root))
+epic = match.group(1) if match else ""
+
+status_path = os.path.join(taskdata, "coordinator-status.json")
+log_path = os.path.join(taskdata, "coordinator-events.log")
+
+sequence = 1
+try:
+    with open(status_path) as handle:
+        sequence = int(json.load(handle).get("sequence", 0)) + 1
+except Exception:
+    pass
+
+now = int(time.time())
+record = {
+    "schema": 1,
+    "epic": epic,
+    "worktree": ai_root,
+    "branch": branch,
+    "sequence": sequence,
+    "updated_epoch": now,
+    "updated_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(now)),
+    "event": event,
+}
+record.update(fields)
+
+os.makedirs(taskdata, exist_ok=True)
+tmp_path = status_path + ".tmp"
+with open(tmp_path, "w") as handle:
+    json.dump(record, handle, indent=2)
+    handle.write("\n")
+os.replace(tmp_path, status_path)
+
+log_line = "{utc} seq={seq} {event}".format(utc=record["updated_utc"], seq=sequence, event=event)
+for key in RECOGNIZED:
+    if fields[key]:
+        log_line += " {0}={1}".format(key, fields[key])
+with open(log_path, "a") as handle:
+    handle.write(log_line + "\n")
+PY
+then
+    echo "WARNING: coordinator-heartbeat could not record event '${EVENT}'." >&2
+fi
+
+exit 0

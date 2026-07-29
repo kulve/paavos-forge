@@ -29,10 +29,8 @@
 # NEVER run this while agents are still active. Always confirm first.
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${SCRIPT_DIR}/env.sh"
-
-PROJECT_ROOT="${SCRIPT_DIR}/.."
+source "$(dirname "${BASH_SOURCE[0]}")/guard.sh"
+require_context main
 
 APPLY=false
 YES=false
@@ -207,13 +205,13 @@ for t in tasks:
 
 if [ -n "$EPIC" ]; then
     # Find specific epic worktree
-    for wt in "${PROJECT_ROOT}/.worktrees"/epic-${EPIC}-*/; do
+    for wt in "${AI_ROOT}/.worktrees"/epic-${EPIC}-*/; do
         if [ -d "$wt" ]; then
             cleanup_worktree "$wt"
         fi
     done
-elif [ -d "${PROJECT_ROOT}/.worktrees" ]; then
-    for wt in "${PROJECT_ROOT}/.worktrees"/*/; do
+elif [ -d "${AI_ROOT}/.worktrees" ]; then
+    for wt in "${AI_ROOT}/.worktrees"/*/; do
         if [ -d "$wt" ]; then
             cleanup_worktree "$wt"
         fi

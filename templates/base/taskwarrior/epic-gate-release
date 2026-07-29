@@ -3,8 +3,8 @@
 # Usage: epic-gate-release [--force]
 # Without --force: shows status and exits. With --force: releases unconditionally.
 set -euo pipefail
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${SCRIPT_DIR}/env.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/guard.sh"
+require_context main
 
 FORCE="${1:-}"
 
@@ -16,7 +16,7 @@ fi
 
 if [ "$FORCE" != "--force" ]; then
     echo "Merge gate is currently held:"
-    bash "${SCRIPT_DIR}/epic-gate-status"
+    bash "${AI_ROOT}/taskwarrior/epic-gate-status"
     echo ""
     echo "To force-release, run: bash taskwarrior/epic-gate-release --force"
     echo "WARNING: Only do this after confirming no merge operation is in progress."

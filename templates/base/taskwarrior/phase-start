@@ -3,8 +3,8 @@
 # Usage: phase-start <task-id>
 # Exit 0: success. Exit 1: another task active. Exit 2: error.
 set -euo pipefail
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${SCRIPT_DIR}/env.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/guard.sh"
+require_context worktree
 
 if [ $# -lt 1 ]; then
     echo "Usage: phase-start <task-id>"
@@ -21,4 +21,6 @@ if [ "$ACTIVE_COUNT" -gt 0 ]; then
 fi
 
 task "$TASK_ID" start
+# shellcheck disable=SC2046  # word splitting is intended: three key=value args
+ai_heartbeat phase-start $(ai_task_fields "$TASK_ID")
 echo "OK: Task $TASK_ID started."

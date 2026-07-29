@@ -2,8 +2,8 @@
 # Squash-merge a completed story branch into the epic branch (within the worktree).
 # Usage: story-merge <story-id> <slug>
 set -euo pipefail
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${SCRIPT_DIR}/env.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/guard.sh"
+require_context worktree
 
 if [ $# -lt 2 ]; then
     echo "Usage: story-merge <story-id> <slug>"
@@ -34,4 +34,5 @@ git merge --squash "$STORY_BRANCH"
 git commit -m "story: ${STORY_ID}-${SLUG}"
 git branch -d "$STORY_BRANCH"
 
+ai_heartbeat story-merged "story=${STORY_ID}"
 echo "OK: Story $STORY_ID merged into $EPIC_BRANCH."

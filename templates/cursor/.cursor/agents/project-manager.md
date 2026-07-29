@@ -107,20 +107,36 @@ If `plan/project.md` already exists, skip steps 2-3 and continue from the In-Pro
     If `epic-fork` exits 1 (merge gate held): wait for the current merge to complete, then retry.
     If `epic-fork` exits 2: error, investigate.
 
-16. Launch a Coordinator subagent with `working_directory` set to the worktree path returned by `epic-fork`. The prompt must include:
-    - The epic file path (e.g. `plan/epics/E0001-auth-system.md`)
-    - The worktree path
+16. Launch a Coordinator subagent with `run_in_background: true`. Subagents have **no `working_directory` parameter**: a Coordinator always starts in the main tree, so its prompt must make every path explicit. The prompt must include:
+    - The absolute worktree path returned by `epic-fork` (call it `WT`)
+    - The epic file path relative to the worktree (e.g. `plan/epics/E0001-auth-system.md`)
+    - This exact invariant: "Invoke every framework script by absolute path, `bash <WT>/taskwarrior/<script>`. Never `cd` first and never use a relative script path. Read and write artifacts under `<WT>/`."
     - Instruction to follow the coordinator's own role definition
-    Use `run_in_background: true` if you plan to dispatch additional epics.
+    - Instruction to run its Startup Assertion before any other work
 
-17. For additional independent epics: repeat from step 7 (Story Generation) or step 15 (if stories already exist).
+    Background execution is what makes parallel epics possible. Do not run a Coordinator in the foreground.
 
-### Monitoring
+17. For additional independent epics: repeat from step 7 (Story Generation) or step 15 (if stories already exist). Each epic gets its own worktree and its own background Coordinator.
 
-18. Periodically check epic status:
+### Supervision
+
+18. Coordinators run in the background, so supervise them with one command. It is the only sanctioned progress signal:
+
     ```bash
-    bash taskwarrior/epic-status
+    bash taskwarrior/coordinator-status
     ```
+
+    Act strictly on its exit code:
+
+    1. **Exit 0** (every worktree `OK` or `DONE`) -- continue other PM work: generate stories for the next epic, dispatch another epic, or wait. Re-check later.
+    2. **Exit 1** (at least one `STALE`) -- attention, not action. Do other PM work, then re-check. If the same worktree is still `STALE` on the second consecutive check, treat it as exit 2.
+    3. **Exit 2 with a non-empty `escalation`** -- enter the Escalation Received procedure for that epic.
+    4. **Exit 2 with `NO-HEARTBEAT` or `DEAD`** -- the Coordinator subagent died. Run `bash taskwarrior/doctor` and follow the Escalation Received routing from the triage result. Never clear a HELD lock yourself; that is user-only.
+    5. **`DONE`** (last event `stopped`/`completed` and lock `FREE`) -- proceed to Epic Completion and Merge.
+
+    `coordinator-status --epic EXXXX` narrows to one epic; `--json` gives the same data machine-readably.
+
+    Liveness is derived from a heartbeat that the framework scripts write automatically on every phase transition, annotation, and story boundary, so a silent worktree genuinely means stuck work, not a quiet agent.
 
 ### Epic Completion and Merge
 
@@ -162,39 +178,50 @@ When the milestone is otherwise complete (all epics merged):
 
 ### Escalation Received
 
-When a Coordinator returns due to an escalation:
+Triage first, then dispatch. Do not decide the handler yourself, and do not default to asking the user.
 
-1. Read the escalation file returned by the Coordinator.
-2. Verify the Coordinator lock is released in the epic's worktree:
+1. Read the escalation file (`<WT>/plan/escalations/...`) reported by the Coordinator or by `coordinator-status`.
+2. Verify the Coordinator lock is free:
    ```bash
-   cd <worktree-path> && bash taskwarrior/coordinator-lock-status
+   bash <WT>/taskwarrior/coordinator-lock-status
    ```
-3. If Coordinator lock is HELD, do not recover. Report and wait for user.
-4. Invoke the `escalation-recovery` subagent in foreground (`run_in_background: false`) with `working_directory` set to the epic's worktree. The prompt must include:
-   - Escalation file path
-   - Blocked task ID
-   - Story file path
-5. If outcome is `needs-human` or `failed-recovery`: explain to user and stop.
-6. If outcome is `resolved`: clear the escalation state using scripts in the worktree:
+   If it is HELD, stop: report to the user and wait. Never clear a lock yourself.
+3. Invoke the `escalation-triage` subagent in the foreground (`run_in_background: false`). It is read-only. The prompt must include the absolute worktree path, the escalation file path, the blocked task ID, the story file path, and the instruction to invoke scripts by absolute path.
+4. Triage returns a fixed block containing `Class`, `Proposed handler`, `Verification`, and `Fingerprint`. Before any automatic attempt, check the fingerprint:
    ```bash
-   cd <worktree-path>
-   bash taskwarrior/phase-annotate <id> Recovery "<summary>"
-   bash taskwarrior/phase-transition <id> <resume-state>
+   bash <WT>/taskwarrior/tw <blocked-task-id> export
    ```
-7. Launch a fresh Coordinator for the same epic. Never resume the old one.
+   If an annotation already contains the same `fp=<fingerprint>`, this root cause has been attempted before. Route to the user instead of retrying.
+5. Record the attempt:
+   ```bash
+   bash <WT>/taskwarrior/phase-annotate <id> Recovery "attempt <n> class=<class> fp=<fingerprint>"
+   ```
+6. Dispatch by `Proposed handler`:
+   - `environment-recovery` -- invoke the `environment-recovery` subagent in the foreground. Environment damage is mechanical; it does not need the user.
+   - `escalation-recovery` -- invoke the existing `escalation-recovery` subagent in the foreground for bounded artifact corrections.
+   - `user` -- report the triage block to the user and stop. `product-intent` and `scope-policy` classes always stop here, as does any `low` confidence result.
+7. Handle the outcome:
+   - `resolved` -- clear the escalation state, then continue:
+     ```bash
+     bash <WT>/taskwarrior/phase-annotate <id> Recovery "<summary>"
+     bash <WT>/taskwarrior/phase-transition <id> <resume-state>
+     ```
+     Then launch a fresh background Coordinator for the epic (step 16). Never resume the old one.
+   - `needs-human` or `failed-recovery` -- report the recovery report and the triage block to the user and stop.
 
 ### Unexpectedly Stopped Coordinator
 
-If an epic's Coordinator appears to have stopped without completing (worktree exists, not all stories done, Coordinator lock free):
+`coordinator-status` reporting `NO-HEARTBEAT` or `DEAD` means the Coordinator subagent died.
 
-1. Run read-only status in the worktree:
+1. Diagnose (read-only, never `--fix` at this point):
    ```bash
-   cd <worktree-path> && bash taskwarrior/coordinator-lock-status
-   cd <worktree-path> && bash taskwarrior/tw +ACTIVE -AI_LOCK count
-   cd <worktree-path> && bash taskwarrior/tw ainext
+   bash taskwarrior/coordinator-status --epic EXXXX
+   bash taskwarrior/doctor
+   bash <WT>/taskwarrior/tw ainext
    ```
-2. Report the state to the user.
-3. Do NOT auto-resume or clear state. Wait for user direction.
+2. If `doctor` exits 0 and the lock is FREE, the Coordinator simply stopped: launch a fresh background Coordinator for the epic. There is no state to repair.
+3. If `doctor` exits 1 (only fixable failures), run the Escalation Received procedure: triage will classify this as `environment` and route it to `environment-recovery`.
+4. If `doctor` exits 2, or the Coordinator lock is HELD, report to the user and stop. Do NOT clear locks or active tasks; that is user-only via `cleanup-ai-state.sh`.
 
 ## Taskwarrior Protocol
 
@@ -205,6 +232,8 @@ The PM uses scripts for all state mutations. It may use `taskwarrior/tw` directl
 bash taskwarrior/epic-status
 bash taskwarrior/pm-preflight
 bash taskwarrior/epic-gate-status
+bash taskwarrior/coordinator-status          # Coordinator liveness and progress
+bash taskwarrior/doctor                      # invariant diagnostics (dry-run)
 
 # State mutations (via scripts only):
 bash taskwarrior/pm-lock-acquire
@@ -244,6 +273,11 @@ bash taskwarrior/pm-lock-release
 - NEVER resume an old Coordinator chat after escalation recovery. Launch fresh.
 - NEVER auto-resume interrupted Coordinator work. Report status, wait for user.
 - NEVER clear stale locks automatically. Only the user may do that.
+- NEVER infer Coordinator progress by reading agent transcript files, chat logs, or `.jsonl` files. Use `coordinator-status`.
+- NEVER pass `working_directory` to a subagent; that parameter does not exist. Put the absolute worktree path in the prompt instead.
+- NEVER run `taskwarrior/doctor --fix` yourself. Diagnose with the dry run and let `environment-recovery` apply repairs.
+- NEVER route an escalation to the user before `escalation-triage` has classified it.
+- NEVER retry a recovery for a fingerprint that already appears in the task's annotations.
 - NEVER write technical implementation stories. Stories describe user-visible features.
 - NEVER leave planning artifacts uncommitted before dispatching an epic.
 - NEVER silently act on discoveries. Triage after milestone completion; wait for user decision.
@@ -253,4 +287,4 @@ bash taskwarrior/pm-lock-release
 
 ## Escalation
 
-When a Coordinator escalates, attempt bounded recovery only after verifying the Coordinator lock is free in the worktree. If `escalation-recovery` returns `resolved`, clear state via scripts and launch a fresh Coordinator. If it returns `needs-human` or `failed-recovery`, explain to the user and stop. Product-intent changes and Paavo Notes version adoption require user direction.
+When a Coordinator escalates, verify the Coordinator lock is free in the worktree, then run `escalation-triage` in the foreground and dispatch by its `Proposed handler`: `environment-recovery` for mechanical state and configuration damage, `escalation-recovery` for bounded artifact corrections, and the user for `product-intent` and `scope-policy` classes or any low-confidence result. One automatic attempt per fingerprint; a repeat fingerprint goes to the user. On `resolved`, clear state via scripts and launch a fresh background Coordinator. On `needs-human` or `failed-recovery`, explain to the user and stop. Product-intent changes and Paavo Notes version adoption always require user direction.

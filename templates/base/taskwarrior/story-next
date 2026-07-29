@@ -3,8 +3,8 @@
 # Usage: story-next <story-id>
 # Exit 0 + JSON: task found. Exit 0 + "NONE": all done or no ready tasks.
 set -euo pipefail
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${SCRIPT_DIR}/env.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/guard.sh"
+require_context worktree
 
 if [ $# -lt 1 ]; then
     echo "Usage: story-next <story-id>"

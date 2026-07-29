@@ -3,8 +3,8 @@
 # Usage: story-init <story-id> <slug>
 # Must be run within an epic worktree.
 set -euo pipefail
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${SCRIPT_DIR}/env.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/guard.sh"
+require_context worktree
 
 if [ $# -lt 2 ]; then
     echo "Usage: story-init <story-id> <slug>"
@@ -13,6 +13,31 @@ fi
 
 STORY_ID="$1"
 SLUG="$2"
+
+# Fail before mutating anything if this database is not a configured epic worktree.
+# Without the phase UDAs, Taskwarrior silently folds `aiphase:req` and friends into
+# the description text and produces unusable tasks.
+UDAS=$(task _udas 2>/dev/null || echo "")
+for UDA in aiphase aistate aistory; do
+    if ! echo "$UDAS" | tr ' ' '\n' | grep -qx "$UDA"; then
+        echo "ERROR: Phase UDA '${UDA}' missing; this is not a configured epic worktree."
+        echo "  Root: ${AI_ROOT}"
+        echo "  Fix:  bash ${AI_ROOT}/taskwarrior/setup.sh --worktree"
+        exit 2
+    fi
+done
+
+# Story branches are cut from the epic branch. Anything else means this script is
+# about to move the wrong HEAD.
+CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+case "$CURRENT_BRANCH" in
+    epic/*) ;;
+    *)
+        echo "ERROR: Expected to be on an epic/* branch, found '${CURRENT_BRANCH}'."
+        echo "  Root: ${AI_ROOT}"
+        exit 2
+        ;;
+esac
 
 EXISTING=$(task "aistory:$STORY_ID" count 2>/dev/null || echo "0")
 if [ "$EXISTING" -gt 0 ]; then
@@ -26,9 +51,9 @@ ARCH_ID=$(task add "Story $STORY_ID: Architecture" aiphase:arch aistate:blocked 
 TEST_ID=$(task add "Story $STORY_ID: Integration Tests" aiphase:test aistate:blocked "aistory:$STORY_ID" "depends:$ARCH_ID" 2>&1 | grep -oP 'Created task \K\d+')
 IMPL_ID=$(task add "Story $STORY_ID: Implementation" aiphase:impl aistate:blocked "aistory:$STORY_ID" "depends:$TEST_ID" 2>&1 | grep -oP 'Created task \K\d+')
 
-CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
 git checkout -b "story/${STORY_ID}-${SLUG}" "$CURRENT_BRANCH"
 
+ai_heartbeat story-init "story=${STORY_ID}"
 echo "OK: Story $STORY_ID initialized."
 echo "  req=$REQ_ID arch=$ARCH_ID test=$TEST_ID impl=$IMPL_ID"
 echo "  branch=story/${STORY_ID}-${SLUG} (from $CURRENT_BRANCH)"

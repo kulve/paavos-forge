@@ -4,8 +4,8 @@
 # Legal transitions: plan→plan-review, plan-review→write, plan-review→plan (reject),
 #                    write→review, review→done, review→write (reject)
 set -euo pipefail
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${SCRIPT_DIR}/env.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/guard.sh"
+require_context worktree
 
 if [ $# -lt 2 ]; then
     echo "Usage: phase-transition <task-id> <new-state>"
@@ -39,4 +39,6 @@ if ! validate_transition; then
 fi
 
 task "$TASK_ID" modify "aistate:$NEW_STATE"
+# shellcheck disable=SC2046  # word splitting is intended: three key=value args
+ai_heartbeat state $(ai_task_fields "$TASK_ID")
 echo "OK: Task $TASK_ID transitioned $CURRENT_STATE → $NEW_STATE."

@@ -4,8 +4,8 @@
 # Exit 0: success. Exit 1: gate blocked. Exit 2: conflict or error.
 # Must be run from the main project tree.
 set -euo pipefail
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${SCRIPT_DIR}/env.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/guard.sh"
+require_context main
 
 if [ $# -lt 1 ]; then
     echo "Usage: epic-merge <epic-id>"
@@ -13,7 +13,6 @@ if [ $# -lt 1 ]; then
 fi
 
 EPIC_ID="$1"
-PROJECT_ROOT="${SCRIPT_DIR}/.."
 
 # Verify epic is merge-ready
 EPIC_STATE=$(task "aiepic:$EPIC_ID" export 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(d[0].get('epicstate','') if d else '')" 2>/dev/null)
@@ -34,7 +33,7 @@ EPIC_JSON=$(task "aiepic:$EPIC_ID" export 2>/dev/null)
 EPIC_DESC=$(echo "$EPIC_JSON" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d[0].get('description',''))" 2>/dev/null)
 SLUG=$(echo "$EPIC_DESC" | sed "s/Epic ${EPIC_ID}: //")
 
-WORKTREE_DIR="${PROJECT_ROOT}/.worktrees/epic-${EPIC_ID}-${SLUG}"
+WORKTREE_DIR="${AI_ROOT}/.worktrees/epic-${EPIC_ID}-${SLUG}"
 BRANCH_NAME="epic/${EPIC_ID}-${SLUG}"
 
 if [ ! -d "$WORKTREE_DIR" ]; then
@@ -53,7 +52,6 @@ task "aiepic:$EPIC_ID" modify "epicstate:merging"
 
 # Perform the merge
 MERGE_OK=true
-cd "$PROJECT_ROOT"
 git checkout main
 
 if ! git merge --squash "$BRANCH_NAME"; then

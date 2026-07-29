@@ -30,11 +30,12 @@ FRAMEWORK=/path/to/ai-execution-framework
 PROJECT=/path/to/your-project
 
 cp -r "$FRAMEWORK/templates/base/"* "$PROJECT/"
-cp "$FRAMEWORK/templates/base/.taskrc" "$PROJECT/"
 cp "$FRAMEWORK/templates/base/.gitignore" "$PROJECT/"
 ```
 
-> **Note:** `cp -r base/*` does not copy dotfiles. Copy `.taskrc` and `.gitignore` explicitly, or use `cp -r base/. project/` if your shell supports it.
+> **Note:** `cp -r base/*` does not copy dotfiles. Copy `.gitignore` explicitly, or use `cp -r base/. project/` if your shell supports it.
+>
+> There is no `.taskrc` to copy. It is generated per tree by `taskwarrior/setup.sh` from `taskwarrior/taskrc.template` and is gitignored, because its UDAs differ between the main tree and epic worktrees.
 
 ### Step 1b: Copy the Workflow Specification
 
@@ -48,17 +49,18 @@ cp "$FRAMEWORK/LOGIC.md" "$PROJECT/ai-framework/LOGIC.md"
 This creates:
 - `AGENTS.md` -- from `templates/base/AGENTS.md`; project-level AI instructions
 - `ARCHITECTURE.md` -- domain dependency policy registry (populated by agents as domains are introduced)
-- `.taskrc` -- per-project Taskwarrior config
-- `.gitignore` -- ignores `.task/`, `build/`, and `.worktrees/`
+- `.gitignore` -- ignores `.task/`, `.taskrc`, `build/`, and `.worktrees/`
 - `ai-framework/LOGIC.md` -- workflow specification (copied from framework repo root)
 - `ai-framework/project-profile.md` -- to be filled in by you
 - `plan/templates/` -- 10 artifact templates used by agents (project, milestone, epic, story, requirement, phase-plan, plan-review-feedback, review-feedback, escalation, discovery)
 - `plan/epics/.gitkeep` -- directory for epic definition files
-- `taskwarrior/setup.sh` -- Taskwarrior UDA configuration script
-- `taskwarrior/env.sh` -- environment setup (sets `TASKRC`, creates `.task/`)
+- `taskwarrior/setup.sh` -- generates `.taskrc` and configures the UDAs for the tree
+- `taskwarrior/taskrc.template` -- base config used to generate `.taskrc`
+- `taskwarrior/env.sh` -- environment setup (exports `TASKRC` and an absolute `TASKDATA`, creates `.task/`)
+- `taskwarrior/guard.sh` -- sourced by every script: resolves the tree from the script's own path and enforces the execution context
 - `taskwarrior/tw` -- project-local Taskwarrior wrapper (executable)
 - `taskwarrior/recipes.md` -- command reference for agents
-- `taskwarrior/` scripts -- epic lifecycle, story lifecycle, phase transitions, and lock management (see Step 4)
+- `taskwarrior/` scripts -- epic lifecycle, story lifecycle, phase transitions, lock management, diagnostics, and telemetry (see Step 4)
 
 ## Step 2: Copy Cursor Templates
 
@@ -69,7 +71,7 @@ cp -r "$FRAMEWORK/templates/cursor/.cursor" "$PROJECT/"
 ```
 
 This creates:
-- `.cursor/agents/` -- 23 agent prompt files (PM, Coordinator, 16 phase agents, Roadmap Planner, Story Review, Escalation Analysis, Escalation Recovery, and Fixer)
+- `.cursor/agents/` -- 26 agent prompt files (PM, Coordinator, 16 phase agents, Roadmap Planner, Deploy Profile, Story Review, Escalation Analysis, Escalation Triage, Escalation Recovery, Environment Recovery, and Fixer)
 - `.cursor/rules/ai-framework.mdc` -- always-on framework rules
 - `.cursor/commands/` -- `ai-status` and `ai-next` slash commands
 
@@ -87,15 +89,19 @@ git branch -m main
 
 The framework uses **per-project Taskwarrior isolation** so each project has its own task database, independent of `~/.taskrc` and `~/.task/`.
 
-Three files make this work:
+Four files make this work:
 
 | File | Purpose |
 |------|---------|
-| `.taskrc` | Project-local config: `data.location=.task`, `confirmation=off`, `news=off` |
-| `taskwarrior/env.sh` | Sets `TASKRC` to point at `.taskrc`, creates `.task/` directory |
-| `taskwarrior/tw` | Executable wrapper: sources `env.sh`, then runs `task` with correct config |
+| `taskwarrior/taskrc.template` | Base config (`confirmation=off`, `news=off`, verbosity) used to generate `.taskrc` |
+| `.taskrc` | Generated per tree with an **absolute** `data.location`; gitignored, mode-specific UDAs |
+| `taskwarrior/env.sh` | Exports `TASKRC` and an absolute `TASKDATA`, creates `.task/` |
+| `taskwarrior/guard.sh` | Sourced by every script: resolves the tree from the script's own path, then enforces main-vs-worktree context |
+| `taskwarrior/tw` | Executable wrapper: sources `guard.sh`, then runs `task` with the correct config |
 
-Run the setup script with `--main` to register the framework's UDAs in your project `.taskrc` and configure the main worktree:
+`TASKDATA` is an absolute path derived from the script's own location, so the database is never selected by the caller's working directory. This is what keeps a Coordinator standing in the main tree from mutating the main database.
+
+Run the setup script with `--main` to generate the project `.taskrc`, register the framework's UDAs, and configure the main tree:
 
 ```bash
 cd /path/to/your-project
@@ -142,7 +148,12 @@ The `taskwarrior/` directory contains orchestration scripts used by the agents:
 | `coordinator-lock-acquire` | Acquire the Coordinator execution lock |
 | `coordinator-lock-release` | Release the Coordinator execution lock |
 | `coordinator-lock-status` | Check whether a Coordinator lock is held |
+| `coordinator-heartbeat` | Record Coordinator liveness/progress (called by the scripts above, never by agents) |
+| `coordinator-status` | Aggregate liveness and progress across all epic worktrees (PM supervision) |
+| `doctor` | Check framework invariants D01-D12; `--fix` applies only the safe repairs |
 | `cleanup-ai-state.sh` | Manual cleanup of stale locks and state |
+
+All scripts are invoked by **absolute path** (`bash <tree-root>/taskwarrior/<script>`) and exit 2 if run against the wrong kind of tree.
 
 ## Step 5: Fill in the Project Profile
 
@@ -295,25 +306,48 @@ Or verify manually:
 
 - [ ] `AGENTS.md` exists at project root (deployed from `templates/base/AGENTS.md`)
 - [ ] `ARCHITECTURE.md` exists at project root
-- [ ] `.taskrc` exists at project root
-- [ ] `.gitignore` contains `.task/` and `.worktrees/`
+- [ ] `.taskrc` exists at project root (generated by `setup.sh`, not copied)
+- [ ] `.gitignore` contains `.task/`, `.taskrc`, and `.worktrees/`
+- [ ] `.taskrc` is NOT tracked by git: `git ls-files --error-unmatch .taskrc` must fail
 - [ ] `ai-framework/LOGIC.md` exists (copied from framework repo root `LOGIC.md` in Step 1b)
 - [ ] `ai-framework/project-profile.md` exists and is filled in
 - [ ] `plan/templates/` contains 10 template files (project, milestone, epic, story, requirement, phase-plan, plan-review-feedback, review-feedback, escalation, discovery)
 - [ ] `plan/epics/.gitkeep` exists
 - [ ] `taskwarrior/setup.sh` exists and is executable
 - [ ] `taskwarrior/env.sh` exists and is executable
+- [ ] `taskwarrior/guard.sh` exists and is executable
+- [ ] `taskwarrior/taskrc.template` exists
 - [ ] `taskwarrior/tw` exists and is executable
 - [ ] `taskwarrior/recipes.md` exists
-- [ ] `taskwarrior/` contains 23 orchestration scripts (epic, story, phase, lock management)
-- [ ] `.cursor/agents/` contains 23 agent files (including `roadmap-planner.md`)
+- [ ] `taskwarrior/` contains 27 orchestration scripts (epic, story, phase, lock management, diagnostics, telemetry)
+- [ ] `bash taskwarrior/doctor` exits 0
+- [ ] `.cursor/agents/` contains 26 agent files (including `roadmap-planner.md`, `escalation-triage.md`, and `environment-recovery.md`)
 - [ ] `.cursor/rules/ai-framework.mdc` exists
 - [ ] `.cursor/commands/` contains `ai-status.md` and `ai-next.md`
 - [ ] Taskwarrior UDAs are configured: `taskwarrior/tw _udas | grep aiphase`
 - [ ] Project profile is filled in completely (including parallel limit and Paavo Notes MCP section)
 - [ ] Paavo Notes MCP is registered in Cursor and reachable
 
-## Step 9: First Run
+## Step 9: Commit the Framework to main
+
+**Required before the first `epic-fork`.** Epic worktrees are created from `main`, so anything uncommitted does not exist inside the worktree: the Coordinator would find no scripts, no templates, and no profile. `epic-fork` refuses to run until this is done.
+
+```bash
+cd /path/to/your-project
+git add AGENTS.md ARCHITECTURE.md .gitignore README.md ai-framework/ plan/ taskwarrior/ .cursor/
+git commit -m "chore: deploy AI execution framework"
+```
+
+Do not add `.taskrc` or `.task/`; both are gitignored on purpose. Verify:
+
+```bash
+git status --porcelain -- taskwarrior/ ai-framework/ plan/   # must be empty
+git ls-tree --name-only main -- taskwarrior ai-framework plan/templates AGENTS.md
+```
+
+Commit planning artifacts to `main` the same way before each later dispatch. The PM does this as part of its normal loop.
+
+## Step 10: First Run
 
 The framework uses a **project → milestone → epic** model with parallel epic execution. The hierarchy is:
 
@@ -365,7 +399,7 @@ If the upstream framework template is updated, you can selectively merge changes
 
 Preserve during updates:
 - `ai-framework/project-profile.md` -- your project-specific settings
-- `.taskrc` -- contains UDA definitions added by `setup.sh` and `data.location`
+- `.taskrc` -- generated, contains UDA definitions added by `setup.sh` and an absolute `data.location`. Delete it only if you want `setup.sh` to regenerate it.
 - `taskwarrior/tw` and `taskwarrior/env.sh` -- unless you haven't customized them
 - `.task/` -- never overwrite or delete the Taskwarrior database
 - `.worktrees/` -- active epic worktrees; do not delete while epics are in progress
@@ -377,10 +411,16 @@ After updating templates, re-run `bash taskwarrior/setup.sh --main` to pick up a
 
 | Symptom | Cause | Fix |
 |---------|-------|-----|
-| Setup hangs on "Would you like a sample .taskrc" | No `.taskrc` at project root | Ensure `.taskrc` was copied from templates (Step 1 dotfiles) |
-| Setup hangs on "Are you sure you want to add" | `confirmation=off` missing | Check `.taskrc` has `confirmation=off` |
+| Setup hangs on "Would you like a sample .taskrc" | `taskwarrior/taskrc.template` missing, so `.taskrc` could not be generated | Re-copy `templates/base/taskwarrior/`, then re-run `setup.sh --main` |
+| Setup hangs on "Are you sure you want to add" | `confirmation=off` missing | Delete `.taskrc` and re-run `setup.sh` to regenerate it from the template |
 | UDAs missing in project but `task _udas` works | Verified wrong database (global `~/.taskrc`) | Use `taskwarrior/tw _udas`, not bare `task` |
-| Tasks from project A appear in project B | Shared `~/.task` | Per-project `data.location=.task` in `.taskrc` |
+| Tasks from project A appear in project B | Shared `~/.task` | Generated `.taskrc` has an absolute `data.location`; `env.sh` also exports `TASKDATA`. Re-run `setup.sh` |
+| Script exits 2 with "must run in the main/worktree tree" | Script invoked against the wrong tree | Use the absolute path of the intended tree: `bash <tree-root>/taskwarrior/<script>` |
+| `epic-fork` refuses: "Framework files are not committed to main" | Deployment not committed | Complete Step 9 |
+| Phase tasks appear in the main database | Historical failure mode; now blocked by the context guard | `bash taskwarrior/doctor` then `--fix` via the `environment-recovery` agent |
+| PM cannot tell whether a Coordinator is alive | Looking in the wrong place | `bash taskwarrior/coordinator-status`; never read agent transcripts |
+| `coordinator-status` shows `NO-HEARTBEAT` | Coordinator subagent never started or died at startup | Run `bash taskwarrior/doctor`, then launch a fresh Coordinator with the absolute worktree path in its prompt |
+| `coordinator-status` shows `STALE`/`DEAD` | Coordinator stopped mid-story, or a phase legitimately runs longer than the threshold | Re-check once; raise `AI_HEARTBEAT_STALE_SECONDS` if your phases are genuinely slower |
 | PM has no context on first run | No `README.md` / no project roadmap | Create a brief README; ensure Paavo Notes MCP is up and profile names the project (Step 6) |
 | PM hard-stops immediately | Paavo Notes MCP unreachable | Start the MCP server; fix Cursor MCP registration; verify a closed version exists |
 | Roadmap invents goals | MCP not used / wrong project | Check profile project name; re-run `roadmap-planner` against Paavo Notes |

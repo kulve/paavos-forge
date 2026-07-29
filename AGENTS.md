@@ -95,17 +95,21 @@ DEPLOY.md                                  # Deployment guide for downstream pro
 templates/base/                            # Copied to downstream project root
   AGENTS.md                                # Becomes downstream project AGENTS.md
   ARCHITECTURE.md                          # Domain dependency policy skeleton
-  .taskrc                                  # Per-project Taskwarrior config
-  .gitignore                               # Ignores .task/, .worktrees/, build/
+  .gitignore                               # Ignores .task/, .taskrc, .worktrees/, build/
   ai-framework/project-profile.md          # Filled by deploying user
   ai-framework/README.md                   # Notes that LOGIC.md is copied at deploy time
   plan/templates/*.md                      # 10 artifact templates (incl. project.md, epic.md)
   plan/epics/.gitkeep                      # Epic artifacts directory
-  taskwarrior/setup.sh                     # UDA setup (--main / --worktree modes)
-  taskwarrior/env.sh                       # Sets TASKRC, creates .task/
+  taskwarrior/setup.sh                     # Generates .taskrc + UDA setup (--main / --worktree)
+  taskwarrior/taskrc.template              # Base config for the generated .taskrc
+  taskwarrior/env.sh                       # Exports TASKRC + absolute TASKDATA, creates .task/
+  taskwarrior/guard.sh                     # Sourced by every script: AI_ROOT + context enforcement
   taskwarrior/tw                           # Project-local task wrapper (read-only use)
   taskwarrior/recipes.md                   # Script usage documentation
   taskwarrior/cleanup-ai-state.sh          # Manual recovery script
+  taskwarrior/doctor                       # Invariant checks D01-D12, --fix for safe repairs
+  taskwarrior/coordinator-heartbeat        # Progress telemetry writer (called by scripts)
+  taskwarrior/coordinator-status           # Liveness/progress aggregator (PM supervision)
   taskwarrior/epic-*                       # Epic lifecycle scripts (7)
   taskwarrior/story-*                      # Story lifecycle scripts (4)
   taskwarrior/phase-*                      # Phase state scripts (6)
@@ -113,13 +117,33 @@ templates/base/                            # Copied to downstream project root
   taskwarrior/coordinator-lock-*           # Coordinator lock scripts (3)
 
 templates/cursor/.cursor/                  # Copied to downstream .cursor/
-  agents/*.md                              # 24 agent prompts (incl. roadmap-planner, deploy-profile)
+  agents/*.md                              # 26 agent prompts (incl. roadmap-planner, deploy-profile,
+                                           #   escalation-triage, environment-recovery)
   rules/ai-framework.mdc                   # Always-on rules
   commands/*.md                            # Slash commands
 
 scripts/
   validate-template-repo.sh                # Validates template-repo layout
   validate-deployment.sh                   # Validates a deployed downstream project
+  test-isolation.sh                        # Worktree isolation + telemetry + doctor smoke test
+```
+
+## Isolation Invariants (do not regress these)
+
+Worktree isolation is enforced by construction, not by agent discipline. When touching `templates/base/taskwarrior/`:
+
+- Every script sources `taskwarrior/guard.sh`. Every script except `tw`, `env.sh`, and `setup.sh` calls `require_context main` or `require_context worktree`; `setup.sh` validates the tree against its own `--main`/`--worktree` flag.
+- Never reintroduce `SCRIPT_DIR` or `PROJECT_ROOT`. Use `AI_ROOT`, which `guard.sh` exports and `cd`s into.
+- Taskwarrior state must stay absolute: `env.sh` exports `TASKDATA`, and generated `.taskrc` files carry an absolute `data.location`. A relative `data.location` reintroduces the bug where the caller's working directory selects the database.
+- `.taskrc` stays generated and gitignored. Never add it back under `templates/base/`.
+- Agent prompts must never pass `working_directory` to a subagent (the parameter does not exist) and must instruct absolute script invocation.
+- Coordinator progress is observed only through `coordinator-status`. Do not add guidance that reads agent transcripts.
+
+After any change in `taskwarrior/`, `scripts/`, or the isolation-related prompt sections, run both:
+
+```bash
+bash scripts/validate-template-repo.sh
+bash scripts/test-isolation.sh
 ```
 
 ## When Updating Agent Prompts

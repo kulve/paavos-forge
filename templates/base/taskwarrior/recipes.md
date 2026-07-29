@@ -6,12 +6,34 @@ Command reference for AI agents using the execution framework. All state mutatio
 
 Agents must NEVER call `taskwarrior/tw` directly for: `modify`, `add`, `done`, `start`, `stop`, `annotate`, `denotate`, or `delete`. Use the provided scripts instead. Read-only operations (`export`, `count`, `list`, custom reports) are fine with `taskwarrior/tw`.
 
+## Important: Invoke Scripts by Absolute Path
+
+Every script sources `taskwarrior/guard.sh`, which resolves its tree from the script's own location, exports an absolute `TASKDATA`, and enforces the execution context. Because subagents cannot be given a working directory, agents must invoke scripts by absolute path:
+
+```bash
+bash /abs/path/to/project/taskwarrior/epic-status                                  # main tree
+bash /abs/path/to/project/.worktrees/epic-E0001-slug/taskwarrior/story-next 00001   # worktree
+```
+
+The command lines in this document are written relative for readability. Substitute the tree root you mean. A relative invocation from the wrong directory targets the wrong tree, which is exactly the failure the guard prevents.
+
+## Context Guard
+
+- Main-tree-only scripts (`epic-*`, `pm-*`, `doctor`, `coordinator-status`, `cleanup-ai-state.sh`) exit 2 with an explanatory message when run against a worktree.
+- Worktree-only scripts (`coordinator-*`, `story-*`, `phase-*`) exit 2 when run against the main tree.
+- Exit 2 from a guard means *wrong context*, not a transient problem. Re-running it cannot help; fix the path.
+- `tw`, `env.sh`, and `setup.sh` work in both trees; `setup.sh` validates the tree against its own `--main` / `--worktree` flag.
+
+## Generated Configuration
+
+`.taskrc` is generated per tree by `setup.sh` from `taskwarrior/taskrc.template`, with an absolute `data.location`. It is gitignored: a worktree's `.taskrc` carries Coordinator-mode UDAs and must never reach `main` through a merge.
+
 ## Exit Code Convention
 
 All scripts follow:
 - **Exit 0**: success
 - **Exit 1**: precondition not met (retry later)
-- **Exit 2**: error (invalid args, illegal state, conflict)
+- **Exit 2**: error (invalid args, illegal state, wrong context, conflict)
 
 ---
 
@@ -53,9 +75,42 @@ bash taskwarrior/epic-gate-status
 bash taskwarrior/epic-gate-release --force  # manual recovery only
 ```
 
+### Coordinator Supervision
+
+```bash
+# Liveness and progress for every epic worktree.
+# Exit 0: all OK/DONE. Exit 1: something STALE. Exit 2: DEAD, NO-HEARTBEAT, or escalation.
+bash taskwarrior/coordinator-status
+bash taskwarrior/coordinator-status --epic E0001
+bash taskwarrior/coordinator-status --json
+
+# Thresholds (seconds), overridable per project:
+#   AI_HEARTBEAT_STALE_SECONDS  default 1800
+#   AI_HEARTBEAT_DEAD_SECONDS   default 5400
+```
+
+Liveness values: `OK`, `STALE`, `DEAD`, `NO-HEARTBEAT` (Coordinator never started), `DONE` (stopped with the lock free). Never infer Coordinator progress from agent transcripts.
+
+### Diagnostics
+
+```bash
+# Check framework invariants D01-D12. Dry-run: changes nothing.
+bash taskwarrior/doctor
+bash taskwarrior/doctor --json
+
+# Apply only the repairs marked `fixable`. Refuses while an AI lock is ACTIVE.
+bash taskwarrior/doctor --fix
+
+# Exit 0: all clear. Exit 1: only fixable failures remain. Exit 2: a failure needs a human.
+```
+
+`--fix` is reserved for the `environment-recovery` agent and the user. Manual-only checks (D07, D09, D10, D11, D12) are never auto-repaired; they involve tracked config, orphaned active tasks, held locks, missing worktrees, and escalation bookkeeping.
+
 ---
 
-## Coordinator Scripts (run from within epic worktree)
+## Coordinator Scripts (worktree tree)
+
+These require `require_context worktree`. The `bash taskwarrior/<script>` form below assumes the worktree is your working directory; agents launched from the main tree must instead use the absolute form `bash <worktree>/taskwarrior/<script>`.
 
 ### Acquire/Release Coordinator Lock
 
@@ -83,7 +138,9 @@ bash taskwarrior/story-merge XXXXX slug
 
 ---
 
-## Phase Scripts (run from within epic worktree)
+## Phase Scripts (worktree tree)
+
+Same rule as the Coordinator scripts: use `bash <worktree>/taskwarrior/<script>` unless the worktree is already your working directory.
 
 ### Task Activation
 
@@ -140,6 +197,15 @@ bash taskwarrior/phase-done <task-id>
 bash taskwarrior/phase-block <task-id> <escalation-path>
 ```
 
+### Progress Telemetry (automatic)
+
+```bash
+# Called by the lifecycle scripts above. Agents never call this directly.
+bash taskwarrior/coordinator-heartbeat <event> [story=..] [phase=..] [state=..] [detail=..]
+```
+
+Writes `.task/coordinator-status.json` and appends to `.task/coordinator-events.log`. It never fails its caller: a telemetry problem prints a warning and exits 0. Events: `started`, `story-init`, `phase-start`, `annotate`, `state`, `phase-stop`, `phase-done`, `escalated`, `story-verified`, `story-merged`, `stopped`.
+
 ---
 
 ## Read-Only Queries (direct taskwarrior/tw usage allowed)
@@ -190,8 +256,13 @@ bash taskwarrior/epic-gate-release --force
 ```bash
 bash taskwarrior/pm-lock-acquire
 bash taskwarrior/pm-preflight
+# Commit the framework and planning files to main first: epic-fork rejects an
+# uncommitted or undeployed tree, because the worktree is created from main.
 bash taskwarrior/epic-fork E0001 auth-system
-# Launch Coordinator subagent pointed at .worktrees/epic-E0001-auth-system/
+# Launch a background Coordinator subagent. Subagents get no working directory,
+# so put the absolute worktree path in the prompt:
+#   <project>/.worktrees/epic-E0001-auth-system
+bash taskwarrior/coordinator-status      # supervise; act on the exit code
 ```
 
 ### PM: Merge a Completed Epic

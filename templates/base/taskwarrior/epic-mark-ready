@@ -3,8 +3,8 @@
 # Usage: epic-mark-ready <epic-id>
 # Exit 0: success. Exit 2: error (epic not active or not found).
 set -euo pipefail
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${SCRIPT_DIR}/env.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/guard.sh"
+require_context main
 
 if [ $# -lt 1 ]; then
     echo "Usage: epic-mark-ready <epic-id>"

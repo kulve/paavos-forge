@@ -12,6 +12,10 @@ You are the Implementation Plan agent. You read the architecture artifacts, inte
 
 Produce a plan that specifies which files to create/modify, the implementation approach for each interface, and the order of implementation to get tests passing incrementally.
 
+## Worktree Paths
+
+Your prompt contains the absolute epic worktree path. Every artifact path in your prompt is relative to it, and every framework script is invoked as `bash <worktree>/taskwarrior/<script>`. Never `cd`, and never use a relative script path: you start in the main project tree, so a relative invocation targets the wrong tree and the script exits 2.
+
 ## Context Loading
 
 1. The story file (path from prompt)

@@ -4,8 +4,8 @@
 # Exit 0: success. Exit 2: conflict (rebase aborted).
 # Must be run from the main project tree.
 set -euo pipefail
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${SCRIPT_DIR}/env.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/guard.sh"
+require_context main
 
 if [ $# -lt 1 ]; then
     echo "Usage: epic-rebase <epic-id>"
@@ -13,14 +13,13 @@ if [ $# -lt 1 ]; then
 fi
 
 EPIC_ID="$1"
-PROJECT_ROOT="${SCRIPT_DIR}/.."
 
 # Find epic metadata
 EPIC_JSON=$(task "aiepic:$EPIC_ID" export 2>/dev/null)
 EPIC_DESC=$(echo "$EPIC_JSON" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d[0].get('description',''))" 2>/dev/null)
 SLUG=$(echo "$EPIC_DESC" | sed "s/Epic ${EPIC_ID}: //")
 
-WORKTREE_DIR="${PROJECT_ROOT}/.worktrees/epic-${EPIC_ID}-${SLUG}"
+WORKTREE_DIR="${AI_ROOT}/.worktrees/epic-${EPIC_ID}-${SLUG}"
 BRANCH_NAME="epic/${EPIC_ID}-${SLUG}"
 
 if [ ! -d "$WORKTREE_DIR" ]; then
@@ -28,20 +27,19 @@ if [ ! -d "$WORKTREE_DIR" ]; then
     exit 2
 fi
 
-cd "$WORKTREE_DIR"
-git checkout "$BRANCH_NAME"
+git -C "$WORKTREE_DIR" checkout "$BRANCH_NAME"
 
-if ! git rebase main; then
-    git rebase --abort
+if ! git -C "$WORKTREE_DIR" rebase main; then
+    git -C "$WORKTREE_DIR" rebase --abort
     echo "ERROR: Rebase conflict for epic $EPIC_ID. Manual resolution required."
     echo "  cd $WORKTREE_DIR && git rebase main"
     exit 2
 fi
 
-# If epic was in conflict state, restore to merge-ready
-EPIC_STATE=$(cd "$PROJECT_ROOT" && task "aiepic:$EPIC_ID" export 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(d[0].get('epicstate',''))" 2>/dev/null)
+# If epic was in conflict state, restore to merge-ready.
+# Epic registration lives in the main tree DB, which TASKDATA already points at.
+EPIC_STATE=$(task "aiepic:$EPIC_ID" export 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(d[0].get('epicstate',''))" 2>/dev/null)
 if [ "$EPIC_STATE" = "conflict" ]; then
-    cd "$PROJECT_ROOT"
     task "aiepic:$EPIC_ID" modify "epicstate:merge-ready"
     echo "OK: Epic $EPIC_ID rebased and restored to merge-ready."
 else

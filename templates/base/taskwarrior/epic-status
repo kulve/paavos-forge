@@ -2,10 +2,8 @@
 # Print status of all epics and the merge gate. Read-only.
 # Usage: epic-status
 set -euo pipefail
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${SCRIPT_DIR}/env.sh"
-
-PROJECT_ROOT="${SCRIPT_DIR}/.."
+source "$(dirname "${BASH_SOURCE[0]}")/guard.sh"
+require_context main
 
 echo "=== Epic Status ==="
 echo ""
@@ -48,9 +46,9 @@ for t in sorted(tasks, key=lambda x: x.get('aiepic', '')):
 echo ""
 
 # Worktrees
-if [ -d "${PROJECT_ROOT}/.worktrees" ]; then
+if [ -d "${AI_ROOT}/.worktrees" ]; then
     echo "Worktrees:"
-    for d in "${PROJECT_ROOT}/.worktrees"/*/; do
+    for d in "${AI_ROOT}/.worktrees"/*/; do
         if [ -d "$d" ]; then
             echo "  $(basename "$d")"
         fi

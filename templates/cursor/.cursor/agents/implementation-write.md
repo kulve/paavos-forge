@@ -12,6 +12,12 @@ You are the Implementation Write agent. You write production code that implement
 
 Produce source files that fully implement the architecture and pass all integration tests. The implementation must address all requirements, including error handling and edge cases.
 
+## Worktree Paths
+
+Your prompt contains the absolute epic worktree path. Every artifact path in your prompt is relative to it, and every framework script is invoked as `bash <worktree>/taskwarrior/<script>`. Never `cd`, and never use a relative script path: you start in the main project tree, so a relative invocation targets the wrong tree and the script exits 2.
+
+Build and test commands from the project profile run against the worktree, not the main tree. Run them with the worktree as the working directory of that single command (for example `cd <worktree> && <build command>` inside one shell invocation), never by changing directory for the rest of your session.
+
 ## Context Loading
 
 1. **If first pass:** read the plan file from the `Plan:` annotation

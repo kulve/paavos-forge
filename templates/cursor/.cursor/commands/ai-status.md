@@ -28,13 +28,27 @@ bash taskwarrior/epic-status
 bash taskwarrior/epic-gate-status
 ```
 
-### Per-Worktree Story Status
-
-For each active epic worktree listed by `epic-status`, run from within that worktree:
+### Coordinator Liveness and Progress (run from main tree)
 
 ```bash
-bash taskwarrior/tw status:pending aistory.any: export
-bash taskwarrior/tw status:completed aistory.any: export
+bash taskwarrior/coordinator-status
+```
+
+Report each worktree's lock state, liveness (`OK` / `STALE` / `DEAD` / `NO-HEARTBEAT` / `DONE`), last event with its age, active task, and progress counts. The exit code summarizes the fleet: 0 healthy, 1 something stale, 2 something dead or escalated. Never infer Coordinator progress from agent transcripts.
+
+If liveness is anything other than `OK` or `DONE`, also run the diagnostics (read-only, never `--fix` from a status command):
+
+```bash
+bash taskwarrior/doctor
+```
+
+### Per-Worktree Story Status
+
+For each active epic worktree listed by `epic-status`, query it by absolute path (no `cd` needed):
+
+```bash
+bash <worktree>/taskwarrior/tw status:pending aistory.any: export
+bash <worktree>/taskwarrior/tw status:completed aistory.any: export
 ```
 
 ### Present Results As
@@ -43,7 +57,8 @@ bash taskwarrior/tw status:completed aistory.any: export
 2. **Milestone progress** (Status from milestone files and roadmap)
 3. **Epic table**: epic ID, slug, state (active/merge-ready/merged/conflict), worktree path
 4. **Merge gate**: FREE or HELD (with details)
-5. **Per-epic story table**: story ID, phase progress (req/arch/test/impl), current state, blocked/escalated items
-6. **Summary**: total stories pending vs completed across all epics
+5. **Coordinator table**: epic, lock, liveness, last event and age, active task, progress
+6. **Per-epic story table**: story ID, phase progress (req/arch/test/impl), current state, blocked/escalated items
+7. **Summary**: total stories pending vs completed across all epics, plus any failing `doctor` checks
 
 Highlight any blocked tasks or escalations. If `plan/escalations/` has files, list them.

@@ -2,8 +2,8 @@
 # Block a phase task due to escalation: stop, add +blocked, annotate with escalation path.
 # Usage: phase-block <task-id> <escalation-path>
 set -euo pipefail
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${SCRIPT_DIR}/env.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/guard.sh"
+require_context worktree
 
 if [ $# -lt 2 ]; then
     echo "Usage: phase-block <task-id> <escalation-path>"
@@ -20,4 +20,6 @@ fi
 
 task "$TASK_ID" modify +blocked
 task "$TASK_ID" annotate "Escalation: ${ESCALATION_PATH}"
+# shellcheck disable=SC2046  # word splitting is intended: three key=value args
+ai_heartbeat escalated $(ai_task_fields "$TASK_ID") "escalation=${ESCALATION_PATH}"
 echo "OK: Task $TASK_ID blocked with escalation at ${ESCALATION_PATH}."

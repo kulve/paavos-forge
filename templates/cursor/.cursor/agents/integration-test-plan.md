@@ -12,6 +12,10 @@ You are the Integration Test Plan agent. You read the architecture artifacts and
 
 Produce a test plan that specifies which interface contracts to test, what scenarios to cover, and what the mock boundaries are.
 
+## Worktree Paths
+
+Your prompt contains the absolute epic worktree path. Every artifact path in your prompt is relative to it, and every framework script is invoked as `bash <worktree>/taskwarrior/<script>`. Never `cd`, and never use a relative script path: you start in the main project tree, so a relative invocation targets the wrong tree and the script exits 2.
+
 ## Context Loading
 
 1. The story file (path from prompt)

@@ -7,9 +7,9 @@
 # Uses per-project .taskrc and .task/ (not ~/.taskrc).
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=env.sh
-source "${SCRIPT_DIR}/env.sh"
+# No require_context call: this script validates the context against its own flag.
+# shellcheck source=guard.sh
+source "$(dirname "${BASH_SOURCE[0]}")/guard.sh"
 
 MODE="${1:-}"
 if [ "$MODE" != "--main" ] && [ "$MODE" != "--worktree" ]; then
@@ -19,35 +19,68 @@ if [ "$MODE" != "--main" ] && [ "$MODE" != "--worktree" ]; then
     exit 2
 fi
 
+# The mode must match the kind of tree this script resolved to, or the wrong
+# database gets the wrong UDAs (the original worktree-isolation failure).
+EXPECTED_CONTEXT="main"
+[ "$MODE" = "--worktree" ] && EXPECTED_CONTEXT="worktree"
+ACTUAL_CONTEXT="$(ai_context)"
+if [ "$ACTUAL_CONTEXT" != "$EXPECTED_CONTEXT" ]; then
+    echo "ERROR: setup.sh ${MODE} requires the ${EXPECTED_CONTEXT} tree."
+    echo "  Resolved root: ${AI_ROOT} (detected: ${ACTUAL_CONTEXT})"
+    exit 2
+fi
+if [ "$MODE" = "--worktree" ] && [[ "$AI_ROOT" != */.worktrees/epic-* ]]; then
+    echo "ERROR: setup.sh --worktree resolved root ${AI_ROOT} is not an epic worktree."
+    exit 2
+fi
+
+# Generate .taskrc if absent. It is gitignored and mode-specific, so it must be
+# generated per tree rather than inherited through git from the main tree.
+if [ ! -f "${TASKRC}" ]; then
+    TEMPLATE="${AI_ROOT}/taskwarrior/taskrc.template"
+    if [ ! -f "$TEMPLATE" ]; then
+        echo "ERROR: Missing ${TEMPLATE}. Cannot generate .taskrc."
+        exit 2
+    fi
+    cp "$TEMPLATE" "${TASKRC}"
+    echo "data.location=${AI_ROOT}/.task" >> "${TASKRC}"
+    echo "Generated ${TASKRC}"
+fi
+
 echo "Configuring AI execution framework (TASKRC=${TASKRC}, mode=${MODE})..."
+
+# Suppress the per-setting "Config file ... modified." chatter; errors still surface.
+tw_config() {
+    task config "$@" >/dev/null
+}
 
 if [ "$MODE" = "--main" ]; then
     # === PM-level UDAs ===
 
     # Epic ID: links task to an epic
-    task config uda.aiepic.type string
-    task config uda.aiepic.label "AI Epic ID"
+    tw_config uda.aiepic.type string
+    tw_config uda.aiepic.label "AI Epic ID"
 
     # Epic state: lifecycle of an epic
-    task config uda.epicstate.type string
-    task config uda.epicstate.label "Epic State"
-    task config uda.epicstate.values "active,merge-ready,merging,merged,conflict,cancelled"
+    tw_config uda.epicstate.type string
+    tw_config uda.epicstate.label "Epic State"
+    tw_config uda.epicstate.values "active,merge-ready,merging,merged,conflict,cancelled"
 
     # Role lock UDA (PM only in main tree)
-    task config uda.airole.type string
-    task config uda.airole.label "AI Role Lock"
-    task config uda.airole.values "pm"
+    tw_config uda.airole.type string
+    tw_config uda.airole.label "AI Role Lock"
+    tw_config uda.airole.values "pm"
 
     # Custom reports
-    task config report.aiepics.description "All AI epics"
-    task config report.aiepics.columns "id,aiepic,epicstate,description"
-    task config report.aiepics.filter "aiepic.any:"
-    task config report.aiepics.sort "aiepic+"
+    tw_config report.aiepics.description "All AI epics"
+    tw_config report.aiepics.columns "id,aiepic,epicstate,description"
+    tw_config report.aiepics.filter "aiepic.any:"
+    tw_config report.aiepics.sort "aiepic+"
 
-    task config report.ailocks.description "AI role lock status"
-    task config report.ailocks.columns "id,airole,start,description"
-    task config report.ailocks.filter "+AI_LOCK"
-    task config report.ailocks.sort "airole+"
+    tw_config report.ailocks.description "AI role lock status"
+    tw_config report.ailocks.columns "id,airole,start,description"
+    tw_config report.ailocks.filter "+AI_LOCK"
+    tw_config report.ailocks.sort "airole+"
 
     # Singleton lock tasks
     PM_LOCK_COUNT=$(task status:pending +AI_LOCK airole:pm count 2>/dev/null || echo "0")
@@ -70,44 +103,44 @@ elif [ "$MODE" = "--worktree" ]; then
     # === Worktree-level UDAs ===
 
     # Phase: which pipeline stage this task belongs to
-    task config uda.aiphase.type string
-    task config uda.aiphase.label "AI Phase"
-    task config uda.aiphase.values "req,arch,test,impl"
+    tw_config uda.aiphase.type string
+    tw_config uda.aiphase.label "AI Phase"
+    tw_config uda.aiphase.values "req,arch,test,impl"
 
     # State: current progress within a phase
-    task config uda.aistate.type string
-    task config uda.aistate.label "AI State"
-    task config uda.aistate.values "blocked,plan,plan-review,write,review,done"
+    tw_config uda.aistate.type string
+    tw_config uda.aistate.label "AI State"
+    tw_config uda.aistate.values "blocked,plan,plan-review,write,review,done"
 
     # Story ID: links task to its parent story
-    task config uda.aistory.type string
-    task config uda.aistory.label "AI Story ID"
+    tw_config uda.aistory.type string
+    tw_config uda.aistory.label "AI Story ID"
 
     # Role lock UDA (Coordinator only in worktree)
-    task config uda.airole.type string
-    task config uda.airole.label "AI Role Lock"
-    task config uda.airole.values "coordinator"
+    tw_config uda.airole.type string
+    tw_config uda.airole.label "AI Role Lock"
+    tw_config uda.airole.values "coordinator"
 
     # Custom reports
-    task config report.ainext.description "Next actionable AI task"
-    task config report.ainext.columns "id,aistory,aiphase,aistate,description"
-    task config report.ainext.filter "status:pending +READY -AI_LOCK"
-    task config report.ainext.sort "aistory+,aiphase+"
+    tw_config report.ainext.description "Next actionable AI task"
+    tw_config report.ainext.columns "id,aistory,aiphase,aistate,description"
+    tw_config report.ainext.filter "status:pending +READY -AI_LOCK"
+    tw_config report.ainext.sort "aistory+,aiphase+"
 
-    task config report.aistory.description "All AI tasks for a story"
-    task config report.aistory.columns "id,aiphase,aistate,description,depends"
-    task config report.aistory.filter "status:pending or status:completed"
-    task config report.aistory.sort "aiphase+"
+    tw_config report.aistory.description "All AI tasks for a story"
+    tw_config report.aistory.columns "id,aiphase,aistate,description,depends"
+    tw_config report.aistory.filter "status:pending or status:completed"
+    tw_config report.aistory.sort "aiphase+"
 
-    task config report.ailocks.description "AI role lock status"
-    task config report.ailocks.columns "id,airole,start,description"
-    task config report.ailocks.filter "+AI_LOCK"
-    task config report.ailocks.sort "airole+"
+    tw_config report.ailocks.description "AI role lock status"
+    tw_config report.ailocks.columns "id,airole,start,description"
+    tw_config report.ailocks.filter "+AI_LOCK"
+    tw_config report.ailocks.sort "airole+"
 
-    task config report.aiactive.description "Active phase subagent tasks"
-    task config report.aiactive.columns "id,aistory,aiphase,aistate,description"
-    task config report.aiactive.filter "+ACTIVE -AI_LOCK"
-    task config report.aiactive.sort "aistory+,aiphase+"
+    tw_config report.aiactive.description "Active phase subagent tasks"
+    tw_config report.aiactive.columns "id,aistory,aiphase,aistate,description"
+    tw_config report.aiactive.filter "+ACTIVE -AI_LOCK"
+    tw_config report.aiactive.sort "aistory+,aiphase+"
 
     # Coordinator lock task
     COORD_LOCK_COUNT=$(task status:pending +AI_LOCK airole:coordinator count 2>/dev/null || echo "0")

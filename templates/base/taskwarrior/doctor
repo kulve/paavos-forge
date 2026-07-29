@@ -1,0 +1,417 @@
+#!/bin/bash
+# Check the framework's runtime invariants and optionally repair the safe subset.
+# Usage: doctor [--fix] [--force] [--json]
+#
+#   (no flags) dry-run: report every check, change nothing
+#   --fix      apply repairs for checks marked `fixable`; never touches `manual` ones
+#   --force    allow --fix while an AI lock is ACTIVE (dangerous: agents may be running)
+#   --json     machine-readable output for the escalation-triage agent
+#
+# Each check line: <id> <PASS|FAIL|FIXED> <severity> <fixable|manual> <message>
+#
+# Exit codes:
+#   0 - all checks pass (or every failure was fixed)
+#   1 - only fixable failures remain (run with --fix)
+#   2 - at least one failure needs a human
+set -uo pipefail
+source "$(dirname "${BASH_SOURCE[0]}")/guard.sh"
+require_context main
+
+STALE_SECONDS="${AI_HEARTBEAT_STALE_SECONDS:-1800}"
+DEAD_SECONDS="${AI_HEARTBEAT_DEAD_SECONDS:-5400}"
+
+APPLY=false
+FORCE=false
+OUTPUT="text"
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --fix) APPLY=true ;;
+        --force) FORCE=true ;;
+        --json) OUTPUT="json" ;;
+        -h|--help)
+            echo "Usage: doctor [--fix] [--force] [--json]"
+            exit 0
+            ;;
+        *) echo "Unknown option: $1" >&2; exit 2 ;;
+    esac
+    shift
+done
+
+RESULTS_FILE="$(mktemp)"
+trap 'rm -f "$RESULTS_FILE"' EXIT
+
+# record <id> <PASS|FAIL|FIXED> <severity> <fixable|manual> <message>
+record() {
+    printf '%s\t%s\t%s\t%s\t%s\n' "$1" "$2" "$3" "$4" "$5" >> "$RESULTS_FILE"
+}
+
+# Refuse to mutate state while agents may be running.
+if [ "$APPLY" = true ] && [ "$FORCE" = false ]; then
+    ACTIVE_LOCKS=$(task +AI_LOCK +ACTIVE count 2>/dev/null || echo "0")
+    ACTIVE_WT_LOCKS=0
+    if [ -d "${AI_ROOT}/.worktrees" ]; then
+        for WT in "${AI_ROOT}/.worktrees"/*/; do
+            [ -f "${WT}taskwarrior/tw" ] || continue
+            N=$(bash "${WT}taskwarrior/tw" +AI_LOCK +ACTIVE count 2>/dev/null || echo "0")
+            ACTIVE_WT_LOCKS=$((ACTIVE_WT_LOCKS + N))
+        done
+    fi
+    if [ "$ACTIVE_LOCKS" -gt 0 ] || [ "$ACTIVE_WT_LOCKS" -gt 0 ]; then
+        echo "ERROR: --fix refused. An AI lock is ACTIVE (main=${ACTIVE_LOCKS}, worktrees=${ACTIVE_WT_LOCKS})."
+        echo "  An agent may still be running. Confirm no agents are active, then re-run with --force."
+        exit 2
+    fi
+fi
+
+# --- D01: main HEAD is on main -------------------------------------------
+MAIN_HEAD=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
+if [ "$MAIN_HEAD" = "main" ]; then
+    record D01 PASS high fixable "Main tree HEAD is on main."
+else
+    HEAD_SHA=$(git rev-parse HEAD 2>/dev/null || echo "x")
+    MAIN_SHA=$(git rev-parse main 2>/dev/null || echo "y")
+    if [ "$HEAD_SHA" = "$MAIN_SHA" ]; then
+        if [ "$APPLY" = true ]; then
+            git switch main >/dev/null 2>&1 || git checkout main >/dev/null 2>&1
+            git branch -d "$MAIN_HEAD" >/dev/null 2>&1 || true
+            NOW_HEAD=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
+            if [ "$NOW_HEAD" = "main" ]; then
+                record D01 FIXED high fixable "Main tree HEAD moved back to main from '${MAIN_HEAD}' (stray branch deleted; tip was identical to main)."
+            else
+                record D01 FAIL high fixable "Could not move main tree HEAD back to main from '${MAIN_HEAD}'."
+            fi
+        else
+            record D01 FAIL high fixable "Main tree HEAD is on '${MAIN_HEAD}', not main. Tip is identical to main, so this is safe to fix."
+        fi
+    else
+        record D01 FAIL high manual "Main tree HEAD is on '${MAIN_HEAD}' and its tip differs from main. Commits could be lost; resolve by hand."
+    fi
+fi
+
+# --- D02: no Coordinator lock in the main DB -----------------------------
+COORD_IN_MAIN=$(task +AI_LOCK airole:coordinator count 2>/dev/null || echo "0")
+if [ "$COORD_IN_MAIN" -eq 0 ]; then
+    record D02 PASS high fixable "No Coordinator lock task in the main tree database."
+else
+    COORD_ACTIVE_IN_MAIN=$(task +AI_LOCK airole:coordinator +ACTIVE count 2>/dev/null || echo "0")
+    if [ "$COORD_ACTIVE_IN_MAIN" -gt 0 ]; then
+        record D02 FAIL high manual "${COORD_IN_MAIN} Coordinator lock task(s) in the main DB and ${COORD_ACTIVE_IN_MAIN} is ACTIVE. A Coordinator may be running against the wrong tree."
+    elif [ "$APPLY" = true ]; then
+        for UUID in $(task +AI_LOCK airole:coordinator uuids 2>/dev/null); do
+            task rc.confirmation=off "$UUID" delete >/dev/null 2>&1 || true
+        done
+        LEFT=$(task +AI_LOCK airole:coordinator count 2>/dev/null || echo "0")
+        if [ "$LEFT" -eq 0 ]; then
+            record D02 FIXED high fixable "Deleted ${COORD_IN_MAIN} stray Coordinator lock task(s) from the main DB."
+        else
+            record D02 FAIL high fixable "Could not delete ${LEFT} stray Coordinator lock task(s) from the main DB."
+        fi
+    else
+        record D02 FAIL high fixable "${COORD_IN_MAIN} stray Coordinator lock task(s) in the main DB (none active). Coordinator state belongs in worktrees."
+    fi
+fi
+
+# --- D03: no malformed phase tasks in the main DB ------------------------
+MALFORMED_UUIDS=$(task status:pending export 2>/dev/null | python3 -c "
+import sys, json
+try:
+    tasks = json.load(sys.stdin)
+except Exception:
+    tasks = []
+for t in tasks:
+    if 'aiphase:' in t.get('description', '') or t.get('aiphase'):
+        print(t.get('uuid', ''))
+" 2>/dev/null || true)
+MALFORMED_COUNT=$(printf '%s' "$MALFORMED_UUIDS" | grep -c . || true)
+if [ "${MALFORMED_COUNT:-0}" -eq 0 ]; then
+    record D03 PASS high fixable "No phase tasks in the main tree database."
+elif [ "$APPLY" = true ]; then
+    for UUID in $MALFORMED_UUIDS; do
+        task rc.confirmation=off "$UUID" delete >/dev/null 2>&1 || true
+    done
+    record D03 FIXED high fixable "Deleted ${MALFORMED_COUNT} phase task(s) from the main DB (phase state belongs in worktrees; without phase UDAs these tasks are unusable)."
+else
+    record D03 FAIL high fixable "${MALFORMED_COUNT} phase task(s) in the main DB. The main .taskrc has no phase UDAs, so their UDAs were folded into the description text."
+fi
+
+# --- D04: main .taskrc has the PM-level UDAs ----------------------------
+MAIN_UDAS=$(task _udas 2>/dev/null || echo "")
+MISSING_MAIN=""
+for UDA in aiepic epicstate airole; do
+    echo "$MAIN_UDAS" | tr ' ' '\n' | grep -qx "$UDA" || MISSING_MAIN="${MISSING_MAIN} ${UDA}"
+done
+if [ -z "$MISSING_MAIN" ]; then
+    record D04 PASS high fixable "Main tree UDAs configured (aiepic, epicstate, airole)."
+elif [ "$APPLY" = true ]; then
+    bash "${AI_ROOT}/taskwarrior/setup.sh" --main >/dev/null 2>&1 || true
+    record D04 FIXED high fixable "Re-ran setup.sh --main to restore missing UDA(s):${MISSING_MAIN}."
+else
+    record D04 FAIL high fixable "Main tree missing UDA(s):${MISSING_MAIN}. Fix: bash taskwarrior/setup.sh --main"
+fi
+
+# --- Per-worktree checks (D05, D06, D07w, D09, D10, D12) ----------------
+D05_FAIL=""; D05_FIXED=""
+D06_FAIL_MANUAL=""; D06_FIXED=""
+D07_TRACKED=""
+D09_FAIL=""
+D10_FAIL=""
+D12_FAIL=""
+WT_COUNT=0
+
+if [ -d "${AI_ROOT}/.worktrees" ]; then
+    for WT in "${AI_ROOT}/.worktrees"/*/; do
+        [ -d "$WT" ] || continue
+        WT="${WT%/}"
+        WT_NAME="$(basename "$WT")"
+        WT_COUNT=$((WT_COUNT + 1))
+
+        if [ ! -f "${WT}/taskwarrior/tw" ]; then
+            D05_FAIL="${D05_FAIL} ${WT_NAME}(no taskwarrior/)"
+            continue
+        fi
+
+        # D05: phase UDAs present
+        WT_UDAS=$(bash "${WT}/taskwarrior/tw" _udas 2>/dev/null || echo "")
+        WT_MISSING=""
+        for UDA in aiphase aistate aistory; do
+            echo "$WT_UDAS" | tr ' ' '\n' | grep -qx "$UDA" || WT_MISSING="${WT_MISSING}${UDA} "
+        done
+        if [ -n "$WT_MISSING" ]; then
+            if [ "$APPLY" = true ]; then
+                bash "${WT}/taskwarrior/setup.sh" --worktree >/dev/null 2>&1 || true
+                D05_FIXED="${D05_FIXED} ${WT_NAME}"
+            else
+                D05_FAIL="${D05_FAIL} ${WT_NAME}(${WT_MISSING% })"
+            fi
+        fi
+
+        # D06: exactly one Coordinator lock task
+        WT_LOCKS=$(bash "${WT}/taskwarrior/tw" +AI_LOCK airole:coordinator count 2>/dev/null || echo "0")
+        if [ "$WT_LOCKS" -eq 0 ]; then
+            if [ "$APPLY" = true ]; then
+                bash "${WT}/taskwarrior/setup.sh" --worktree >/dev/null 2>&1 || true
+                D06_FIXED="${D06_FIXED} ${WT_NAME}"
+            else
+                D06_FAIL_FIXABLE="${D06_FAIL_FIXABLE:-} ${WT_NAME}(0)"
+            fi
+        elif [ "$WT_LOCKS" -gt 1 ]; then
+            D06_FAIL_MANUAL="${D06_FAIL_MANUAL} ${WT_NAME}(${WT_LOCKS})"
+        fi
+
+        # D07: .taskrc must not be tracked in the worktree either
+        if git -C "$WT" ls-files --error-unmatch .taskrc >/dev/null 2>&1; then
+            D07_TRACKED="${D07_TRACKED} ${WT_NAME}"
+        fi
+
+        # D09: at most one active phase task
+        WT_ACTIVE=$(bash "${WT}/taskwarrior/tw" +ACTIVE -AI_LOCK count 2>/dev/null || echo "0")
+        if [ "$WT_ACTIVE" -gt 1 ]; then
+            D09_FAIL="${D09_FAIL} ${WT_NAME}(${WT_ACTIVE})"
+        fi
+
+        # D10: a held Coordinator lock must have a fresh heartbeat
+        WT_LOCK_HELD=$(bash "${WT}/taskwarrior/tw" +AI_LOCK airole:coordinator +ACTIVE count 2>/dev/null || echo "0")
+        if [ "$WT_LOCK_HELD" -gt 0 ]; then
+            HB_STATE=$(python3 -c "
+import json, sys, time
+path = sys.argv[1]
+stale, dead = int(sys.argv[2]), int(sys.argv[3])
+try:
+    with open(path) as handle:
+        d = json.load(handle)
+except Exception:
+    print('NO-HEARTBEAT')
+    sys.exit(0)
+age = int(time.time()) - int(d.get('updated_epoch', 0))
+if age >= dead:
+    print('DEAD:%d' % age)
+elif age >= stale:
+    print('STALE:%d' % age)
+else:
+    print('OK')
+" "${WT}/.task/coordinator-status.json" "$STALE_SECONDS" "$DEAD_SECONDS" 2>/dev/null || echo "NO-HEARTBEAT")
+            case "$HB_STATE" in
+                OK) ;;
+                *) D10_FAIL="${D10_FAIL} ${WT_NAME}(${HB_STATE})" ;;
+            esac
+        fi
+
+        # D12: every blocked task must reference an escalation file that exists
+        BLOCKED_PROBLEMS=$(bash "${WT}/taskwarrior/tw" +blocked status:pending export 2>/dev/null | python3 -c "
+import json, os, sys
+root = sys.argv[1]
+try:
+    tasks = json.load(sys.stdin)
+except Exception:
+    tasks = []
+for t in tasks:
+    paths = [a.get('description', '')[len('Escalation:'):].strip()
+             for a in t.get('annotations', [])
+             if a.get('description', '').startswith('Escalation:')]
+    if not paths:
+        print('task%s:no-escalation-annotation' % t.get('id', '?'))
+        continue
+    for p in paths:
+        candidate = p if os.path.isabs(p) else os.path.join(root, p)
+        if not os.path.exists(candidate):
+            print('task%s:missing-file(%s)' % (t.get('id', '?'), p))
+" "$WT" 2>/dev/null || true)
+        if [ -n "$BLOCKED_PROBLEMS" ]; then
+            D12_FAIL="${D12_FAIL} ${WT_NAME}($(echo "$BLOCKED_PROBLEMS" | tr '\n' ',' | sed 's/,$//'))"
+        fi
+    done
+fi
+
+if [ -z "$D05_FAIL" ] && [ -z "$D05_FIXED" ]; then
+    record D05 PASS high fixable "Phase UDAs present in all ${WT_COUNT} worktree database(s)."
+elif [ -n "$D05_FIXED" ] && [ -z "$D05_FAIL" ]; then
+    record D05 FIXED high fixable "Re-ran setup.sh --worktree for:${D05_FIXED}"
+else
+    record D05 FAIL high fixable "Worktree(s) missing phase UDAs:${D05_FAIL}"
+fi
+
+if [ -n "$D06_FAIL_MANUAL" ]; then
+    record D06 FAIL high manual "Worktree(s) with more than one Coordinator lock task:${D06_FAIL_MANUAL}. Cannot choose which to keep."
+elif [ -n "${D06_FAIL_FIXABLE:-}" ]; then
+    record D06 FAIL high fixable "Worktree(s) missing the Coordinator lock task:${D06_FAIL_FIXABLE}"
+elif [ -n "$D06_FIXED" ]; then
+    record D06 FIXED high fixable "Recreated the Coordinator lock task for:${D06_FIXED}"
+else
+    record D06 PASS high fixable "Exactly one Coordinator lock task in each worktree database."
+fi
+
+# --- D07: .taskrc must never be tracked in git --------------------------
+if git ls-files --error-unmatch .taskrc >/dev/null 2>&1; then
+    D07_TRACKED="${D07_TRACKED} main"
+fi
+if [ -z "$D07_TRACKED" ]; then
+    record D07 PASS high manual ".taskrc is not tracked by git in any tree."
+else
+    record D07 FAIL high manual ".taskrc is tracked by git in:${D07_TRACKED}. A worktree copy would overwrite the main tree's UDAs on merge. Fix: git rm --cached .taskrc and add it to .gitignore."
+fi
+
+# --- D08: git worktree registry matches .worktrees/ ---------------------
+REGISTERED=$(git worktree list --porcelain 2>/dev/null | grep -c '^worktree ' || true)
+REGISTERED=$(( ${REGISTERED:-1} - 1 ))  # exclude the main tree itself
+[ "$REGISTERED" -lt 0 ] && REGISTERED=0
+if [ "$REGISTERED" -eq "$WT_COUNT" ]; then
+    record D08 PASS medium fixable "git worktree registry matches .worktrees/ (${WT_COUNT})."
+elif [ "$APPLY" = true ]; then
+    git worktree prune >/dev/null 2>&1 || true
+    AFTER=$(git worktree list --porcelain 2>/dev/null | grep -c '^worktree ' || true)
+    AFTER=$(( ${AFTER:-1} - 1 ))
+    [ "$AFTER" -lt 0 ] && AFTER=0
+    if [ "$AFTER" -eq "$WT_COUNT" ]; then
+        record D08 FIXED medium fixable "Pruned stale worktree registrations (${REGISTERED} -> ${AFTER}, directories=${WT_COUNT})."
+    else
+        record D08 FAIL medium fixable "git worktree registry still disagrees with .worktrees/ (registered=${AFTER}, directories=${WT_COUNT})."
+    fi
+else
+    record D08 FAIL medium fixable "git worktree registry has ${REGISTERED} entr(ies) but .worktrees/ has ${WT_COUNT} director(ies). Fix: git worktree prune"
+fi
+
+if [ -z "$D09_FAIL" ]; then
+    record D09 PASS high manual "At most one active phase task per worktree."
+else
+    record D09 FAIL high manual "Worktree(s) with multiple active phase tasks:${D09_FAIL}. Only the user may clear orphaned active tasks (cleanup-ai-state.sh)."
+fi
+
+if [ -z "$D10_FAIL" ]; then
+    record D10 PASS high manual "No Coordinator lock is held with a stale heartbeat."
+else
+    record D10 FAIL high manual "Coordinator lock held with no recent heartbeat:${D10_FAIL}. The Coordinator subagent probably died. Only the user may clear a held lock (cleanup-ai-state.sh)."
+fi
+
+# --- D11: active epics have worktrees -----------------------------------
+D11_FAIL=""
+ACTIVE_EPICS=$(task epicstate:active export 2>/dev/null | python3 -c "
+import sys, json
+try:
+    tasks = json.load(sys.stdin)
+except Exception:
+    tasks = []
+for t in tasks:
+    print('%s|%s' % (t.get('aiepic', ''), t.get('description', '').split(': ', 1)[-1]))
+" 2>/dev/null || true)
+while IFS='|' read -r EPIC_ID EPIC_SLUG; do
+    [ -n "${EPIC_ID:-}" ] || continue
+    if [ ! -d "${AI_ROOT}/.worktrees/epic-${EPIC_ID}-${EPIC_SLUG}" ]; then
+        D11_FAIL="${D11_FAIL} ${EPIC_ID}"
+    fi
+done <<< "$ACTIVE_EPICS"
+if [ -z "$D11_FAIL" ]; then
+    record D11 PASS medium manual "Every active epic has a worktree."
+else
+    record D11 FAIL medium manual "Active epic(s) without a worktree:${D11_FAIL}. Decide whether to re-fork or cancel the epic."
+fi
+
+if [ -z "$D12_FAIL" ]; then
+    record D12 PASS medium manual "Every blocked task references an escalation file that exists."
+else
+    record D12 FAIL medium manual "Blocked task/escalation mismatch:${D12_FAIL}"
+fi
+
+# --- Render -------------------------------------------------------------
+python3 - "$OUTPUT" "$RESULTS_FILE" "$APPLY" <<'PY'
+import json, sys
+
+output_mode, results_path, applied = sys.argv[1], sys.argv[2], sys.argv[3] == "true"
+
+checks = []
+with open(results_path) as handle:
+    for line in handle.read().splitlines():
+        if not line.strip():
+            continue
+        parts = line.split("\t")
+        while len(parts) < 5:
+            parts.append("")
+        checks.append({
+            "id": parts[0],
+            "status": parts[1],
+            "severity": parts[2],
+            "repair": parts[3],
+            "message": parts[4],
+        })
+
+checks.sort(key=lambda c: c["id"])
+failures = [c for c in checks if c["status"] == "FAIL"]
+manual = [c for c in failures if c["repair"] == "manual"]
+fixable = [c for c in failures if c["repair"] == "fixable"]
+fixed = [c for c in checks if c["status"] == "FIXED"]
+
+if manual:
+    code = 2
+elif fixable:
+    code = 1
+else:
+    code = 0
+
+if output_mode == "json":
+    print(json.dumps({
+        "checks": checks,
+        "applied": applied,
+        "failures_manual": [c["id"] for c in manual],
+        "failures_fixable": [c["id"] for c in fixable],
+        "fixed": [c["id"] for c in fixed],
+        "exit_code": code,
+    }, indent=2))
+else:
+    print("=== Framework Doctor ===")
+    print("Mode: %s" % ("FIX" if applied else "DRY-RUN"))
+    print("")
+    for c in checks:
+        print("%s %-5s %-6s %-8s %s" % (c["id"], c["status"], c["severity"], c["repair"], c["message"]))
+    print("")
+    print("=== Results ===")
+    if code == 0:
+        print("All checks passed%s." % (" after repair" if fixed else ""))
+    elif code == 1:
+        print("%d fixable failure(s): %s" % (len(fixable), ", ".join(c["id"] for c in fixable)))
+        print("Run: bash taskwarrior/doctor --fix")
+    else:
+        print("%d failure(s) need a human: %s" % (len(manual), ", ".join(c["id"] for c in manual)))
+        if fixable:
+            print("%d fixable failure(s): %s" % (len(fixable), ", ".join(c["id"] for c in fixable)))
+
+sys.exit(code)
+PY

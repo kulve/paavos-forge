@@ -3,10 +3,8 @@
 # Read-only. Prints structured status for PM decision-making.
 # Usage: pm-preflight
 set -euo pipefail
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${SCRIPT_DIR}/env.sh"
-
-PROJECT_ROOT="${SCRIPT_DIR}/.."
+source "$(dirname "${BASH_SOURCE[0]}")/guard.sh"
+require_context main
 
 echo "=== PM Preflight ==="
 echo ""
@@ -34,21 +32,11 @@ else
     echo "  No epics registered."
 fi
 
-# Per-worktree coordinator lock and active task check
+# Per-worktree Coordinator lock, liveness, and progress.
+# Exit code is intentionally ignored here: preflight reports, it does not decide.
+# Call coordinator-status directly when you need its 0/1/2 verdict.
 echo ""
-echo "--- Worktree Status ---"
-if [ -d "${PROJECT_ROOT}/.worktrees" ]; then
-    for wt in "${PROJECT_ROOT}/.worktrees"/*/; do
-        if [ -d "$wt" ] && [ -f "${wt}taskwarrior/tw" ]; then
-            WT_NAME=$(basename "$wt")
-            COORD_ACTIVE=$(cd "$wt" && bash taskwarrior/coordinator-lock-status 2>/dev/null | grep -c "HELD" || echo "0")
-            PHASE_ACTIVE=$(cd "$wt" && bash taskwarrior/tw +ACTIVE -AI_LOCK count 2>/dev/null || echo "0")
-            echo "  $WT_NAME: coordinator=$([ "$COORD_ACTIVE" -gt 0 ] && echo 'HELD' || echo 'free') active_tasks=$PHASE_ACTIVE"
-        fi
-    done
-else
-    echo "  No worktrees."
-fi
+bash "${AI_ROOT}/taskwarrior/coordinator-status" || true
 
 echo ""
 echo "=== Preflight Complete ==="

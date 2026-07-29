@@ -2,8 +2,8 @@
 # Acquire the Coordinator singleton lock in the current worktree's TW database.
 # Exits 1 if already held.
 set -euo pipefail
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${SCRIPT_DIR}/env.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/guard.sh"
+require_context worktree
 
 COORD_ACTIVE=$(task +AI_LOCK airole:coordinator +ACTIVE count 2>/dev/null || echo "0")
 if [ "$COORD_ACTIVE" -gt 0 ]; then
@@ -19,4 +19,5 @@ if [ -z "$COORD_ID" ]; then
 fi
 
 task "$COORD_ID" start
+ai_heartbeat started
 echo "OK: Coordinator lock acquired (task $COORD_ID)."

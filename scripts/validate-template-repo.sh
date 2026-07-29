@@ -63,12 +63,13 @@ if [ ! -d "templates/base/plan/epics" ]; then
 fi
 
 echo "--- Taskwarrior scripts ---"
-REQUIRED_SCRIPTS="tw env.sh setup.sh cleanup-ai-state.sh recipes.md
+REQUIRED_SCRIPTS="tw env.sh guard.sh setup.sh taskrc.template cleanup-ai-state.sh recipes.md
     epic-fork epic-merge epic-status epic-mark-ready epic-gate-status epic-gate-release epic-rebase
     story-init story-next story-complete story-merge
     phase-start phase-stop phase-transition phase-annotate phase-done phase-block
     pm-lock-acquire pm-lock-release pm-preflight
-    coordinator-lock-acquire coordinator-lock-release coordinator-lock-status"
+    coordinator-lock-acquire coordinator-lock-release coordinator-lock-status
+    coordinator-heartbeat coordinator-status doctor"
 
 for script in $REQUIRED_SCRIPTS; do
     if [ ! -f "templates/base/taskwarrior/${script}" ]; then
@@ -76,20 +77,73 @@ for script in $REQUIRED_SCRIPTS; do
     fi
 done
 
+echo "--- Isolation invariants ---"
+if [ -f "templates/base/.taskrc" ]; then
+    fail "templates/base/.taskrc must not exist; setup.sh generates .taskrc from taskwarrior/taskrc.template"
+fi
+
+if [ -f "templates/base/taskwarrior/taskrc.template" ] && grep -q '^data.location' templates/base/taskwarrior/taskrc.template; then
+    fail "taskrc.template must not set data.location; setup.sh appends an absolute path"
+fi
+
+if [ -f "templates/base/taskwarrior/env.sh" ] && ! grep -q 'export TASKDATA' templates/base/taskwarrior/env.sh; then
+    fail "env.sh must export an absolute TASKDATA so the database never depends on the caller's cwd"
+fi
+
+# Every executable script must source guard.sh; guard.sh and env.sh are the exceptions.
+for script_path in templates/base/taskwarrior/*; do
+    script_name="$(basename "$script_path")"
+    case "$script_name" in
+        guard.sh|env.sh|recipes.md|taskrc.template) continue ;;
+    esac
+    if ! grep -q 'guard.sh' "$script_path"; then
+        fail "${script_name} does not source taskwarrior/guard.sh (context guard missing)"
+    fi
+    if grep -q 'SCRIPT_DIR=' "$script_path"; then
+        fail "${script_name} still defines SCRIPT_DIR; use AI_ROOT from guard.sh"
+    fi
+done
+
+# Context assignment must match the tree each script is allowed to touch.
+for script_name in epic-fork epic-merge epic-rebase epic-mark-ready epic-status \
+                   epic-gate-status epic-gate-release pm-lock-acquire pm-lock-release \
+                   pm-preflight cleanup-ai-state.sh coordinator-status doctor; do
+    if ! grep -q 'require_context main' "templates/base/taskwarrior/${script_name}"; then
+        fail "${script_name} must call require_context main"
+    fi
+done
+
+for script_name in coordinator-lock-acquire coordinator-lock-release coordinator-lock-status \
+                   coordinator-heartbeat story-init story-next story-complete story-merge \
+                   phase-start phase-stop phase-transition phase-annotate phase-done phase-block; do
+    if ! grep -q 'require_context worktree' "templates/base/taskwarrior/${script_name}"; then
+        fail "${script_name} must call require_context worktree"
+    fi
+done
+
+echo "--- Agent prompts must not use a subagent working directory ---"
+if grep -rq 'working_directory. set to' templates/cursor/.cursor/agents/; then
+    fail "An agent prompt instructs setting a subagent working_directory; that parameter does not exist"
+fi
+
+echo "--- Isolation smoke test present ---"
+if [ ! -f "scripts/test-isolation.sh" ]; then
+    fail "Missing scripts/test-isolation.sh"
+fi
+
 echo "--- Cursor agent prompts ---"
 if [ ! -d "templates/cursor/.cursor/agents" ]; then
     fail "Missing Cursor agent prompt directory"
 else
     AGENT_COUNT=$(find templates/cursor/.cursor/agents -maxdepth 1 -type f -name '*.md' | wc -l | tr -d ' ')
-    if [ "$AGENT_COUNT" -ne 24 ]; then
-        fail "Expected 24 Cursor agent prompt files, found $AGENT_COUNT"
+    if [ "$AGENT_COUNT" -ne 26 ]; then
+        fail "Expected 26 Cursor agent prompt files, found $AGENT_COUNT"
     fi
-    if [ ! -f "templates/cursor/.cursor/agents/escalation-recovery.md" ]; then
-        fail "Missing escalation recovery agent prompt"
-    fi
-    if [ ! -f "templates/cursor/.cursor/agents/roadmap-planner.md" ]; then
-        fail "Missing roadmap planner agent prompt"
-    fi
+    for agent in escalation-recovery escalation-triage environment-recovery roadmap-planner; do
+        if [ ! -f "templates/cursor/.cursor/agents/${agent}.md" ]; then
+            fail "Missing agent prompt: ${agent}.md"
+        fi
+    done
 fi
 
 echo "--- Cursor rules and commands ---"
@@ -110,6 +164,9 @@ if [ -f "templates/base/.gitignore" ]; then
     fi
     if ! grep -q '.worktrees/' templates/base/.gitignore; then
         fail ".gitignore missing .worktrees/ entry"
+    fi
+    if ! grep -qx '.taskrc' templates/base/.gitignore; then
+        fail ".gitignore missing .taskrc entry (a committed worktree .taskrc corrupts main's UDAs on merge)"
     fi
 fi
 

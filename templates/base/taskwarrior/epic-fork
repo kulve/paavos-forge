@@ -3,10 +3,10 @@
 # the epic in the main tree's Taskwarrior.
 # Usage: epic-fork <epic-id> <slug>
 # Exit 0: success. Exit 1: merge gate blocked. Exit 2: error.
-# Must be run from the main project tree (not a worktree).
+# Must be run from the main project tree.
 set -euo pipefail
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${SCRIPT_DIR}/env.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/guard.sh"
+require_context main
 
 if [ $# -lt 2 ]; then
     echo "Usage: epic-fork <epic-id> <slug>"
@@ -15,9 +15,34 @@ fi
 
 EPIC_ID="$1"
 SLUG="$2"
-PROJECT_ROOT="${SCRIPT_DIR}/.."
-WORKTREE_DIR="${PROJECT_ROOT}/.worktrees/epic-${EPIC_ID}-${SLUG}"
+WORKTREE_DIR="${AI_ROOT}/.worktrees/epic-${EPIC_ID}-${SLUG}"
 BRANCH_NAME="epic/${EPIC_ID}-${SLUG}"
+
+# --- Preconditions -------------------------------------------------------
+
+if ! git rev-parse --verify --quiet main >/dev/null; then
+    echo "ERROR: Branch 'main' does not exist. The framework forks epic worktrees from main."
+    exit 2
+fi
+
+# The worktree is created from `main`, so the framework must already be committed
+# there. Otherwise the worktree has no scripts and no templates.
+for REQUIRED in taskwarrior ai-framework plan/templates AGENTS.md; do
+    if [ -z "$(git ls-tree --name-only main -- "$REQUIRED")" ]; then
+        echo "ERROR: Framework files are not committed to main. Complete deployment first."
+        echo "  Missing on main: $REQUIRED"
+        exit 2
+    fi
+done
+
+# Uncommitted framework or planning changes would not reach the worktree.
+DIRTY=$(git status --porcelain -- taskwarrior ai-framework plan)
+if [ -n "$DIRTY" ]; then
+    echo "ERROR: Uncommitted changes under taskwarrior/, ai-framework/, or plan/."
+    echo "  Commit them to main before forking; the worktree is created from main."
+    echo "$DIRTY"
+    exit 2
+fi
 
 # Check merge gate
 GATE_ACTIVE=$(task +MERGE_GATE +ACTIVE count 2>/dev/null || echo "0")
@@ -40,12 +65,38 @@ if [ "$EXISTING" -gt 0 ]; then
     exit 2
 fi
 
-# Create worktree from main
-mkdir -p "${PROJECT_ROOT}/.worktrees"
+# --- Fork ----------------------------------------------------------------
+
+mkdir -p "${AI_ROOT}/.worktrees"
 git worktree add -b "$BRANCH_NAME" "$WORKTREE_DIR" main
 
-# Initialize Taskwarrior in the worktree
-bash "${WORKTREE_DIR}/taskwarrior/setup.sh" --worktree
+# Initialize Taskwarrior in the worktree. Run with the worktree as cwd so the
+# intent is explicit even though the scripts no longer depend on cwd.
+(cd "$WORKTREE_DIR" && bash taskwarrior/setup.sh --worktree)
+
+# --- Post-conditions: prove isolation before any Coordinator runs ---------
+
+WT_COORD_LOCKS=$(cd "$WORKTREE_DIR" && bash taskwarrior/tw +AI_LOCK airole:coordinator count 2>/dev/null || echo "0")
+if [ "$WT_COORD_LOCKS" -ne 1 ]; then
+    echo "ERROR: Worktree Taskwarrior isolation check failed."
+    echo "  Expected exactly 1 Coordinator lock task in the worktree DB, found ${WT_COORD_LOCKS}."
+    echo "  Worktree: $WORKTREE_DIR"
+    exit 2
+fi
+
+WT_PHASE_TASKS=$(cd "$WORKTREE_DIR" && bash taskwarrior/tw aiphase.any: count 2>/dev/null || echo "0")
+if [ "$WT_PHASE_TASKS" -ne 0 ]; then
+    echo "ERROR: Worktree Taskwarrior DB already contains ${WT_PHASE_TASKS} phase task(s)."
+    echo "  A fresh epic worktree must start with none. Worktree: $WORKTREE_DIR"
+    exit 2
+fi
+
+MAIN_COORD_LOCKS=$(task +AI_LOCK airole:coordinator count 2>/dev/null || echo "0")
+if [ "$MAIN_COORD_LOCKS" -ne 0 ]; then
+    echo "ERROR: Main tree Taskwarrior DB contains ${MAIN_COORD_LOCKS} Coordinator lock task(s)."
+    echo "  Coordinator state must live only in worktrees. Run: bash taskwarrior/doctor"
+    exit 2
+fi
 
 # Register epic in main tree's Taskwarrior
 task add "Epic ${EPIC_ID}: ${SLUG}" "aiepic:${EPIC_ID}" "epicstate:active"
@@ -53,3 +104,4 @@ task add "Epic ${EPIC_ID}: ${SLUG}" "aiepic:${EPIC_ID}" "epicstate:active"
 echo "OK: Epic $EPIC_ID forked."
 echo "  worktree=$WORKTREE_DIR"
 echo "  branch=$BRANCH_NAME"
+echo "  isolation=verified (worktree coordinator lock=1, worktree phase tasks=0, main coordinator locks=0)"

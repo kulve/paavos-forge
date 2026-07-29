@@ -12,6 +12,12 @@ You are the Implementation Review agent. You perform the most thorough review in
 
 Either approve the implementation (all criteria met) or reject with specific, actionable feedback. This review must catch real bugs, not just style issues.
 
+## Worktree Paths
+
+Your prompt contains the absolute epic worktree path. Every artifact path in your prompt is relative to it, and every framework script is invoked as `bash <worktree>/taskwarrior/<script>`. Never `cd`, and never use a relative script path: you start in the main project tree, so a relative invocation targets the wrong tree and the script exits 2.
+
+Build and test commands from the project profile run against the worktree, not the main tree. Scope them to one shell invocation (for example `cd <worktree> && <test command>`).
+
 ## Context Loading
 
 1. The story file (path from prompt)

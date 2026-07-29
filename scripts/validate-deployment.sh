@@ -92,11 +92,46 @@ check_file "taskwarrior/setup.sh"
 check_executable "taskwarrior/setup.sh"
 check_file "taskwarrior/env.sh"
 check_executable "taskwarrior/env.sh"
+check_file "taskwarrior/guard.sh"
+check_executable "taskwarrior/guard.sh"
+check_file "taskwarrior/taskrc.template"
 check_file "taskwarrior/tw"
 check_executable "taskwarrior/tw"
 check_file "taskwarrior/recipes.md"
 check_file "taskwarrior/cleanup-ai-state.sh"
 check_executable "taskwarrior/cleanup-ai-state.sh"
+
+echo "--- Isolation Invariants ---"
+# .taskrc is mode-specific and generated. A tracked copy in a worktree would
+# overwrite the main tree's UDAs when the epic branch merges.
+if [ -d ".git" ] && git ls-files --error-unmatch .taskrc >/dev/null 2>&1; then
+    echo "ERROR: .taskrc is tracked by git. Run: git rm --cached .taskrc"
+    ERRORS=$((ERRORS + 1))
+fi
+
+if [ -f ".taskrc" ] && ! grep -q '^data.location=/' .taskrc; then
+    echo "ERROR: .taskrc has no absolute data.location. Delete it and re-run: bash taskwarrior/setup.sh --main"
+    ERRORS=$((ERRORS + 1))
+fi
+
+if [ -f "taskwarrior/env.sh" ] && ! grep -q 'export TASKDATA' taskwarrior/env.sh; then
+    echo "ERROR: taskwarrior/env.sh does not export TASKDATA; the database would depend on the caller's cwd"
+    ERRORS=$((ERRORS + 1))
+fi
+
+# Every framework script must go through the context guard.
+if [ -d "taskwarrior" ]; then
+    for script_path in taskwarrior/*; do
+        script_name="$(basename "$script_path")"
+        case "$script_name" in
+            guard.sh|env.sh|recipes.md|taskrc.template) continue ;;
+        esac
+        if ! grep -q 'guard.sh' "$script_path" 2>/dev/null; then
+            echo "ERROR: taskwarrior/${script_name} does not source guard.sh (context guard missing)"
+            ERRORS=$((ERRORS + 1))
+        fi
+    done
+fi
 
 echo "--- Taskwarrior Scripts (Epic) ---"
 for script in epic-fork epic-merge epic-status epic-mark-ready epic-gate-status epic-gate-release epic-rebase; do
@@ -116,11 +151,18 @@ for script in pm-lock-acquire pm-lock-release pm-preflight coordinator-lock-acqu
     check_executable "taskwarrior/$script"
 done
 
+echo "--- Taskwarrior Scripts (Diagnostics/Telemetry) ---"
+for script in doctor coordinator-heartbeat coordinator-status; do
+    check_file "taskwarrior/$script"
+    check_executable "taskwarrior/$script"
+done
+
 echo "--- .gitignore ---"
 check_gitignore_entry ".task/"
 check_gitignore_entry ".worktrees/"
+check_gitignore_entry ".taskrc"
 
-echo "--- Cursor Agents (23 required) ---"
+echo "--- Cursor Agents (26 required) ---"
 check_file ".cursor/agents/project-manager.md"
 check_file ".cursor/agents/coordinator.md"
 check_file ".cursor/agents/fixer.md"
@@ -144,6 +186,17 @@ check_file ".cursor/agents/implementation-write.md"
 check_file ".cursor/agents/implementation-review.md"
 check_file ".cursor/agents/escalation-analysis.md"
 check_file ".cursor/agents/escalation-recovery.md"
+check_file ".cursor/agents/escalation-triage.md"
+check_file ".cursor/agents/environment-recovery.md"
+check_file ".cursor/agents/deploy-profile.md"
+
+if [ -d ".cursor/agents" ]; then
+    AGENT_COUNT=$(find .cursor/agents -maxdepth 1 -type f -name '*.md' | wc -l | tr -d ' ')
+    if [ "$AGENT_COUNT" -ne 26 ]; then
+        echo "WARNING: Expected 26 agent prompt files, found $AGENT_COUNT"
+        WARNINGS=$((WARNINGS + 1))
+    fi
+fi
 
 echo "--- Cursor Rules and Commands ---"
 check_file ".cursor/rules/ai-framework.mdc"
@@ -181,6 +234,25 @@ echo "--- Git ---"
 if [ ! -d ".git" ]; then
     echo "WARNING: Not a git repository. Initialize with: git init"
     WARNINGS=$((WARNINGS + 1))
+else
+    # Epic worktrees are created from main, so the framework must be committed there.
+    for required in taskwarrior ai-framework plan/templates AGENTS.md; do
+        if [ -z "$(git ls-tree --name-only main -- "$required" 2>/dev/null)" ]; then
+            echo "WARNING: '$required' is not committed to main. epic-fork will refuse until it is."
+            WARNINGS=$((WARNINGS + 1))
+        fi
+    done
+fi
+
+echo "--- Framework Invariants (doctor) ---"
+if [ -x "taskwarrior/doctor" ] && command -v task &> /dev/null; then
+    if bash taskwarrior/doctor >/dev/null 2>&1; then
+        echo "doctor: all checks passed"
+    else
+        DOCTOR_RC=$?
+        echo "WARNING: bash taskwarrior/doctor exited ${DOCTOR_RC}. Run it directly for details."
+        WARNINGS=$((WARNINGS + 1))
+    fi
 fi
 
 echo ""

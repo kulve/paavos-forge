@@ -40,15 +40,23 @@ Sixteen specialized agents (4 phases x 4 states: plan, plan-review, write, revie
 
 ### 2.4 Support Agents
 
-Story Review, Escalation Analysis, Escalation Recovery, and Roadmap Planner agents that assist the PM and Coordinator with quality assurance, failure diagnosis, bounded automatic recovery, and project roadmap synthesis.
+Story Review, Escalation Analysis, Escalation Triage, Escalation Recovery, Environment Recovery, and Roadmap Planner agents that assist the PM and Coordinator with quality assurance, failure diagnosis, escalation classification, bounded automatic recovery, framework state repair, and project roadmap synthesis.
 
 ### 2.4.1 Roadmap Planner
 
 A PM-invoked support agent that synthesizes or revises `plan/project.md` from Paavo Notes product goals. It runs at project init and at post-milestone re-evaluation (when the PM asks for a roadmap rewrite). It proposes an end-to-end milestone roadmap with rolling detail (near milestones detailed, far milestones brief), discusses refinements with the user/PM, then writes the project file pinning a Paavo Notes project id and closed version. It is not part of the Coordinator's dispatch table.
 
+### 2.4.2 Escalation Triage
+
+A PM-invoked, strictly read-only support agent that classifies every escalation before any recovery is attempted. It may read the escalation report, the blocked task export, the story file, and run read-only diagnostics (`doctor` without `--fix`, `coordinator-status`, read-only `tw` queries). It writes nothing. It returns a fixed block naming the class (`environment`, `artifact`, `product-intent`, `scope-policy`), a confidence, the blast radius, the proposed handler, the verification commands, and a fingerprint. It exists so that mechanical failures are not sent to the user and product decisions are not automated away. It is not part of the Coordinator's dispatch table.
+
+### 2.4.3 Environment Recovery
+
+A PM-invoked support agent that repairs framework runtime state after an `environment`-class triage result. It operates through a closed command whitelist built around `doctor --fix` and `setup.sh --worktree`, and is forbidden from running any `git` command, any direct Taskwarrior mutation, and any edit outside appending to the escalation file. It must stop with `needs-human` whenever `doctor` reports a manual-only failure or an AI lock is ACTIVE. Claiming `resolved` requires a recorded clean `doctor` run (exit 0). It is not part of the Coordinator's dispatch table.
+
 ### 2.5 Escalation Recovery
 
-A PM-invoked support agent that operates inside the PM pipeline after a clean Coordinator escalation halt. It reads the escalation report and the minimum relevant story artifacts, applies the smallest correction needed to make the current story internally consistent, and reports the earliest phase state that must be rerun. It is not part of the Coordinator's dispatch table. It must stop for human input if recovery requires changing product intent, widening scope, changing public interfaces, adding dependencies, creating stories, skipping phases, or resolving suspicious runtime state.
+A PM-invoked support agent that handles the `artifact` class after a clean Coordinator escalation halt. It reads the escalation report and the minimum relevant story artifacts, applies the smallest correction needed to make the current story internally consistent, and reports the earliest phase state that must be rerun. It is not part of the Coordinator's dispatch table. It must stop for human input if recovery requires changing product intent, widening scope, changing public interfaces, adding dependencies, creating stories, skipping phases, or resolving suspicious runtime state.
 
 ### 2.6 Fixer
 
@@ -193,15 +201,16 @@ The PM operates in the main project tree. It owns the project roadmap, defines m
    ```
    The fork script checks the merge gate, creates the worktree, initializes Taskwarrior, and registers the epic. Preflight for the PM also includes the Paavo Notes reachability check from step 0.
 
-7. **Coordinator invocation**: PM launches a Coordinator subagent with `working_directory` set to the epic's worktree path. The Coordinator may run in background (`run_in_background: true`) to allow the PM to dispatch additional epics.
+7. **Coordinator invocation**: PM launches a Coordinator subagent with `run_in_background: true`. Subagents cannot be given a working directory, so the Coordinator starts in the main tree: its prompt must carry the absolute worktree path and the invariant that every framework script is invoked as `bash <worktree>/taskwarrior/<script>`. The Coordinator runs its Startup Assertion before any other work.
 
 8. **Parallel dispatch**: PM may repeat steps 3-7 for additional independent epics. Multiple epics execute simultaneously in their own worktrees.
 
-9. **Monitoring**: PM periodically checks status:
+9. **Supervision**: PM supervises background Coordinators through the aggregator and acts on its exit code (Section 17):
    ```
+   bash taskwarrior/coordinator-status
    bash taskwarrior/epic-status
-   bash taskwarrior/pm-preflight
    ```
+   The PM must never infer Coordinator progress from agent transcripts.
 
 10. **Epic completion**: When a Coordinator signals that all stories are done (epic becomes merge-ready):
     ```
@@ -232,15 +241,17 @@ The PM operates in the main project tree. It owns the project roadmap, defines m
 
 ## 5. Coordinator Loop
 
-The Coordinator drives all stories within a single epic through all four phases. It operates within an epic's worktree directory.
+The Coordinator drives all stories within a single epic through all four phases. It operates on one epic worktree, addressing it by absolute path.
+
+0. **Startup assertion**: bind `WT` to the absolute worktree path from the prompt and confirm `bash "$WT/taskwarrior/coordinator-lock-status"` prints FREE and exits 0. Abort and report to the PM (do not escalate, there is no story state yet) if the path is missing, the script exits 2, or the lock is HELD. Every subsequent script call uses `bash "$WT/taskwarrior/<script>"`; the Coordinator never `cd`s and never uses a relative script path.
 
 1. Read the epic file to get the ordered story list.
 
 2. Acquire Coordinator lock:
    ```
-   bash taskwarrior/coordinator-lock-acquire
+   bash "$WT/taskwarrior/coordinator-lock-acquire"
    ```
-   If exit 1 (already held): report and exit as duplicate.
+   If exit 1 (already held): report and exit as duplicate. If exit 2: wrong context, abort and report to the PM.
 
 3. **For each story in the epic** (serial, in order):
 
@@ -409,7 +420,7 @@ The project profile may specify a recommended concurrency limit.
 
 ## 9. Escalation Protocol
 
-Escalations halt Coordinator work and surface the problem to the PM. The PM may attempt one bounded automatic recovery only after proving that no Coordinator or phase subagent is still active.
+Escalations halt Coordinator work and surface the problem to the PM. Every escalation is classified before anything is repaired: the PM may attempt one bounded automatic recovery per root cause, and only after proving that no Coordinator or phase subagent is still active. Stopping for the user is a routing outcome for product and policy decisions, not the default response to failure.
 
 1. **Trigger**: a subagent hits an impossible constraint, a contradiction it cannot resolve, the Coordinator detects the 3rd plan-review or review rejection for the same phase, the Paavo Notes MCP is unreachable when required, or a product-intent gap cannot be resolved from the pinned Paavo Notes version (blocking). Non-blocking product-intent gaps may instead be posted as open questions to Paavo Notes (Section 16) without escalating.
 
@@ -417,27 +428,46 @@ Escalations halt Coordinator work and surface the problem to the PM. The PM may 
 
 3. **Coordinator halt**: the Coordinator detects the `Escalation:` annotation or reject limit, blocks the task via `bash taskwarrior/phase-block <task-id> <path>`, releases the Coordinator lock via `bash taskwarrior/coordinator-lock-release`, and returns control to the PM. No git rollback. No upstream phase reopening.
 
-4. **PM recovery preflight**: before invoking recovery, the PM must verify the worktree state:
+4. **Triage**: the PM first verifies the Coordinator lock is FREE in the epic's worktree:
    ```
-   bash taskwarrior/coordinator-lock-status    # (run in worktree) must show FREE
+   bash <worktree>/taskwarrior/coordinator-lock-status    # must show FREE
    ```
-   If the Coordinator lock is held, the PM must not recover automatically.
+   If the lock is HELD, the PM does not recover and does not triage: it reports and waits for the user. Otherwise the PM invokes `escalation-triage` in the foreground. Triage is read-only and returns a fixed block with `Class`, `Confidence`, `Root cause`, `Doctor findings`, `Blast radius`, `Proposed handler`, `Verification`, and `Fingerprint`.
 
-5. **Escalation Recovery**: the PM invokes `escalation-recovery` in foreground within the epic's worktree with the escalation path, blocked task ID, story path, and current task metadata. The recovery agent may make only bounded corrections and must return one of:
-   - `resolved`: includes the earliest phase and `aistate` to rerun
+   Routing is mechanical:
+
+   | Class | Handler | Rationale |
+   |-------|---------|-----------|
+   | `environment` | `environment-recovery` | Framework state, configuration, or runtime damage. Mechanical, so no user decision exists to make. |
+   | `artifact` | `escalation-recovery` | Story-local inconsistency between requirements, architecture, tests, or source. |
+   | `product-intent` | user (or a Paavo Notes open question) | The required behavior is missing or contradictory. **Always stops for the user.** |
+   | `scope-policy` | user | Widening scope, changing a public interface, adding a dependency, creating/skipping a story, or skipping a phase. **Always stops for the user.** |
+
+   Any `Confidence: low` result routes to the user regardless of class.
+
+   **One attempt per fingerprint**: before dispatching to an automated handler, the PM checks the blocked task's annotations for the triage fingerprint. If an annotation already contains the same `fp=<fingerprint>`, the same root cause has already been attempted: route to the user instead of retrying. The PM records each attempt as
+   ```
+   bash <worktree>/taskwarrior/phase-annotate <id> Recovery "attempt <n> class=<class> fp=<fingerprint>"
+   ```
+   This makes the "resolving the same root cause repeatedly" stop condition in 9.8 mechanical rather than a judgment call.
+
+5. **Bounded recovery**: the PM invokes the handler from step 4 in the foreground, passing the absolute worktree path, the escalation path, the blocked task ID, the story path, and the triage block. Subagents receive no working directory, so every path must be absolute or explicitly relative to the given worktree. Both recovery agents return one of:
+   - `resolved`: `escalation-recovery` includes the earliest phase and `aistate` to rerun; `environment-recovery` includes a recorded clean `doctor` run (exit 0)
    - `needs-human`: explains the decision required
    - `failed-recovery`: explains why its attempted fix did not resolve the blocker
 
 6. **PM state restoration**: if recovery returns `resolved`, the PM uses scripts to clear the escalation and restore the task:
    ```
-   bash taskwarrior/phase-annotate <id> Recovery "<summary>"
-   bash taskwarrior/phase-transition <id> <resume-state>
+   bash <worktree>/taskwarrior/phase-annotate <id> Recovery "<summary>"
+   bash <worktree>/taskwarrior/phase-transition <id> <resume-state>
    ```
    (The `phase-transition` script handles clearing `+blocked` when transitioning from blocked state.)
 
-7. **Resume**: PM launches a fresh Coordinator for the same epic in foreground. The Coordinator picks up from the restored task state.
+7. **Resume**: PM launches a fresh Coordinator for the same epic in the background (see Section 17). The Coordinator picks up from the restored task state. The old Coordinator is never resumed.
 
-8. **Human stop conditions**: PM stops and asks the user when recovery requires changing story intent, widening acceptance criteria, changing public interfaces, adding dependencies, creating or skipping stories, skipping phases, clearing stale/duplicate locks, clearing orphaned active phase tasks, resolving the same root cause repeatedly, or adopting a new Paavo Notes version / rewriting product goals.
+8. **Human stop conditions**: PM stops and asks the user when recovery requires changing story intent, widening acceptance criteria, changing public interfaces, adding dependencies, creating or skipping stories, skipping phases, adopting a new Paavo Notes version / rewriting product goals, or resolving a root cause whose fingerprint has already been attempted.
+
+   Runtime-state cleanup remains user-only exactly where `taskwarrior/doctor` marks a check manual: D07 (`.taskrc` tracked by git), D09 (multiple active phase tasks in a worktree), D10 (a held Coordinator lock with a stale, dead, or missing heartbeat), D11 (an active epic with no worktree), and D12 (blocked task / escalation file mismatch). Checks that `doctor` marks fixable are not human stop conditions: `environment-recovery` repairs them through `doctor --fix`. No agent may ever clear a lock or an orphaned active task; that is `cleanup-ai-state.sh`, run by the user.
 
 ---
 
@@ -546,6 +576,8 @@ Scripts are the enforcement layer. They:
 
 ### 12.2 Script Categories
 
+Every script sources `taskwarrior/guard.sh`, which resolves the framework root from the script's own location, exports an absolute `TASKDATA`, and enforces the required execution context. A main-tree script run inside a worktree (or vice versa) exits 2 without touching state. **Invoke scripts by absolute path** (`bash <tree-root>/taskwarrior/<script>`): correctness then never depends on an agent's working directory, which subagents cannot be given.
+
 **PM scripts** (run in main tree):
 - `pm-lock-acquire` / `pm-lock-release`: PM singleton lock
 - `pm-preflight`: read-only status check across all worktrees
@@ -570,6 +602,14 @@ Scripts are the enforcement layer. They:
 - `phase-annotate`: validated annotation
 - `phase-done`: mark task done
 - `phase-block`: block task with escalation
+
+**Diagnostics and telemetry**:
+- `doctor` (main tree): checks framework invariants D01-D12; dry-run by default, `--fix` applies only the repairs marked fixable, `--json` for machine consumption. Exit 0 all clear, 1 only fixable failures remain, 2 a failure needs a human.
+- `coordinator-heartbeat` (epic worktree): records Coordinator liveness and progress. Called automatically by the lifecycle scripts; agents never call it directly. Never fails its caller.
+- `coordinator-status` (main tree): read-only liveness and progress aggregator across all worktrees, with `--epic` and `--json`. Exit 0 healthy, 1 stale, 2 dead / no heartbeat / escalation.
+
+**Setup** (both trees):
+- `setup.sh --main` / `setup.sh --worktree`: generates the tree's `.taskrc` (gitignored, with an absolute `data.location`) and configures the UDAs for that mode. It validates that the tree matches the flag and exits 2 on mismatch.
 
 ### 12.3 Exit Code Convention
 
@@ -686,7 +726,7 @@ Agents that may access Paavo Notes pursue these outcomes, choosing appropriate M
 ### 16.4 Who may access Paavo Notes
 
 - **Allowed**: PM, Roadmap Planner, and the four requirements-phase agents (plan, plan-review, write, review).
-- **Forbidden**: Coordinator, architecture / integration-test / implementation agents, story-review, escalation-analysis, escalation-recovery, fixer, and general agents.
+- **Forbidden**: Coordinator, architecture / integration-test / implementation agents, story-review, escalation-analysis, escalation-triage, escalation-recovery, environment-recovery, fixer, and general agents.
 
 Requirements-plan and requirements-write may post open questions. Review agents may read the pinned version to verify traceability but should not post open questions unless needed to record a blocking product-intent gap.
 
@@ -700,3 +740,84 @@ Rules (mirror the Discovery Protocol):
 - Agents must **never** list, search, read, deduplicate, modify, answer, or delete existing open questions as part of framework work.
 - Non-blocking product-intent gap: post an open question and continue.
 - Blocking product-intent gap (cannot proceed without changed/clarified intent): escalate (and optionally also post an open question so the gap is captured at the source). Answers and classification (clarification vs real change for a future version) happen in the Paavo Notes web UI / user process, not in the framework.
+
+---
+
+## 17. Coordinator Observability
+
+Coordinators run as background subagents so that epics execute in parallel. Background execution is only safe if the PM has a reliable, cheap way to tell working from stuck. That signal is a heartbeat written by the framework scripts themselves, never by an agent's own reporting.
+
+### 17.1 Heartbeat file
+
+Each epic worktree has `.task/coordinator-status.json` (inside the gitignored `.task/` directory), rewritten atomically on every event:
+
+```json
+{
+  "schema": 1,
+  "epic": "E0001",
+  "worktree": "/abs/path/.worktrees/epic-E0001-foundational-runtime",
+  "branch": "story/00001-buildable-desktop-binary",
+  "sequence": 42,
+  "updated_epoch": 1785299763,
+  "updated_utc": "2026-07-29T10:12:03Z",
+  "event": "phase-start",
+  "story": "00001",
+  "phase": "req",
+  "state": "write",
+  "agent": "requirements-write",
+  "detail": "",
+  "escalation": ""
+}
+```
+
+`sequence` increments monotonically, so progress is detectable even when two events land in the same second. Each event is also appended to `.task/coordinator-events.log` as one line, giving an ordered history without a database query.
+
+### 17.2 Events
+
+`coordinator-heartbeat` is called by the lifecycle scripts, so telemetry does not depend on an agent remembering to report:
+
+| Script | Event |
+|--------|-------|
+| `coordinator-lock-acquire` | `started` |
+| `coordinator-lock-release` | `stopped` |
+| `story-init` | `story-init` |
+| `phase-start` | `phase-start` |
+| `phase-stop` | `phase-stop` |
+| `phase-annotate` | `annotate` |
+| `phase-transition` | `state` |
+| `phase-done` | `phase-done` |
+| `phase-block` | `escalated` (carries the escalation path) |
+| `story-complete` | `story-verified` |
+| `story-merge` | `story-merged` |
+
+Because phase agents call `phase-annotate` and `phase-transition` during their own work, even a long-running implementation subagent keeps advancing the heartbeat. Silence therefore means genuinely stuck work, not a quiet agent.
+
+### 17.3 Liveness
+
+`coordinator-status` derives liveness per worktree from `updated_epoch`:
+
+- `NO-HEARTBEAT` -- the status file is missing: the Coordinator never started
+- `OK` -- age below `AI_HEARTBEAT_STALE_SECONDS` (default 1800)
+- `STALE` -- age between the stale and dead thresholds
+- `DEAD` -- age at or above `AI_HEARTBEAT_DEAD_SECONDS` (default 5400)
+- `DONE` -- last event is `stopped` or `completed` and the Coordinator lock is FREE
+
+Both thresholds are overridable by environment variable; a project may document its own values in the project profile when its phases legitimately run longer.
+
+### 17.4 Aggregator exit codes
+
+- **0** -- every worktree is `OK` or `DONE`
+- **1** -- at least one `STALE` worktree: attention, not action
+- **2** -- at least one `DEAD` or `NO-HEARTBEAT` worktree, or a recorded escalation
+
+### 17.5 PM supervision loop
+
+The PM supervises exclusively through `bash taskwarrior/coordinator-status` and acts on its exit code:
+
+1. Exit 0 -- continue other PM work (next epic's stories, another dispatch, or wait), then re-check.
+2. Exit 1 -- do other work and re-check once. If the same worktree is still `STALE` on the second consecutive check, treat it as exit 2.
+3. Exit 2 with an escalation -- run the Section 9 escalation protocol.
+4. Exit 2 with `NO-HEARTBEAT` or `DEAD` -- the Coordinator subagent died. Run `doctor` and route through Section 9; triage will classify this as `environment`. Never clear a HELD lock.
+5. `DONE` -- mark the epic merge-ready and merge it (Section 8).
+
+Reading agent transcripts, chat logs, or `.jsonl` files to infer progress is forbidden: it is unreliable, expensive, and it is what the heartbeat replaces.

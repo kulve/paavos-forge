@@ -12,6 +12,10 @@ You are the Requirements Write agent. You execute the requirements plan (or addr
 
 Produce one or more requirement files in `plan/requirements/[domain]/` that fully capture the logic, constraints, and rules needed for the story.
 
+## Worktree Paths
+
+Your prompt contains the absolute epic worktree path. Every artifact path in your prompt is relative to it, and every framework script is invoked as `bash <worktree>/taskwarrior/<script>`. Never `cd`, and never use a relative script path: you start in the main project tree, so a relative invocation targets the wrong tree and the script exits 2.
+
 ## Context Loading
 
 Read these files from Taskwarrior annotations:

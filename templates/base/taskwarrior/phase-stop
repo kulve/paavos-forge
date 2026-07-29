@@ -2,8 +2,8 @@
 # Stop a phase task (clear +ACTIVE).
 # Usage: phase-stop <task-id>
 set -euo pipefail
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${SCRIPT_DIR}/env.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/guard.sh"
+require_context worktree
 
 if [ $# -lt 1 ]; then
     echo "Usage: phase-stop <task-id>"
@@ -12,4 +12,6 @@ fi
 
 TASK_ID="$1"
 task "$TASK_ID" stop
+# shellcheck disable=SC2046  # word splitting is intended: three key=value args
+ai_heartbeat phase-stop $(ai_task_fields "$TASK_ID")
 echo "OK: Task $TASK_ID stopped."

@@ -1,8 +1,8 @@
 #!/bin/bash
 # Acquire the PM singleton lock. Exits 1 if already held.
 set -euo pipefail
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${SCRIPT_DIR}/env.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/guard.sh"
+require_context main
 
 PM_ACTIVE=$(task +AI_LOCK airole:pm +ACTIVE count 2>/dev/null || echo "0")
 if [ "$PM_ACTIVE" -gt 0 ]; then

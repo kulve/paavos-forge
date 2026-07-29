@@ -1,0 +1,281 @@
+#!/bin/bash
+# Report lock state, liveness, and progress for every epic worktree. Read-only.
+# Usage: coordinator-status [--epic EXXXX] [--json]
+#
+# Liveness comes from .task/coordinator-status.json in each worktree, which the
+# lifecycle scripts update automatically (see coordinator-heartbeat).
+#
+# Exit codes let the PM act without parsing prose:
+#   0 - every worktree is OK or DONE
+#   1 - at least one STALE worktree (attention, no action yet)
+#   2 - at least one DEAD / NO-HEARTBEAT worktree, or a recorded escalation
+set -uo pipefail
+source "$(dirname "${BASH_SOURCE[0]}")/guard.sh"
+require_context main
+
+STALE_SECONDS="${AI_HEARTBEAT_STALE_SECONDS:-1800}"
+DEAD_SECONDS="${AI_HEARTBEAT_DEAD_SECONDS:-5400}"
+
+EPIC_FILTER=""
+OUTPUT="text"
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --epic) EPIC_FILTER="${2:-}"; shift ;;
+        --json) OUTPUT="json" ;;
+        -h|--help)
+            echo "Usage: coordinator-status [--epic EXXXX] [--json]"
+            exit 0
+            ;;
+        *) echo "Unknown option: $1" >&2; exit 2 ;;
+    esac
+    shift
+done
+
+RECORDS_FILE="$(mktemp)"
+trap 'rm -f "$RECORDS_FILE"' EXIT
+
+add_field() {
+    printf '%s=%s\n' "$1" "$2" >> "$RECORDS_FILE"
+}
+
+if [ -d "${AI_ROOT}/.worktrees" ]; then
+    for WT in "${AI_ROOT}/.worktrees"/*/; do
+        [ -d "$WT" ] || continue
+        WT="${WT%/}"
+        WT_NAME="$(basename "$WT")"
+        WT_EPIC="$(echo "$WT_NAME" | cut -d- -f2)"
+
+        if [ -n "$EPIC_FILTER" ] && [ "$WT_EPIC" != "$EPIC_FILTER" ]; then
+            continue
+        fi
+
+        add_field record "$WT_NAME"
+        add_field epic "$WT_EPIC"
+        add_field worktree "$WT"
+
+        if [ ! -f "${WT}/taskwarrior/tw" ]; then
+            add_field usable no
+            continue
+        fi
+        add_field usable yes
+
+        LOCK_ACTIVE=$(bash "${WT}/taskwarrior/tw" +AI_LOCK airole:coordinator +ACTIVE count 2>/dev/null || echo "0")
+        add_field lock "$([ "$LOCK_ACTIVE" -gt 0 ] && echo HELD || echo FREE)"
+
+        ACTIVE_JSON=$(bash "${WT}/taskwarrior/tw" +ACTIVE -AI_LOCK export 2>/dev/null || echo "[]")
+        ACTIVE_SUMMARY=$(python3 -c "
+import sys, json
+try:
+    tasks = json.loads(sys.argv[1] or '[]')
+except Exception:
+    tasks = []
+if not tasks:
+    print('none')
+else:
+    t = tasks[0]
+    print('%s|%s|%s|%s' % (t.get('id',''), t.get('aistory',''), t.get('aiphase',''), t.get('aistate','')))
+" "$ACTIVE_JSON" 2>/dev/null || echo "none")
+        add_field active "$ACTIVE_SUMMARY"
+
+        PHASES_TOTAL=$(bash "${WT}/taskwarrior/tw" aiphase.any: count 2>/dev/null || echo "0")
+        PHASES_DONE=$(bash "${WT}/taskwarrior/tw" aiphase.any: status:completed count 2>/dev/null || echo "0")
+        add_field phases_total "$PHASES_TOTAL"
+        add_field phases_done "$PHASES_DONE"
+
+        STORY_JSON=$(bash "${WT}/taskwarrior/tw" aiphase.any: export 2>/dev/null || echo "[]")
+        STORY_SUMMARY=$(python3 -c "
+import sys, json
+try:
+    tasks = json.loads(sys.argv[1] or '[]')
+except Exception:
+    tasks = []
+stories = {}
+for t in tasks:
+    sid = t.get('aistory', '')
+    if not sid:
+        continue
+    stories.setdefault(sid, []).append(t.get('status', ''))
+total = len(stories)
+done = sum(1 for states in stories.values() if states and all(s == 'completed' for s in states))
+print('%d|%d' % (done, total))
+" "$STORY_JSON" 2>/dev/null || echo "0|0")
+        add_field stories "$STORY_SUMMARY"
+
+        BLOCKED=$(bash "${WT}/taskwarrior/tw" +blocked status:pending count 2>/dev/null || echo "0")
+        add_field blocked "$BLOCKED"
+
+        STATUS_FILE="${WT}/.task/coordinator-status.json"
+        if [ -f "$STATUS_FILE" ]; then
+            HB=$(python3 -c "
+import sys, json, time
+try:
+    with open(sys.argv[1]) as handle:
+        d = json.load(handle)
+except Exception:
+    print('unreadable')
+    sys.exit(0)
+age = int(time.time()) - int(d.get('updated_epoch', 0))
+parts = []
+for key in ('story', 'phase', 'state', 'agent', 'detail'):
+    if d.get(key):
+        parts.append('%s=%s' % (key, d[key]))
+print('|'.join([
+    str(d.get('event', '')),
+    str(d.get('updated_utc', '')),
+    str(age),
+    str(d.get('sequence', '')),
+    ' '.join(parts),
+    str(d.get('escalation', '')),
+]))
+" "$STATUS_FILE" 2>/dev/null || echo "unreadable")
+        else
+            HB="missing"
+        fi
+        add_field heartbeat "$HB"
+    done
+fi
+
+if [ ! -s "$RECORDS_FILE" ]; then
+    if [ "$OUTPUT" = "json" ]; then
+        echo '{"worktrees": [], "worst": "none"}'
+    else
+        echo "=== Coordinator Status ==="
+        echo ""
+        echo "No epic worktrees."
+    fi
+    exit 0
+fi
+
+python3 - "$OUTPUT" "$STALE_SECONDS" "$DEAD_SECONDS" "$RECORDS_FILE" <<'PY'
+import json, sys
+
+output_mode, stale_s, dead_s = sys.argv[1], int(sys.argv[2]), int(sys.argv[3])
+with open(sys.argv[4]) as handle:
+    raw = handle.read()
+
+records, current = [], None
+for line in raw.splitlines():
+    if not line or "=" not in line:
+        continue
+    key, value = line.split("=", 1)
+    if key == "record":
+        current = {"name": value}
+        records.append(current)
+    elif current is not None:
+        current[key] = value
+
+
+def human_age(seconds):
+    if seconds < 60:
+        return "%ds" % seconds
+    if seconds < 3600:
+        return "%dm%02ds" % (seconds // 60, seconds % 60)
+    return "%dh%02dm" % (seconds // 3600, (seconds % 3600) // 60)
+
+
+def classify(rec):
+    hb = rec.get("heartbeat", "missing")
+    lock = rec.get("lock", "FREE")
+    if rec.get("usable") == "no":
+        return "NO-HEARTBEAT", None
+    if hb in ("missing", "unreadable"):
+        return "NO-HEARTBEAT", None
+    parts = hb.split("|")
+    while len(parts) < 6:
+        parts.append("")
+    event, updated_utc, age, sequence, detail, escalation = parts[:6]
+    try:
+        age = int(age)
+    except ValueError:
+        age = 0
+    info = {
+        "event": event,
+        "updated_utc": updated_utc,
+        "age_seconds": age,
+        "sequence": sequence,
+        "detail": detail,
+        "escalation": escalation,
+    }
+    if event in ("stopped", "completed") and lock == "FREE":
+        return "DONE", info
+    if age >= dead_s:
+        return "DEAD", info
+    if age >= stale_s:
+        return "STALE", info
+    return "OK", info
+
+
+SEVERITY = {"OK": 0, "DONE": 0, "STALE": 1, "NO-HEARTBEAT": 2, "DEAD": 2}
+worst = 0
+rendered = []
+
+for rec in records:
+    liveness, info = classify(rec)
+    severity = SEVERITY.get(liveness, 2)
+
+    escalation = (info or {}).get("escalation", "")
+    if not escalation and rec.get("blocked", "0") not in ("0", ""):
+        escalation = "%s blocked task(s)" % rec["blocked"]
+    if escalation:
+        severity = max(severity, 2)
+    worst = max(worst, severity)
+
+    stories_done, stories_total = (rec.get("stories", "0|0").split("|") + ["0"])[:2]
+    active = rec.get("active", "none")
+    if active and active != "none":
+        a = (active.split("|") + ["", "", "", ""])[:4]
+        active_text = "%s  (story %s, %s/%s)" % (a[0], a[1], a[2], a[3])
+    else:
+        active_text = "none"
+
+    rendered.append({
+        "epic": rec.get("epic", ""),
+        "name": rec.get("name", ""),
+        "worktree": rec.get("worktree", ""),
+        "lock": rec.get("lock", "unknown"),
+        "liveness": liveness,
+        "last_event": (info or {}).get("event", ""),
+        "last_event_detail": (info or {}).get("detail", ""),
+        "last_update_utc": (info or {}).get("updated_utc", ""),
+        "age_seconds": (info or {}).get("age_seconds", None),
+        "sequence": (info or {}).get("sequence", ""),
+        "active_task": active_text,
+        "stories_done": stories_done,
+        "stories_total": stories_total,
+        "phases_done": rec.get("phases_done", "0"),
+        "phases_total": rec.get("phases_total", "0"),
+        "escalation": escalation or "none",
+    })
+
+if output_mode == "json":
+    print(json.dumps({
+        "worktrees": rendered,
+        "stale_seconds": stale_s,
+        "dead_seconds": dead_s,
+        "worst_severity": worst,
+    }, indent=2))
+else:
+    print("=== Coordinator Status ===")
+    print("")
+    for r in rendered:
+        print("%s  %s" % (r["epic"], r["name"]))
+        print("  lock:        %s" % r["lock"])
+        print("  liveness:    %s" % r["liveness"])
+        if r["age_seconds"] is None:
+            print("  last_event:  (no heartbeat recorded -- Coordinator never started)")
+            print("  last_update: never")
+        else:
+            detail = (" " + r["last_event_detail"]) if r["last_event_detail"] else ""
+            print("  last_event:  %s%s" % (r["last_event"], detail))
+            print("  last_update: %s  (%s ago)  seq=%s" % (
+                r["last_update_utc"], human_age(r["age_seconds"]), r["sequence"]))
+        print("  active_task: %s" % r["active_task"])
+        print("  progress:    stories %s/%s done, phases %s/%s done" % (
+            r["stories_done"], r["stories_total"], r["phases_done"], r["phases_total"]))
+        print("  escalation:  %s" % r["escalation"])
+        print("")
+    print("Thresholds: STALE >= %ds, DEAD >= %ds (AI_HEARTBEAT_STALE_SECONDS / AI_HEARTBEAT_DEAD_SECONDS)" % (
+        stale_s, dead_s))
+
+sys.exit(worst)
+PY
