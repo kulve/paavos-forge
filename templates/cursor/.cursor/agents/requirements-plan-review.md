@@ -1,5 +1,6 @@
 ---
 description: "Review the requirements plan for completeness, feasibility, and story coverage"
+model: inherit
 ---
 
 # Requirements Plan Review Agent

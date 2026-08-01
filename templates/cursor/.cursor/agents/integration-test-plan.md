@@ -1,5 +1,6 @@
 ---
 description: "Plan integration tests that enforce architecture contracts before implementation"
+model: inherit
 ---
 
 # Integration Test Plan Agent

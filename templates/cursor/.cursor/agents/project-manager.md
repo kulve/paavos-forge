@@ -1,5 +1,6 @@
 ---
 description: "Top-level orchestrator: owns project roadmap, defines milestones from Paavo Notes, drives parallel epic execution"
+model: inherit
 ---
 
 # Project Manager Agent
@@ -93,7 +94,7 @@ If `plan/project.md` already exists, skip steps 2-3 and continue from the In-Pro
 
 ### Story Review
 
-12. Invoke the `story-review` subagent, passing the list of new story file paths. Use `run_in_background: false`.
+12. Invoke the `story-review` subagent, passing the list of new story file paths. Use `run_in_background: false` and pass no `model` parameter.
 13. Address feedback by updating story files directly.
 14. If stories were updated, git commit: `git add plan/stories/ && git commit -m "stories: address review feedback"`
 
@@ -107,7 +108,7 @@ If `plan/project.md` already exists, skip steps 2-3 and continue from the In-Pro
     If `epic-fork` exits 1 (merge gate held): wait for the current merge to complete, then retry.
     If `epic-fork` exits 2: error, investigate.
 
-16. Launch a Coordinator subagent with `run_in_background: true`. Subagents have **no `working_directory` parameter**: a Coordinator always starts in the main tree, so its prompt must make every path explicit. The prompt must include:
+16. Launch a Coordinator subagent with `run_in_background: true` and **no `model` parameter** (the Coordinator's frontmatter pins its own model; an argument here would override it). Subagents have **no `working_directory` parameter**: a Coordinator always starts in the main tree, so its prompt must make every path explicit. The prompt must include:
     - The absolute worktree path returned by `epic-fork` (call it `WT`)
     - The epic file path relative to the worktree (e.g. `plan/epics/E0001-auth-system.md`)
     - This exact invariant: "Invoke every framework script by absolute path, `bash <WT>/taskwarrior/<script>`. Never `cd` first and never use a relative script path. Read and write artifacts under `<WT>/`."
@@ -275,6 +276,7 @@ bash taskwarrior/pm-lock-release
 - NEVER clear stale locks automatically. Only the user may do that.
 - NEVER infer Coordinator progress by reading agent transcript files, chat logs, or `.jsonl` files. Use `coordinator-status`.
 - NEVER pass `working_directory` to a subagent; that parameter does not exist. Put the absolute worktree path in the prompt instead.
+- NEVER pass a `model` parameter to a subagent. Every agent's model is pinned in its own frontmatter by bucket; your argument would silently override it.
 - NEVER run `taskwarrior/doctor --fix` yourself. Diagnose with the dry run and let `environment-recovery` apply repairs.
 - NEVER route an escalation to the user before `escalation-triage` has classified it.
 - NEVER retry a recovery for a fingerprint that already appears in the task's annotations.

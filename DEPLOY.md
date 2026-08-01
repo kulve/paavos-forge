@@ -52,6 +52,7 @@ This creates:
 - `.gitignore` -- ignores `.task/`, `.taskrc`, `build/`, and `.worktrees/`
 - `ai-framework/LOGIC.md` -- workflow specification (copied from framework repo root)
 - `ai-framework/project-profile.md` -- to be filled in by you
+- `ai-framework/set-agent-models.sh` -- assigns a model to every agent prompt by bucket (see Step 6)
 - `plan/templates/` -- 10 artifact templates used by agents (project, milestone, epic, story, requirement, phase-plan, plan-review-feedback, review-feedback, escalation, discovery)
 - `plan/epics/.gitkeep` -- directory for epic definition files
 - `taskwarrior/setup.sh` -- generates `.taskrc` and configures the UDAs for the tree
@@ -265,7 +266,78 @@ Paavo Notes is a hard dependency. Fill this section before the first PM run.
 
 Note: adapting the framework to a language requires editing only `ai-framework/project-profile.md` (plus your `README.md` and build skeleton). Do not edit the agent prompts under `.cursor/agents/` per language -- they read the profile at runtime, and keeping them untouched lets you merge upstream framework updates cleanly.
 
-## Step 6: Register Paavo Notes MCP and Create a README
+## Step 6: Choose Models for Agent Buckets
+
+The framework ships every agent prompt with `model: inherit`, which means each agent runs on whatever model happens to be selected in the chat that started the PM. That makes pipeline quality a side effect of an unrelated UI choice, and it drifts whenever you switch models. Pin the models deliberately before your first run.
+
+Model choice trades off two independent axes. **World knowledge** decides which library, algorithm, or architecture is the right one -- it matters enormously where designs are generated and barely at all where a written plan is being executed. **Reasoning effort** buys long-horizon consistency and self-checking, which matters wherever an agent runs a long tool loop, even when the thinking has already been done upstream. Configuring 26 agents individually is unmanageable, so the framework groups them into five buckets.
+
+### The buckets
+
+| Bucket | For | Why it is separate |
+|--------|-----|--------------------|
+| `deep` | Roadmap, architecture design, debugging, escalation recovery | Irreversible choices that everything downstream inherits. Low token volume, highest leverage per token. |
+| `critic` | Adversarial review: implementation, architecture, stories | Must judge semantic correctness of work it did not write. This is where weak models rubber-stamp. |
+| `builder` | Implementation, tests, requirements, and their plans | Your largest token consumer, and the place where the hard decisions are already made upstream. |
+| `checker` | Structural conformance checks against a written plan | Bounded procedures with clear pass/fail criteria. |
+| `mechanical` | Coordinator state machine, environment repair | Follows an explicit procedure. Failures are loud, not silent (see below). |
+
+To see which agent is in which bucket and what each currently resolves to:
+
+```bash
+bash ai-framework/set-agent-models.sh --list
+```
+
+The agent-to-bucket assignment is framework knowledge and lives in the script. The bucket-to-model choice is yours.
+
+### Constraints you must respect
+
+- **`critic` must be a different model family than both `builder` and `deep`.** Every write agent is reviewed by a `checker` or `critic` agent, and `architecture-write` (in `deep`) is reviewed by `architecture-review` (in `critic`). A reviewer from the same family as the writer shares its blind spots, so failures correlate exactly where the framework assumes independent judgment. For the same reason, **`checker` must differ in family from `builder`**.
+- **`builder` must be vision-capable whenever the project profile's UI kind is not `none`.** `implementation-write` captures screenshots and must actually look at them to verify Visual Acceptance Criteria; its prompt explicitly forbids substituting histogram or pixel-count scripts. A non-vision model there degrades visual verification into "the agent claims it looked," silently.
+- **Do not spend money on context.** The default 200-300k window covers every agent in this pipeline. Some models charge 2x input beyond it, and models with same-rate extended context give you nothing to buy.
+- **Do not downgrade `critic` to save money.** The framework's safety property -- the three-rejection limit, the escalation protocol, the implementation anti-patterns -- only works if reviewers actually reject. If `critic` is too expensive, move down one tier within the same family rather than into the `builder` model.
+- **`mechanical` can be genuinely cheap.** The Coordinator is the highest-frequency agent, but `guard.sh` enforces tree isolation by construction and the scripts exit non-zero on invalid transitions, so a confused Coordinator fails loudly instead of corrupting state.
+- **Check your plan.** On legacy request-based plans without Max Mode, subagents run on Cursor's own model regardless of what you configure here, and several frontier models are unavailable. This step only takes effect on usage-based plans.
+
+### Picking current models
+
+Model lineups and prices change faster than this document. Read the current lists before choosing:
+
+- <https://cursor.com/docs/models-and-pricing> -- authoritative for what you are billed. Note the two usage pools: Cursor's own models (Grok 4.5, Composer) come from a separate pool with generous included usage and are exempt from the Cursor Token Rate, which makes high reasoning effort nearly free in that pool.
+- <https://developers.openai.com/api/docs/models>
+- <https://platform.claude.com/docs/en/about-claude/models/overview>
+
+Reasoning effort is a bracket parameter on the model ID, not a slug suffix:
+
+```
+model: claude-opus-5[effort=high]
+model: composer-2.5[]
+```
+
+Verify the exact base ID in Cursor's model picker before applying; IDs are not always what the marketing name suggests.
+
+The `deploy-profile` agent can do this step with you: it reads the pages above, proposes current candidates per bucket with prices, and applies your confirmed choices.
+
+### Example configuration
+
+A working starting point for a project whose bulk work should come from Cursor's included model pool, **as of August 2026 -- verify these IDs still exist before using them**:
+
+```bash
+bash ai-framework/set-agent-models.sh \
+  --deep       "gpt-5.6-sol[effort=high]" \
+  --critic     "claude-opus-5[effort=high]" \
+  --builder    "grok-4.5[effort=high]" \
+  --checker    "gpt-5.6-terra[effort=medium]" \
+  --mechanical "grok-4.5[effort=low]"
+```
+
+Three families, satisfying the diversity constraints: `builder` is reviewed by `checker` (OpenAI) and `critic` (Anthropic), and `deep` (OpenAI) is reviewed by `critic` (Anthropic). Effort is high on `builder` because that pool's usage is included, so the usual cost argument for lowering effort does not apply there.
+
+Which frontier family goes in `deep` versus `critic` is close to a coin flip. Treat it as your first experiment rather than a decision -- swapping is one command, and the rejection statistics (see "Cost and Quality Telemetry") will tell you more than any benchmark.
+
+Add `--dry-run` to preview changes. Re-run the command at any time to re-tune.
+
+## Step 7: Register Paavo Notes MCP and Create a README
 
 ### Paavo Notes MCP (required)
 
@@ -285,7 +357,7 @@ Before invoking the PM agent, create at least a brief `README.md` so the PM has 
 
 The PM reads `README.md` on its first run and invokes `roadmap-planner` to create `plan/project.md` from Paavo Notes.
 
-## Step 7: Customize Agents (Optional)
+## Step 8: Customize Agents (Optional)
 
 The agent prompts are designed to be generic, but you may want to tune them for your project:
 
@@ -293,7 +365,7 @@ The agent prompts are designed to be generic, but you may want to tune them for 
 - **Anti-patterns:** add domain-specific mistakes to the Anti-Patterns sections (e.g. "never use raw SQL" for a web app)
 - **Architecture conventions:** if your project uses something unusual (e.g. protocol buffers as architecture artifacts), update the architecture agents
 
-## Step 8: Validate
+## Step 9: Validate
 
 Run the automated validation script (copy it from the framework repo):
 
@@ -322,13 +394,15 @@ Or verify manually:
 - [ ] `taskwarrior/` contains 27 orchestration scripts (epic, story, phase, lock management, diagnostics, telemetry)
 - [ ] `bash taskwarrior/doctor` exits 0
 - [ ] `.cursor/agents/` contains 26 agent files (including `roadmap-planner.md`, `escalation-triage.md`, and `environment-recovery.md`)
+- [ ] `ai-framework/set-agent-models.sh` exists and is executable
+- [ ] Every agent has a model assigned and none still says `inherit`: `bash ai-framework/set-agent-models.sh --list`
 - [ ] `.cursor/rules/ai-framework.mdc` exists
 - [ ] `.cursor/commands/` contains `ai-status.md` and `ai-next.md`
 - [ ] Taskwarrior UDAs are configured: `taskwarrior/tw _udas | grep aiphase`
 - [ ] Project profile is filled in completely (including parallel limit and Paavo Notes MCP section)
 - [ ] Paavo Notes MCP is registered in Cursor and reachable
 
-## Step 9: Commit the Framework to main
+## Step 10: Commit the Framework to main
 
 **Required before the first `epic-fork`.** Epic worktrees are created from `main`, so anything uncommitted does not exist inside the worktree: the Coordinator would find no scripts, no templates, and no profile. `epic-fork` refuses to run until this is done.
 
@@ -337,6 +411,8 @@ cd /path/to/your-project
 git add AGENTS.md ARCHITECTURE.md .gitignore README.md ai-framework/ plan/ taskwarrior/ .cursor/
 git commit -m "chore: deploy AI execution framework"
 ```
+
+This includes the `model:` lines written in Step 6. Epic worktrees are created from `main`, so an unconfigured `.cursor/` there means Coordinators dispatch subagents on the wrong models.
 
 Do not add `.taskrc` or `.task/`; both are gitignored on purpose. Verify:
 
@@ -347,7 +423,7 @@ git ls-tree --name-only main -- taskwarrior ai-framework plan/templates AGENTS.m
 
 Commit planning artifacts to `main` the same way before each later dispatch. The PM does this as part of its normal loop.
 
-## Step 10: First Run
+## Step 11: First Run
 
 The framework uses a **project → milestone → epic** model with parallel epic execution. The hierarchy is:
 
@@ -387,12 +463,26 @@ If you create plan-level todos (e.g. in a Cursor plan file) to track your projec
 
 The "good" phrasing makes explicit that *you* open a chat with the PM agent. The "bad" phrasing is ambiguous -- a general agent may interpret "run Coordinator" as "produce the output that the Coordinator would produce" and bypass the pipeline entirely.
 
+## Cost and Quality Telemetry
+
+Once buckets are assigned, each bucket maps to a distinct model, so **Cursor's per-model usage dashboard already is your per-bucket spend** -- no instrumentation needed. That answers the question worth asking: which bucket is consuming the budget.
+
+Do not try to count tokens per agent. Agents cannot measure their own usage, and Cursor does not hand a subagent its own token count. What you have instead is better suited to the decision anyway:
+
+- **Invocation counts and durations per phase state**, from the `phase-start` / `phase-stop` brackets that already wrap every subagent call. Within a single bucket, duration is a reasonable token proxy.
+- **Rejection counts per phase**, tracked by the Coordinator against the three-rejection limit, plus escalation frequency.
+
+Read those signals as follows. If you downgrade a bucket and a phase's rejection rate falls toward zero, that is the reviewer rubber-stamping, not the writer improving -- the two look identical in the spend report and opposite in the artifact quality. If rejections spike or escalations cluster in one phase, that bucket is underpowered for this project. Tuning is a measurement, not a guess.
+
+One caveat on attribution: your PM chat runs on the model selected in the Cursor UI, not on the `deep` bucket's frontmatter. If that happens to be a bucket model, its spend is indistinguishable from that bucket's. Select something outside your bucket set for the PM chat to keep the report clean.
+
 ## Updating the Framework
 
 If the upstream framework template is updated, you can selectively merge changes:
 
 - `ai-framework/LOGIC.md` -- replace with the latest root `LOGIC.md` from the framework repo, or compare and merge workflow changes
-- `.cursor/agents/` -- compare and merge agent prompt improvements
+- `.cursor/agents/` -- compare and merge agent prompt improvements, then re-run `bash ai-framework/set-agent-models.sh` with your chosen models. Upstream ships every prompt with `model: inherit`, so a merge can reset the line, and a newly added agent arrives unconfigured. The script exits non-zero if an agent prompt has no bucket assignment, which is how you find out.
+- `ai-framework/set-agent-models.sh` -- take the upstream version when the agent set changes; it carries the canonical agent-to-bucket mapping
 - `.cursor/rules/ai-framework.mdc` -- compare and merge rule changes
 - `plan/templates/` -- compare and merge template changes
 - `taskwarrior/` scripts -- compare and merge new or updated orchestration scripts
@@ -416,16 +506,21 @@ After updating templates, re-run `bash taskwarrior/setup.sh --main` to pick up a
 | UDAs missing in project but `task _udas` works | Verified wrong database (global `~/.taskrc`) | Use `taskwarrior/tw _udas`, not bare `task` |
 | Tasks from project A appear in project B | Shared `~/.task` | Generated `.taskrc` has an absolute `data.location`; `env.sh` also exports `TASKDATA`. Re-run `setup.sh` |
 | Script exits 2 with "must run in the main/worktree tree" | Script invoked against the wrong tree | Use the absolute path of the intended tree: `bash <tree-root>/taskwarrior/<script>` |
-| `epic-fork` refuses: "Framework files are not committed to main" | Deployment not committed | Complete Step 9 |
+| `epic-fork` refuses: "Framework files are not committed to main" | Deployment not committed | Complete Step 10 |
 | Phase tasks appear in the main database | Historical failure mode; now blocked by the context guard | `bash taskwarrior/doctor` then `--fix` via the `environment-recovery` agent |
 | PM cannot tell whether a Coordinator is alive | Looking in the wrong place | `bash taskwarrior/coordinator-status`; never read agent transcripts |
 | `coordinator-status` shows `NO-HEARTBEAT` | Coordinator subagent never started or died at startup | Run `bash taskwarrior/doctor`, then launch a fresh Coordinator with the absolute worktree path in its prompt |
 | `coordinator-status` shows `STALE`/`DEAD` | Coordinator stopped mid-story, or a phase legitimately runs longer than the threshold | Re-check once; raise `AI_HEARTBEAT_STALE_SECONDS` if your phases are genuinely slower |
-| PM has no context on first run | No `README.md` / no project roadmap | Create a brief README; ensure Paavo Notes MCP is up and profile names the project (Step 6) |
+| PM has no context on first run | No `README.md` / no project roadmap | Create a brief README; ensure Paavo Notes MCP is up and profile names the project (Step 7) |
 | PM hard-stops immediately | Paavo Notes MCP unreachable | Start the MCP server; fix Cursor MCP registration; verify a closed version exists |
 | Roadmap invents goals | MCP not used / wrong project | Check profile project name; re-run `roadmap-planner` against Paavo Notes |
 | Coordinator fails on git merge/reset | Command wrapper blocking local git | Allow local git merge, reset, checkout in wrapper config |
 | Agent not found | Missing `.cursor/agents/` files | Verify Step 2 copied `.cursor/` directory |
+| Subagent runs on the wrong model | Parent agent passed a `model` parameter when invoking it, which overrides frontmatter | Check the PM/Coordinator prompt: subagent invocations must never pass `model` |
+| All subagents run on one cheap model regardless of config | Legacy request-based plan without Max Mode forces Cursor's own model for subagents | Switch to a usage-based plan, or accept that Step 6 has no effect |
+| Visual acceptance criteria always pass | `builder` bucket model cannot see images | Assign a vision-capable model to `builder` whenever the profile's UI kind is not `none` |
+| Reviews stopped rejecting anything after a model change | `critic` or `checker` bucket is too weak and is rubber-stamping | Raise that bucket; see Cost and Quality Telemetry |
+| `set-agent-models.sh` exits "agent prompts with no bucket assignment" | An agent prompt was added without a bucket | Add it to `BUCKET_MAP` in the script, or take the upstream version of the script |
 | Coordinator stuck | State machine confusion or stale active state | Run `/ai-next` to inspect state; use manual cleanup only after confirming no agents are active |
 | Escalation recovery stops | Needs product/scope/interface decision or active agent state is unsafe | Check `plan/escalations/` for the recovery report and give the PM direction |
 | Escalation loop | Recurring failures after recovery | Check `plan/escalations/` for reports describing root cause and recovery |

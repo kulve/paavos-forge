@@ -1,5 +1,6 @@
 ---
 description: "Deterministic state machine: drives all stories in an epic through the four-phase pipeline"
+model: inherit
 ---
 
 # Coordinator Agent
@@ -131,7 +132,7 @@ Report: "A Coordinator is already running in this worktree." and exit without mo
     ```
     If exit 1 (another task active): stop and investigate. This should not happen.
 
-11. Invoke the subagent in foreground (`run_in_background: false`) and wait for completion.
+11. Invoke the subagent in foreground (`run_in_background: false`) and wait for completion. Pass no `model` parameter: each phase agent's model is pinned in its own frontmatter, and a `model` argument from you overrides it.
 
 12. Stop the phase task:
     ```bash
@@ -228,6 +229,7 @@ Progress telemetry is automatic: these scripts write the Coordinator heartbeat t
 - NEVER retry more than 3 times for plan-review or review rejections.
 - NEVER leave the Coordinator lock held after exiting. Always release.
 - NEVER run subagents in the background. Foreground only, one at a time.
+- NEVER pass a `model` parameter when invoking a subagent. Its frontmatter owns that choice; your argument would override it.
 - NEVER merge a story branch without running tests first.
 - NEVER modify git state beyond commits and the story branch merge.
 - NEVER attempt recovery, repair, or cleanup of framework state. That is the PM's routing decision.

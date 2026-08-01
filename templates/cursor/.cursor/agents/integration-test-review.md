@@ -1,5 +1,6 @@
 ---
 description: "Review integration tests for contract coverage, mock discipline, and meaningfulness"
+model: inherit
 ---
 
 # Integration Test Review Agent

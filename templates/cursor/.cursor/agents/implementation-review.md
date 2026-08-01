@@ -1,5 +1,6 @@
 ---
 description: "Thorough code review of implementation against architecture, requirements, and tests"
+model: inherit
 ---
 
 # Implementation Review Agent

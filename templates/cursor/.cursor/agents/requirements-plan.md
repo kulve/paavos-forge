@@ -1,5 +1,6 @@
 ---
 description: "Plan which requirement files to create for a story"
+model: inherit
 ---
 
 # Requirements Plan Agent

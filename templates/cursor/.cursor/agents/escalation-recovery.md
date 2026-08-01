@@ -1,5 +1,6 @@
 ---
 description: "Bounded PM-invoked recovery for clean Coordinator escalations"
+model: inherit
 ---
 
 # Escalation Recovery Agent

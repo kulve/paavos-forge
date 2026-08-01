@@ -1,5 +1,6 @@
 ---
 description: "Whitelisted repair of framework runtime state after an environment-class escalation"
+model: inherit
 ---
 
 # Environment Recovery Agent

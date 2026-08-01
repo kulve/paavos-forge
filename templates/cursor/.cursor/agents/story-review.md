@@ -1,5 +1,6 @@
 ---
 description: "Review story files for verifiable criteria, scope boundaries, and vertical slicing"
+model: inherit
 ---
 
 # Story Review Agent

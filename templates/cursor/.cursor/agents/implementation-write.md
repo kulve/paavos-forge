@@ -1,5 +1,6 @@
 ---
 description: "Write production code that implements the architecture and passes integration tests"
+model: inherit
 ---
 
 # Implementation Write Agent

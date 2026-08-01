@@ -1,5 +1,6 @@
 ---
 description: "Plan which architecture artifacts to create or modify for a story's requirements"
+model: inherit
 ---
 
 # Architecture Plan Agent

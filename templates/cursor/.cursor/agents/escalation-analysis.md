@@ -1,5 +1,6 @@
 ---
 description: "Read-only diagnosis of escalation reports with recovery recommendations"
+model: inherit
 ---
 
 # Escalation Analysis Agent

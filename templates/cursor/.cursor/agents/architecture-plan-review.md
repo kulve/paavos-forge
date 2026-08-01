@@ -1,5 +1,6 @@
 ---
 description: "Review the architecture plan for feasibility, requirement coverage, and dependency compliance"
+model: inherit
 ---
 
 # Architecture Plan Review Agent

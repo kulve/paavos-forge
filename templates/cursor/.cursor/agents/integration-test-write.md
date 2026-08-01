@@ -1,5 +1,6 @@
 ---
 description: "Write shift-left integration tests against architecture interfaces"
+model: inherit
 ---
 
 # Integration Test Write Agent

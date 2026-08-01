@@ -1,5 +1,6 @@
 ---
 description: "Review the implementation plan for architecture compliance, test coverage, and feasibility"
+model: inherit
 ---
 
 # Implementation Plan Review Agent

@@ -1,5 +1,6 @@
 ---
 description: "Read-only escalation classifier: decides whether an AI can fix it or a human must"
+model: inherit
 ---
 
 # Escalation Triage Agent

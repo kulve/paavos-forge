@@ -1,5 +1,6 @@
 ---
 description: "Write architecture artifacts (solution-space interface definitions) from plan or review feedback"
+model: inherit
 ---
 
 # Architecture Write Agent

@@ -1,5 +1,6 @@
 ---
 description: "Fix bugs in existing code without the full PM pipeline"
+model: inherit
 ---
 
 # Fixer Agent

@@ -1,5 +1,6 @@
 ---
 description: "Review architecture artifacts for requirement coverage, cohesion, and correctness"
+model: inherit
 ---
 
 # Architecture Review Agent

@@ -68,6 +68,12 @@ Key scripts:
 
 See `taskwarrior/recipes.md` for full documentation.
 
+## Subagent Models
+
+Each agent's model is pinned in its own `.cursor/agents/*.md` frontmatter, assigned by bucket via `ai-framework/set-agent-models.sh` (see `DEPLOY.md` Step 6). Run it with `--list` to see the current assignment.
+
+**Never pass a `model` parameter when invoking a subagent.** That argument overrides the frontmatter and silently replaces a deliberate capability assignment with the parent's model. Do not hand-edit `model:` lines either; re-run the script so a whole bucket stays consistent.
+
 ## Taskwarrior
 
 All Taskwarrior read-only commands must use `taskwarrior/tw`, never bare `task`. The wrapper ensures per-project database isolation:
@@ -95,9 +101,10 @@ All Taskwarrior read-only commands must use `taskwarrior/tw`, never bare `task`.
 13. Paavo Notes MCP is a hard dependency; never invent product intent when it is unavailable.
 14. `plan/project.md` is mandatory before milestone/epic work; create it via `roadmap-planner`.
 15. Invoke framework scripts by absolute path; never rely on the working directory.
-16. Coordinators run in the background. Supervise them with `taskwarrior/coordinator-status`, never by reading agent transcripts.
-17. Escalations are classified by `escalation-triage` before recovery: environment failures go to `environment-recovery`, artifact failures to `escalation-recovery`, and product or scope decisions to the user.
-18. One automatic recovery attempt per root-cause fingerprint. A repeat fingerprint goes to the user.
+16. Never pass a `model` parameter to a subagent; its frontmatter owns that choice.
+17. Coordinators run in the background. Supervise them with `taskwarrior/coordinator-status`, never by reading agent transcripts.
+18. Escalations are classified by `escalation-triage` before recovery: environment failures go to `environment-recovery`, artifact failures to `escalation-recovery`, and product or scope decisions to the user.
+19. One automatic recovery attempt per root-cause fingerprint. A repeat fingerprint goes to the user.
 
 ## Artifact Locations
 

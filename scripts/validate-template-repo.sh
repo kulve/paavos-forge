@@ -126,6 +126,37 @@ if grep -rq 'working_directory. set to' templates/cursor/.cursor/agents/; then
     fail "An agent prompt instructs setting a subagent working_directory; that parameter does not exist"
 fi
 
+echo "--- Agent model buckets ---"
+BUCKET_SCRIPT="templates/base/ai-framework/set-agent-models.sh"
+if [ ! -f "$BUCKET_SCRIPT" ]; then
+    fail "Missing $BUCKET_SCRIPT (agent-to-bucket mapping and model assignment)"
+elif [ ! -x "$BUCKET_SCRIPT" ]; then
+    fail "$BUCKET_SCRIPT is not executable"
+else
+    # The template must ship `inherit`. A concrete slug here would override every
+    # deployed project's own bucket choice the next time it merges upstream.
+    for agent_path in templates/cursor/.cursor/agents/*.md; do
+        agent_name="$(basename "$agent_path" .md)"
+        if ! grep -q '^model:' "$agent_path"; then
+            fail "${agent_name}.md has no 'model:' frontmatter line for set-agent-models.sh to rewrite"
+        elif ! grep -q '^model: inherit$' "$agent_path"; then
+            fail "${agent_name}.md must ship 'model: inherit'; concrete models are assigned per deployment"
+        fi
+    done
+
+    # The mapping and the prompt directory must describe the same set of agents,
+    # so a newly added prompt cannot ship without a bucket.
+    MAPPED_AGENTS="$(grep -oE '^(deep|critic|builder|checker|mechanical):[a-z-]+' "$BUCKET_SCRIPT" | cut -d: -f2 | sort)"
+    PROMPT_AGENTS="$(find templates/cursor/.cursor/agents -maxdepth 1 -type f -name '*.md' -exec basename {} .md \; | sort)"
+
+    for agent in $(comm -13 <(echo "$MAPPED_AGENTS") <(echo "$PROMPT_AGENTS")); do
+        fail "Agent prompt ${agent}.md has no bucket in ${BUCKET_SCRIPT}"
+    done
+    for agent in $(comm -23 <(echo "$MAPPED_AGENTS") <(echo "$PROMPT_AGENTS")); do
+        fail "${BUCKET_SCRIPT} assigns a bucket to ${agent}, which has no prompt file"
+    done
+fi
+
 echo "--- Isolation smoke test present ---"
 if [ ! -f "scripts/test-isolation.sh" ]; then
     fail "Missing scripts/test-isolation.sh"

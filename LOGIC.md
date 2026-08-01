@@ -560,6 +560,8 @@ Update Taskwarrior via scripts when done.
 
 The subagent reads its own agent definition file for role instructions, then reads the files listed in the prompt for task-specific context.
 
+**Never pass a `model` parameter when invoking a subagent.** Each agent's model is pinned in its own prompt frontmatter, assigned by bucket at deploy time. A `model` argument supplied by the invoking agent overrides that frontmatter, which silently replaces a deliberate cost-and-capability assignment with whatever the parent happened to be running. This applies to every invocation in the framework: the Coordinator dispatching phase agents, and the PM launching Coordinators, `roadmap-planner`, `story-review`, and the escalation agents.
+
 ---
 
 ## 12. Script Protocol

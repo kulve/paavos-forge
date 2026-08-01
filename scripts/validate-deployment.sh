@@ -198,6 +198,28 @@ if [ -d ".cursor/agents" ]; then
     fi
 fi
 
+echo "--- Agent Models ---"
+check_file "ai-framework/set-agent-models.sh"
+check_executable "ai-framework/set-agent-models.sh"
+if [ -d ".cursor/agents" ]; then
+    INHERIT_COUNT=0
+    for agent_path in .cursor/agents/*.md; do
+        [ -e "$agent_path" ] || continue
+        agent_name="$(basename "$agent_path" .md)"
+        if ! grep -q '^model:' "$agent_path"; then
+            echo "ERROR: .cursor/agents/${agent_name}.md has no 'model:' frontmatter line"
+            ERRORS=$((ERRORS + 1))
+        elif grep -q '^model: inherit$' "$agent_path"; then
+            INHERIT_COUNT=$((INHERIT_COUNT + 1))
+        fi
+    done
+    if [ "$INHERIT_COUNT" -gt 0 ]; then
+        echo "WARNING: $INHERIT_COUNT agent(s) still on 'model: inherit'; they will run on whatever model the chat happens to use"
+        echo "         Assign models by bucket: bash ai-framework/set-agent-models.sh --list  (see DEPLOY.md Step 6)"
+        WARNINGS=$((WARNINGS + 1))
+    fi
+fi
+
 echo "--- Cursor Rules and Commands ---"
 check_file ".cursor/rules/ai-framework.mdc"
 check_file ".cursor/commands/ai-status.md"

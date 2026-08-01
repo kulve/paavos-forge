@@ -1,5 +1,6 @@
 ---
 description: "Review the integration test plan for contract coverage, mock boundaries, and feasibility"
+model: inherit
 ---
 
 # Integration Test Plan Review Agent

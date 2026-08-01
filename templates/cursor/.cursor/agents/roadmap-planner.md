@@ -1,5 +1,6 @@
 ---
 description: "Synthesize plan/project.md milestone roadmap from Paavo Notes product goals"
+model: inherit
 ---
 
 # Roadmap Planner Agent

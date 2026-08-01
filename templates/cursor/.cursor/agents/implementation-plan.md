@@ -1,5 +1,6 @@
 ---
 description: "Plan how to implement the architecture to pass integration tests"
+model: inherit
 ---
 
 # Implementation Plan Agent

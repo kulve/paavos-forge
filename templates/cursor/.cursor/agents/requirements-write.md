@@ -1,5 +1,6 @@
 ---
 description: "Write requirement files based on the plan or address review feedback"
+model: inherit
 ---
 
 # Requirements Write Agent

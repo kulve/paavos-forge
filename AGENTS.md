@@ -15,6 +15,8 @@ This repository is a generic, deployable template. It does not build or run anyt
 | `LOGIC.md` (root) | Canonical workflow specification -- edit here only | Copied to `ai-framework/LOGIC.md` at deploy time |
 | `ai-framework/LOGIC.md` | Not present at repo root | Deployed workflow spec used by all project agents |
 | `templates/base/ai-framework/project-profile.md` | Blank template | Copied and filled in by the deploying user |
+| `templates/base/ai-framework/set-agent-models.sh` | Canonical agent-to-bucket mapping | Copied to `ai-framework/`; the user picks the model per bucket |
+| `.cursor/agents/*.md` frontmatter `model:` | Always `inherit` | Set per bucket at deploy time by `set-agent-models.sh` |
 | `DEPLOY.md` | Human deployment procedure for new projects | Not copied -- lives only in this repo |
 | `README.md` | Human overview of the framework template | Each project has its own README |
 
@@ -98,6 +100,7 @@ templates/base/                            # Copied to downstream project root
   .gitignore                               # Ignores .task/, .taskrc, .worktrees/, build/
   ai-framework/project-profile.md          # Filled by deploying user
   ai-framework/README.md                   # Notes that LOGIC.md is copied at deploy time
+  ai-framework/set-agent-models.sh         # Canonical agent->bucket map; writes model: lines
   plan/templates/*.md                      # 10 artifact templates (incl. project.md, epic.md)
   plan/epics/.gitkeep                      # Epic artifacts directory
   taskwarrior/setup.sh                     # Generates .taskrc + UDA setup (--main / --worktree)
@@ -137,6 +140,7 @@ Worktree isolation is enforced by construction, not by agent discipline. When to
 - Taskwarrior state must stay absolute: `env.sh` exports `TASKDATA`, and generated `.taskrc` files carry an absolute `data.location`. A relative `data.location` reintroduces the bug where the caller's working directory selects the database.
 - `.taskrc` stays generated and gitignored. Never add it back under `templates/base/`.
 - Agent prompts must never pass `working_directory` to a subagent (the parameter does not exist) and must instruct absolute script invocation.
+- Agent prompts must never pass a `model` parameter to a subagent. That argument overrides the target's frontmatter, which would defeat the bucket assignment entirely.
 - Coordinator progress is observed only through `coordinator-status`. Do not add guidance that reads agent transcripts.
 
 After any change in `taskwarrior/`, `scripts/`, or the isolation-related prompt sections, run both:
@@ -157,3 +161,6 @@ Agent prompts follow a standard structure (see LOGIC.md section 11). When editin
 5. Verify state mutations use scripts (not raw `taskwarrior/tw`)
 6. Verify file paths match artifact templates
 7. Verify script names match `recipes.md` and actual script files
+8. Keep `model: inherit` in the frontmatter. Downstream deployments assign the real model by bucket; a concrete slug shipped upstream would override every deployed project's choice on merge.
+
+**Adding or removing an agent prompt** also requires updating `BUCKET_MAP` in `templates/base/ai-framework/set-agent-models.sh` and the agent counts in both validators. `validate-template-repo.sh` fails if the two sets disagree, so a forgotten bucket assignment cannot ship.

@@ -22,6 +22,12 @@ These rules apply to ALL agents working in this project. They are non-negotiable
 - Never `cd` into a worktree as a substitute. Each script sources `taskwarrior/guard.sh`, resolves its own tree, and exits 2 when invoked against the wrong one. Exit 2 from the guard means wrong path: fix the path, do not retry.
 - `.taskrc` is generated per tree by `taskwarrior/setup.sh` and is gitignored. Never commit it; its UDAs are mode-specific and a worktree copy would corrupt main on merge.
 
+## Subagent Model Selection
+
+- Every agent's model is pinned in its own prompt frontmatter, assigned by bucket at deploy time via `ai-framework/set-agent-models.sh`.
+- **Never pass a `model` parameter when invoking a subagent.** That argument overrides the frontmatter and silently replaces a deliberate capability assignment with the parent's model.
+- Do not edit `model:` lines by hand. Re-run the script so a whole bucket stays consistent.
+
 ## Hierarchy
 
 The framework uses a four-level hierarchy:

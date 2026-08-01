@@ -1,5 +1,6 @@
 ---
 description: "Review requirement files for completeness, consistency, and traceability"
+model: inherit
 ---
 
 # Requirements Review Agent
