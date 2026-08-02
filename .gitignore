@@ -9,3 +9,6 @@
 # Local Taskwarrior / worktree state (never commit)
 .task/
 .worktrees/
+
+# Dependencies of the model catalog query (installed on demand)
+scripts/models/node_modules/

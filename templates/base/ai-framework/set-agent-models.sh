@@ -62,20 +62,33 @@ Buckets:
   deep        World knowledge and generative design. Roadmap, architecture, debugging,
               escalation recovery. Low token volume, highest leverage per token.
   critic      Adversarial review. Judges semantic correctness of work it did not write.
-              Must be a different model family than both builder and deep.
+              Prefer a different model family than builder and deep.
   builder     Bulk write volume: implementation, tests, requirements, and their plans.
               Must be vision-capable if the project profile's UI kind is not `none`.
-  checker     Bounded structural checks against a written plan. Must differ in family
-              from builder.
+  checker     Bounded structural checks against a written plan. Prefer a different
+              family than builder, but not at the cost of a clearly weaker model.
   mechanical  Procedure following: the Coordinator state machine and environment repair.
 
 The Project Manager has no bucket. It is a skill, not a subagent, so it runs on
 whatever model the top-level chat is set to. Pick that model yourself when you
 start a `/project-manager` chat.
 
-Model syntax is a Cursor model ID with optional bracket parameters, for example
-"claude-opus-5[effort=high]" or "grok-4.5[effort=low]". Use "inherit" to fall back
-to the parent chat's model. Verify exact IDs in Cursor's model picker.
+Model syntax is a Cursor model ID followed by bracket parameters, for example
+"claude-opus-5[thinking=true,context=300k,effort=high,fast=false]". Use "inherit"
+to fall back to the parent chat's model.
+
+State every parameter. Each model's default variant is the expensive one:
+grok-4.5 and composer-2.5 default to fast=true, and claude-opus-5 and the GPT
+family default to the 1m context tier.
+
+Parameter names differ by family. Claude, Grok, and Gemini take `effort`; the GPT
+family takes `reasoning`; Claude also takes `thinking`. Both kinds of mistake are
+silent at run time: an unrecognised parameter is dropped and the model's default
+applies, and an unrecognised model ID falls back to the parent chat's model.
+
+Do not read IDs off Cursor's model picker or a billing export. Both show display
+names ("Cursor Grok 4.5") rather than selectable IDs ("grok-4.5"). DEPLOY.md
+Step 6 explains how to list the exact IDs your account exposes.
 
 Options:
   --list      Show each bucket, its agents, and the model currently set on disk
@@ -93,6 +106,78 @@ bucket_of_agent() {
 
 model_line_of() {
     grep -m1 '^model:' "$AGENT_DIR/$1.md" 2>/dev/null | sed 's/^model:[[:space:]]*//'
+}
+
+# Cursor accepts a bad model string without complaint, so a typo here costs a
+# whole pipeline run before anyone notices. Two failure modes, both silent:
+# an unrecognised model ID falls back to the parent chat's model, and an
+# unrecognised parameter is dropped so the model's own default applies.
+#
+# Errors below are for mistakes proven to fail. Everything model-specific is a
+# warning, because the catalog changes and this script must not block a model
+# that did not exist when it was written.
+LINT_ERRORS=0
+
+validate_model() {
+    bucket="$1"
+    value="$2"
+
+    [ "$value" = "inherit" ] && return 0
+
+    id="${value%%[*}"
+    params=""
+    case "$value" in
+        *\[*\]) params="${value#*[}"; params="${params%]}" ;;
+    esac
+
+    # A `cursor-` prefix is a billing display name, not a selectable ID.
+    case "$id" in
+        cursor-*)
+            echo "ERROR: --$bucket \"$value\"" >&2
+            echo "       Model IDs never carry a 'cursor-' prefix; that is a display name." >&2
+            echo "       Use '${id#cursor-}'. As written this silently runs on the parent model." >&2
+            LINT_ERRORS=$((LINT_ERRORS + 1))
+            return 1 ;;
+    esac
+
+    # Reasoning effort is spelled differently per model family.
+    case "$id" in
+        gpt-*|glm-*|kimi-*)
+            case ",$params," in
+                *,effort=*)
+                    echo "ERROR: --$bucket \"$value\"" >&2
+                    echo "       '$id' takes 'reasoning', not 'effort'." >&2
+                    echo "       The unknown parameter is dropped and the model default applies." >&2
+                    LINT_ERRORS=$((LINT_ERRORS + 1))
+                    return 1 ;;
+            esac ;;
+        claude-*|grok-*|gemini-*)
+            case ",$params," in
+                *,reasoning=*)
+                    echo "ERROR: --$bucket \"$value\"" >&2
+                    echo "       '$id' takes 'effort', not 'reasoning'." >&2
+                    echo "       The unknown parameter is dropped and the model default applies." >&2
+                    LINT_ERRORS=$((LINT_ERRORS + 1))
+                    return 1 ;;
+            esac ;;
+    esac
+
+    # Omitting a parameter selects the model's default variant, which is the
+    # expensive one on every family that offers the choice.
+    case ",$params," in
+        *,fast=*) ;;
+        *) echo "WARNING: --$bucket \"$value\" does not set 'fast'. Several models default to fast=true, which bills at a premium." >&2 ;;
+    esac
+
+    case "$id" in
+        claude-*|gpt-*)
+            case ",$params," in
+                *,context=*) ;;
+                *) echo "WARNING: --$bucket \"$value\" does not set 'context'. This family defaults to the 1m tier, which bills at a premium." >&2 ;;
+            esac ;;
+    esac
+
+    return 0
 }
 
 while [ $# -gt 0 ]; do
@@ -179,7 +264,17 @@ for bucket in $BUCKETS; do
         usage >&2
         exit 1
     fi
+    # `|| true` because a lint failure is counted, not fatal on the spot; we
+    # want every bad bucket reported in one pass rather than one per re-run.
+    validate_model "$bucket" "$VALUE" || true
 done
+
+if [ "$LINT_ERRORS" -gt 0 ]; then
+    echo "" >&2
+    echo "Refusing to write $LINT_ERRORS invalid model string(s). Nothing changed." >&2
+    echo "See DEPLOY.md Step 6 for how to list the model IDs and parameters your account exposes." >&2
+    exit 1
+fi
 
 CHANGED=0
 for bucket in $BUCKETS; do

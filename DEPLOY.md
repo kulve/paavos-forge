@@ -294,46 +294,69 @@ The agent-to-bucket assignment is framework knowledge and lives in the script. T
 
 ### Constraints you must respect
 
-- **`critic` must be a different model family than both `builder` and `deep`.** Every write agent is reviewed by a `checker` or `critic` agent, and `architecture-write` (in `deep`) is reviewed by `architecture-review` (in `critic`). A reviewer from the same family as the writer shares its blind spots, so failures correlate exactly where the framework assumes independent judgment. For the same reason, **`checker` must differ in family from `builder`**.
+- **Prefer a different model family for a reviewer than for the bucket it reviews.** Every write agent is reviewed by a `checker` or `critic` agent, and `architecture-write` (in `deep`) is reviewed by `architecture-review` (in `critic`). A reviewer from the same family as the writer shares its blind spots, so failures correlate exactly where the framework assumes independent judgment. That argues for `critic` differing from both `builder` and `deep`, and for `checker` differing from `builder`.
+
+  This is a recommendation, not a hard rule, and it is worth most among the expensive buckets, where several frontier families sit at a similar price point and separation is nearly free. Inside Cursor's included pool the only choices are Composer and Grok, so buying separation there means accepting a clearly weaker reviewer. A same-family reviewer that is strong enough to reject catches more than a different-family one that rubber-stamps. Take the stronger model.
 - **`builder` must be vision-capable whenever the project profile's UI kind is not `none`.** `implementation-write` captures screenshots and must actually look at them to verify Visual Acceptance Criteria; its prompt explicitly forbids substituting histogram or pixel-count scripts. A non-vision model there degrades visual verification into "the agent claims it looked," silently.
-- **Do not spend money on context.** The default 200-300k window covers every agent in this pipeline. Some models charge 2x input beyond it, and models with same-rate extended context give you nothing to buy.
+- **Set `context` explicitly, to the smaller tier.** A 200-300k window covers every agent in this pipeline, but `claude-opus-5` and the GPT family default to the `1m` tier, which bills at a premium. Omitting the parameter opts you into the expensive option rather than out of it.
 - **Do not downgrade `critic` to save money.** The framework's safety property -- the three-rejection limit, the escalation protocol, the implementation anti-patterns -- only works if reviewers actually reject. If `critic` is too expensive, move down one tier within the same family rather than into the `builder` model.
 - **`mechanical` can be genuinely cheap.** The Coordinator is the highest-frequency agent, but `guard.sh` enforces tree isolation by construction and the scripts exit non-zero on invalid transitions, so a confused Coordinator fails loudly instead of corrupting state.
-- **Check your plan.** On legacy request-based plans without Max Mode, subagents run on Cursor's own model regardless of what you configure here, and several frontier models are unavailable. This step only takes effect on usage-based plans.
+- **Check your plan.** On legacy request-based plans without Max Mode, subagents run on Cursor's own model regardless of what you configure here, and several frontier models are unavailable. On usage-based plans this step takes effect for every agent, including subagents launched by other subagents; nesting depth does not weaken the assignment.
 
 ### Picking current models
 
-Model lineups and prices change faster than this document. Read the current lists before choosing:
+Model lineups, IDs, and parameters change faster than this document. Worse, the two places you would naturally look both show marketing names rather than selectable IDs: Cursor's model picker calls it "Cursor Grok 4.5" and your billing export calls it `cursor-grok-4.5-high-fast`, but the ID you must write is `grok-4.5`. Guessing from either one produces a model string that fails silently.
 
-- <https://cursor.com/docs/models-and-pricing> -- authoritative for what you are billed. Note the two usage pools: Cursor's own models (Grok 4.5, Composer) come from a separate pool with generous included usage and are exempt from the Cursor Token Rate, which makes high reasoning effort nearly free in that pool.
-- <https://developers.openai.com/api/docs/models>
-- <https://platform.claude.com/docs/en/about-claude/models/overview>
+Ask your account what it actually exposes. From your checkout of this framework repo:
 
-Reasoning effort is a bracket parameter on the model ID, not a slug suffix:
-
-```
-model: claude-opus-5[effort=high]
-model: composer-2.5[]
+```bash
+cd scripts/models && npm install
+CURSOR_API_KEY=<your key> node list-models.mjs
 ```
 
-Verify the exact base ID in Cursor's model picker before applying; IDs are not always what the marketing name suggests.
+This prints every model ID available to your account, the parameters each one accepts with their allowed values, and which variant is the default. That output is the source of truth for this step. It needs Node 22.13 or later and an API key from <https://cursor.com/dashboard/api>.
 
-The `deploy-profile` agent can do this step with you: it reads the pages above, proposes current candidates per bucket with prices, and applies your confirmed choices.
+For prices, see <https://cursor.com/docs/models-and-pricing>. Note the two usage pools: Cursor's own models (Grok 4.5, Composer) come from a separate pool with generous included usage and are exempt from the Cursor Token Rate, which makes high reasoning effort nearly free in that pool.
+
+#### Writing a model string
+
+A model string is an ID followed by bracket parameters:
+
+```
+model: claude-opus-5[thinking=true,context=300k,effort=high,fast=false]
+model: grok-4.5[effort=high,fast=false]
+model: composer-2.5[fast=false]
+```
+
+**State every parameter.** Each model's default variant is the expensive one. `grok-4.5` and `composer-2.5` default to `fast=true`; `claude-opus-5` and the GPT family default to the `1m` context tier. A bare `grok-4.5` resolves to the fast variant.
+
+**Parameter names differ by family.** Claude, Grok, and Gemini take `effort`; the GPT family takes `reasoning`; Claude also takes `thinking`. Both take `context` and `fast`.
+
+Both kinds of mistake are silent at run time:
+
+| Mistake | What happens |
+|---------|--------------|
+| Unrecognised model ID | The agent runs on the parent chat's model, while its frontmatter still reads correctly. This is what makes a whole pipeline quietly run on one model. |
+| Unrecognised parameter | The parameter is dropped and the model's default applies. `gpt-5.6-sol[effort=high]` runs at `reasoning=medium`. |
+
+Neither reports an error. `set-agent-models.sh` rejects both patterns before it writes anything, but it cannot know about models released after it was written; the catalog listing above can.
+
+The `deploy-profile` agent can do this step with you: it asks you to run the listing above, proposes candidates per bucket with prices, and applies your confirmed choices.
 
 ### Example configuration
 
-A working starting point for a project whose bulk work should come from Cursor's included model pool, **as of August 2026 -- verify these IDs still exist before using them**:
+A working starting point for a project whose bulk work should come from Cursor's included model pool. Verified against a live account in August 2026; **re-check the IDs with the catalog listing above before using it**:
 
 ```bash
 bash ai-framework/set-agent-models.sh \
-  --deep       "gpt-5.6-sol[effort=high]" \
-  --critic     "claude-opus-5[effort=high]" \
-  --builder    "grok-4.5[effort=high]" \
-  --checker    "gpt-5.6-terra[effort=medium]" \
-  --mechanical "grok-4.5[effort=low]"
+  --deep       "claude-opus-5[thinking=true,context=300k,effort=high,fast=false]" \
+  --critic     "gpt-5.6-sol[context=272k,reasoning=high,fast=false]" \
+  --builder    "grok-4.5[effort=high,fast=false]" \
+  --checker    "grok-4.5[effort=high,fast=false]" \
+  --mechanical "composer-2.5[fast=false]"
 ```
 
-Three families, satisfying the diversity constraints: `builder` is reviewed by `checker` (OpenAI) and `critic` (Anthropic), and `deep` (OpenAI) is reviewed by `critic` (Anthropic). Effort is high on `builder` because that pool's usage is included, so the usual cost argument for lowering effort does not apply there.
+The two expensive buckets are family-separated where it counts: `deep` (Anthropic) is reviewed by `critic` (OpenAI), which also reviews `builder` (xAI). `checker` shares xAI with `builder`, which the recommendation above would otherwise avoid -- but the only separated option inside the included pool is Composer, and a reviewer too weak to reject misses more than a same-family one does. `mechanical` stays on Composer because it follows an explicit procedure and fails loudly rather than silently. Effort is high across both Grok buckets because that pool's usage is included, so the usual cost argument for lowering effort does not apply there.
 
 Which frontier family goes in `deep` versus `critic` is close to a coin flip. Treat it as your first experiment rather than a decision -- swapping is one command, and the rejection statistics (see "Cost and Quality Telemetry") will tell you more than any benchmark.
 
@@ -521,6 +544,9 @@ After updating templates, re-run `bash taskwarrior/setup.sh --main` to pick up a
 | Coordinator fails on git merge/reset | Command wrapper blocking local git | Allow local git merge, reset, checkout in wrapper config |
 | Agent not found | Missing `.cursor/agents/` files | Verify Step 2 copied `.cursor/` directory |
 | Subagent runs on the wrong model | Parent agent passed a `model` parameter when invoking it, which overrides frontmatter | Check the PM/Coordinator prompt: subagent invocations must never pass `model` |
+| Every agent runs on the model of the chat you launched, despite correct-looking frontmatter | Unrecognised model ID; Cursor falls back to the parent model without reporting anything | List the real IDs (Step 6) and re-run `set-agent-models.sh`. A `cursor-` prefix copied from a billing export is the usual cause |
+| An agent runs on the right model but the wrong reasoning level | Unrecognised parameter for that family; it is dropped and the model default applies | Check the parameter name against the family: `reasoning` for GPT, `effort` for Claude/Grok/Gemini |
+| Bill is higher than expected with no config change | A parameter was omitted, so the model's default variant applies -- `fast=true`, or the `1m` context tier | State `fast` and `context` explicitly on every bucket |
 | All subagents run on one cheap model regardless of config | Legacy request-based plan without Max Mode forces Cursor's own model for subagents | Switch to a usage-based plan, or accept that Step 6 has no effect |
 | Visual acceptance criteria always pass | `builder` bucket model cannot see images | Assign a vision-capable model to `builder` whenever the profile's UI kind is not `none` |
 | Reviews stopped rejecting anything after a model change | `critic` or `checker` bucket is too weak and is rubber-stamping | Raise that bucket; see Cost and Quality Telemetry |

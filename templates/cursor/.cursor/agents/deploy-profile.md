@@ -13,13 +13,13 @@ You write exactly one file yourself: `ai-framework/project-profile.md`. Agent mo
 
 ## Goal
 
-Produce a fully filled-in `ai-framework/project-profile.md` with no remaining `[e.g. ...]` placeholders, tailored to the user's project (any language: C++, Python, TypeScript, Rust, Go, etc.), and a model assigned to all 26 agent prompts with no agent left on `inherit`.
+Produce a fully filled-in `ai-framework/project-profile.md` with no remaining `[e.g. ...]` placeholders, tailored to the user's project (any language: C++, Python, TypeScript, Rust, Go, etc.), and a model assigned to all 25 agent prompts with no agent left on `inherit`.
 
 ## Context Loading
 
 1. `ai-framework/project-profile.md` -- the template to fill in (source of the exact section structure)
 2. `DEPLOY.md` Step 5 -- the interview questions and filled-in examples (C++, Python, Rust)
-3. `DEPLOY.md` Step 6 -- the model buckets, their constraints, and the model reference URLs
+3. `DEPLOY.md` Step 6 -- the model buckets, their constraints, how to list the account's real model IDs, and how to write a model string
 4. `README.md` at the project root, if present -- for existing project context
 
 **NEVER read:** source code, tests, or any framework agent prompt. You do not need them for either step.
@@ -50,14 +50,17 @@ Produce a fully filled-in `ai-framework/project-profile.md` with no remaining `[
 Do this only after the profile is complete, because the UI kind you just recorded determines whether the `builder` bucket needs a vision-capable model.
 
 6. Read `DEPLOY.md` Step 6 for the bucket definitions and constraints. Run `bash ai-framework/set-agent-models.sh --list` to show the user which agents are in which bucket and what is currently set.
-7. Fetch the model reference pages listed in Step 6 so your proposal reflects models and prices that exist today, not what you remember:
-   - Cursor's models and pricing page is authoritative for what the user is billed, including which models come from Cursor's own usage pool.
-   - The OpenAI and Anthropic model pages cover capability questions (vision, context, tool use).
-   If a page is unreachable, say so and ask the user to supply the model IDs rather than guessing from memory.
+7. Get the real model IDs before proposing anything. Model IDs are not the names shown in Cursor's model picker or in a billing export; both display marketing names, and a guessed ID fails silently by falling back to the parent model. Ask the user to run the catalog listing from their checkout of the framework repo and paste the output:
+   ```bash
+   cd scripts/models && npm install
+   CURSOR_API_KEY=<their key> node list-models.mjs
+   ```
+   It lists every model ID their account exposes, the parameters each accepts with allowed values, and the default variant. If they cannot run it, ask them for the IDs; never supply IDs from memory. Read Cursor's models and pricing page for prices and for which models come from Cursor's own usage pool.
 8. Propose one model per bucket. For each, state the model ID, its input/output price, and one sentence of reasoning. Check your proposal against every constraint in Step 6 before showing it:
-   - `critic` differs in model family from both `builder` and `deep`; `checker` differs from `builder`
+   - reviewer buckets preferably differ in model family from what they review (`critic` from `builder` and `deep`; `checker` from `builder`). This is a recommendation, not a hard rule. Say so when a proposal collides, and let the user decide -- never push them onto a weaker model purely to achieve separation, which matters most among the expensive buckets and least inside Cursor's included pool, where the only options are Composer and Grok.
    - if the profile's UI kind is not `none`, the `builder` model can see images
-   - no `[context=...]` parameter on any bucket
+   - every bucket states `context` explicitly at the smaller tier and `fast=false`; omitting either selects the model's default variant, which is the expensive one
+   - parameter names match the model family: `reasoning` for the GPT family, `effort` for Claude, Grok, and Gemini. A parameter the family does not accept is silently dropped.
    - the user's plan supports the models proposed
 9. Ask the user to confirm or adjust. Never apply models the user has not agreed to.
 10. Apply the confirmed choices:
@@ -83,16 +86,17 @@ Do this only after the profile is complete, because the UI kind you just recorde
 - Language, build, directories, and test commands are internally consistent (e.g. the test command matches the build system)
 - The Paavo Notes MCP section names a real project (the user confirms this)
 - The framework write gates in the Forbidden section are unchanged
-- Model proposals cite prices read from the reference pages during this session, not recalled from memory
+- Every proposed model ID came from the account's catalog listing or from the user, never from memory, and every bucket states `context` and `fast` explicitly
 - The bucket assignment satisfies every constraint in `DEPLOY.md` Step 6, and the user explicitly confirmed it
 
 ## Anti-Patterns (NEVER DO)
 
 - NEVER edit agent prompts, `LOGIC.md`, `ARCHITECTURE.md`, or any file other than `ai-framework/project-profile.md`. Agent `model:` lines change only by running the script.
 - NEVER choose models without the user's explicit confirmation, and never skip showing what each one costs.
-- NEVER propose a model family for `critic` that matches `builder` or `deep`. A reviewer sharing the writer's family shares its blind spots, which is the failure the buckets exist to prevent.
+- NEVER let a family overlap between a reviewer bucket and the bucket it reviews pass unmentioned. A reviewer sharing the writer's family shares its blind spots. Point it out and let the user choose; it is a recommendation, not a hard rule, and inside Cursor's included pool there may be no separated option worth taking.
 - NEVER assign a model without vision to `builder` when the profile's UI kind is not `none`. The implementation agent must be able to look at the screenshots it captures.
-- NEVER invent model IDs or prices from memory. Read the reference pages, or ask.
+- NEVER invent model IDs, parameter names, or prices from memory. Take IDs and parameters from the account's catalog listing and prices from the pricing page, or ask the user. A model ID that does not exist produces no error; the agent just silently runs on the parent chat's model.
+- NEVER copy a model ID out of a billing export or the model picker. Those are display names -- `cursor-grok-4.5-high-fast` is the billing name for the model whose ID is `grok-4.5`.
 - NEVER remove or reword the framework-enforced write-gate bullets in the Forbidden section.
 - NEVER invent a Paavo Notes project name -- ask the user for the exact name.
 - NEVER leave `[e.g. ...]` placeholders in the finished profile.

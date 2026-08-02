@@ -130,7 +130,17 @@ scripts/
   validate-template-repo.sh                # Validates template-repo layout
   validate-deployment.sh                   # Validates a deployed downstream project
   test-isolation.sh                        # Worktree isolation + telemetry + doctor smoke test
+  models/list-models.mjs                   # Lists real model IDs/parameters for DEPLOY.md Step 6
+  models/package.json                      # Its @cursor/sdk dependency (node_modules gitignored)
 ```
+
+## Model IDs Come From the Catalog, Not From Memory
+
+`scripts/models/list-models.mjs` is the authoritative source for the model IDs and bracket parameters that DEPLOY.md Step 6 tells users to write. Cursor's model picker and billing exports both show display names: `cursor-grok-4.5-high-fast` in billing is the model whose selectable ID is `grok-4.5`. Neither kind of mistake reports an error at run time -- a wrong ID silently runs the agent on the parent chat's model, and an unrecognised parameter is silently dropped so the model's own default applies.
+
+The script lives in `scripts/` rather than `templates/base/` so deployed C++ or Python projects do not inherit a Node dependency.
+
+Four places encode model-string knowledge: DEPLOY.md Step 6, `templates/cursor/.cursor/agents/deploy-profile.md`, the lint rules in `templates/base/ai-framework/set-agent-models.sh`, and the frontmatter checks in `scripts/validate-deployment.sh`. Change one and check the rest. Re-run the listing rather than editing any of them from memory.
 
 ## Isolation Invariants (do not regress these)
 

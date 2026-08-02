@@ -1,0 +1,17 @@
+{
+  "name": "ai-framework-model-catalog",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Lists the Cursor model IDs and parameters available to an account, for DEPLOY.md Step 6",
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "start": "node list-models.mjs"
+  },
+  "dependencies": {
+    "@cursor/sdk": "^1.0.26"
+  }
+}

@@ -215,9 +215,35 @@ if [ -d ".cursor/agents" ]; then
         if ! grep -q '^model:' "$agent_path"; then
             echo "ERROR: .cursor/agents/${agent_name}.md has no 'model:' frontmatter line"
             ERRORS=$((ERRORS + 1))
+            continue
         elif grep -q '^model: inherit$' "$agent_path"; then
             INHERIT_COUNT=$((INHERIT_COUNT + 1))
+            continue
         fi
+
+        # Cursor accepts a bad model string silently: an unrecognised ID runs on
+        # the parent chat's model, and an unrecognised parameter is dropped so
+        # the model default applies. Both look correct in the frontmatter, so
+        # catch them here rather than several hours into a pipeline run.
+        MODEL_VALUE="$(grep -m1 '^model:' "$agent_path" | sed 's/^model:[[:space:]]*//')"
+        MODEL_ID="${MODEL_VALUE%%[*}"
+        case "$MODEL_ID" in
+            cursor-*)
+                echo "ERROR: .cursor/agents/${agent_name}.md uses '$MODEL_ID'; model IDs carry no 'cursor-' prefix"
+                echo "       That is a billing display name. Use '${MODEL_ID#cursor-}' (see DEPLOY.md Step 6)."
+                ERRORS=$((ERRORS + 1))
+                ;;
+        esac
+        case "$MODEL_ID:$MODEL_VALUE" in
+            gpt-*:*effort=*|glm-*:*effort=*|kimi-*:*effort=*)
+                echo "ERROR: .cursor/agents/${agent_name}.md uses 'effort' on '$MODEL_ID', which takes 'reasoning'"
+                ERRORS=$((ERRORS + 1))
+                ;;
+            claude-*:*reasoning=*|grok-*:*reasoning=*|gemini-*:*reasoning=*)
+                echo "ERROR: .cursor/agents/${agent_name}.md uses 'reasoning' on '$MODEL_ID', which takes 'effort'"
+                ERRORS=$((ERRORS + 1))
+                ;;
+        esac
     done
     if [ "$INHERIT_COUNT" -gt 0 ]; then
         echo "WARNING: $INHERIT_COUNT agent(s) still on 'model: inherit'; they will run on whatever model the chat happens to use"
