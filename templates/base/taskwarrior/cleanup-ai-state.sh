@@ -186,15 +186,14 @@ for t in tasks:
             if os.path.exists(esc_path):
                 os.remove(esc_path)
                 print(f'      -> removed {esc_path}')
-    # Infer resume state from annotations
-    resume = 'plan'
+    # Infer resume state from annotations. The floor is the phase's own initial
+    # state: arch and impl open with a plan dispatch, req and test do not.
+    resume = 'plan' if t.get('aiphase') in ('arch', 'impl') else 'write'
     for ann in annotations:
         desc = ann.get('description', '')
         if desc.startswith('Review: approved'): resume = 'done'
         elif desc.startswith('Feedback:'): resume = 'write'
-        elif desc.startswith('Plan-review: approved'): resume = 'write'
-        elif desc.startswith('Plan-feedback:'): resume = 'plan'
-        elif desc.startswith('Plan:'): resume = 'plan-review'
+        elif desc.startswith('Plan:'): resume = 'write'
     subprocess.run(['bash', 'taskwarrior/tw', tid, 'modify', '-blocked', f'aistate:{resume}'], check=True)
     print(f'      -> task {tid} unblocked, aistate:{resume}')
 " 2>/dev/null)

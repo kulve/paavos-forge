@@ -1,0 +1,32 @@
+#!/bin/bash
+# Clear the +blocked tag set by phase-block, after a recovery resolved the cause.
+# Usage: phase-resume <task-id> [note]
+#
+# `phase-transition` does not clear +blocked -- it only changes aistate -- so a
+# task recovered without this step stays tagged blocked and never becomes READY
+# again. This is the counterpart to phase-block, not a state transition.
+set -euo pipefail
+source "$(dirname "${BASH_SOURCE[0]}")/guard.sh"
+require_context worktree
+
+if [ $# -lt 1 ]; then
+    echo "Usage: phase-resume <task-id> [note]"
+    exit 2
+fi
+
+TASK_ID="$1"
+shift
+NOTE="${*:-recovery resolved}"
+
+IS_BLOCKED=$(task "$TASK_ID" +blocked count 2>/dev/null || echo "0")
+if [ "$IS_BLOCKED" -eq 0 ]; then
+    echo "OK: Task $TASK_ID is not blocked; nothing to clear."
+    exit 0
+fi
+
+task "$TASK_ID" modify -blocked
+task "$TASK_ID" annotate "Recovery: ${NOTE}"
+# shellcheck disable=SC2046  # word splitting is intended: three key=value args
+ai_heartbeat resumed $(ai_task_fields "$TASK_ID")
+echo "OK: Task $TASK_ID unblocked (${NOTE})."
+echo "  The escalation annotation is left in place as the audit record."

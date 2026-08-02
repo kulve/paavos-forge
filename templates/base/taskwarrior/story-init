@@ -1,18 +1,35 @@
 #!/bin/bash
-# Create 4 phase tasks with dependencies for a story and create the git branch.
-# Usage: story-init <story-id> <slug>
+# Create the story's phase tasks with dependencies and create the git branch.
+# Usage: story-init <story-id> <slug> [--rigor full|light]
+#   full  (default) -- 4 phase tasks: req, arch, test, impl
+#   light           -- 1 phase task: impl
 # Must be run within an epic worktree.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/guard.sh"
 require_context worktree
 
 if [ $# -lt 2 ]; then
-    echo "Usage: story-init <story-id> <slug>"
+    echo "Usage: story-init <story-id> <slug> [--rigor full|light]"
     exit 2
 fi
 
 STORY_ID="$1"
 SLUG="$2"
+shift 2
+
+RIGOR="full"
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --rigor)
+            RIGOR="${2:-}"
+            case "$RIGOR" in
+                full|light) ;;
+                *) echo "ERROR: --rigor must be 'full' or 'light', got '${RIGOR}'."; exit 2 ;;
+            esac
+            shift 2 ;;
+        *) echo "ERROR: unknown argument '$1'."; exit 2 ;;
+    esac
+done
 
 # Fail before mutating anything if this database is not a configured epic worktree.
 # Without the phase UDAs, Taskwarrior silently folds `aiphase:req` and friends into
@@ -46,14 +63,24 @@ if [ "$EXISTING" -gt 0 ]; then
     exit 2
 fi
 
-REQ_ID=$(task add "Story $STORY_ID: Requirements" aiphase:req aistate:plan "aistory:$STORY_ID" 2>&1 | grep -oP 'Created task \K\d+')
-ARCH_ID=$(task add "Story $STORY_ID: Architecture" aiphase:arch aistate:blocked "aistory:$STORY_ID" "depends:$REQ_ID" 2>&1 | grep -oP 'Created task \K\d+')
-TEST_ID=$(task add "Story $STORY_ID: Integration Tests" aiphase:test aistate:blocked "aistory:$STORY_ID" "depends:$ARCH_ID" 2>&1 | grep -oP 'Created task \K\d+')
-IMPL_ID=$(task add "Story $STORY_ID: Implementation" aiphase:impl aistate:blocked "aistory:$STORY_ID" "depends:$TEST_ID" 2>&1 | grep -oP 'Created task \K\d+')
+# Per-phase initial state. Architecture and implementation open with a separate
+# plan dispatch; requirements and tests fold planning into their write agent.
+if [ "$RIGOR" = "light" ]; then
+    # A light story is small enough that the implementation plan's context
+    # distillation buys nothing, so it opens at write.
+    IMPL_ID=$(task add "Story $STORY_ID: Implementation" aiphase:impl aistate:write "aistory:$STORY_ID" 2>&1 | grep -oP 'Created task \K\d+')
+    PHASES="impl=$IMPL_ID"
+else
+    REQ_ID=$(task add "Story $STORY_ID: Requirements" aiphase:req aistate:write "aistory:$STORY_ID" 2>&1 | grep -oP 'Created task \K\d+')
+    ARCH_ID=$(task add "Story $STORY_ID: Architecture" aiphase:arch aistate:blocked "aistory:$STORY_ID" "depends:$REQ_ID" 2>&1 | grep -oP 'Created task \K\d+')
+    TEST_ID=$(task add "Story $STORY_ID: Integration Tests" aiphase:test aistate:blocked "aistory:$STORY_ID" "depends:$ARCH_ID" 2>&1 | grep -oP 'Created task \K\d+')
+    IMPL_ID=$(task add "Story $STORY_ID: Implementation" aiphase:impl aistate:blocked "aistory:$STORY_ID" "depends:$TEST_ID" 2>&1 | grep -oP 'Created task \K\d+')
+    PHASES="req=$REQ_ID arch=$ARCH_ID test=$TEST_ID impl=$IMPL_ID"
+fi
 
 git checkout -b "story/${STORY_ID}-${SLUG}" "$CURRENT_BRANCH"
 
-ai_heartbeat story-init "story=${STORY_ID}"
-echo "OK: Story $STORY_ID initialized."
-echo "  req=$REQ_ID arch=$ARCH_ID test=$TEST_ID impl=$IMPL_ID"
+ai_heartbeat story-init "story=${STORY_ID}" "detail=rigor=${RIGOR}"
+echo "OK: Story $STORY_ID initialized (rigor=${RIGOR})."
+echo "  $PHASES"
 echo "  branch=story/${STORY_ID}-${SLUG} (from $CURRENT_BRANCH)"

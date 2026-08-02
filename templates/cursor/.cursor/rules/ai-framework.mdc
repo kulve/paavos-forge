@@ -58,7 +58,7 @@ Consequences: the PM is never invoked with the Task tool, no phase agent may gai
 - Agents discover MCP tool names/signatures via Cursor MCP tool listing. Do not hardcode tool APIs.
 - **Who may access Paavo Notes**: PM, Roadmap Planner, and the four requirements-phase agents only.
 - **Who must not**: Coordinator, architecture / integration-test / implementation agents, story-review, escalation agents, fixer, and general agents.
-- Open questions: PM and requirements-plan/write may **post** append-only open questions against the pinned version. Agents must never list, read, deduplicate, answer, or delete existing open questions. Non-blocking gaps: post and continue. Blocking gaps: escalate.
+- Open questions: the PM and `requirements-write` may **post** append-only open questions against the pinned version. Agents must never list, read, deduplicate, answer, or delete existing open questions. Non-blocking gaps: post and continue. Blocking gaps: escalate.
 - Local discoveries are for code/impl findings; product-intent gaps belong in Paavo Notes.
 
 ## Script-Only State Mutations
@@ -76,7 +76,7 @@ Scripts enforce preconditions, validate transitions, and exit non-zero on violat
 
 ## State Discipline
 
-- Agents must never advance more than one state transition per invocation (e.g. plan -> plan-review, not plan -> write).
+- Agents must never advance more than one state transition per invocation (e.g. write -> review, not write -> done).
 - Every artifact written must be annotated on the corresponding Taskwarrior task via `phase-annotate`.
 - The Coordinator is the only agent that creates Taskwarrior tasks (via `story-init`), marks tasks done (via `phase-done`), or manages git branches.
 - At most one Taskwarrior task may be `+ACTIVE -AI_LOCK` at any time per worktree. The Coordinator verifies this via `phase-start` (which exits 1 if another task is active).
@@ -115,11 +115,13 @@ Scripts enforce preconditions, validate transitions, and exit non-zero on violat
 
 - If an agent cannot complete its task, it must write an escalation file to `plan/escalations/`, annotate the task via `bash taskwarrior/phase-annotate`, and **exit immediately**.
 - Escalation files use the template from `plan/templates/escalation.md`.
-- Escalations halt Coordinator work. The Coordinator blocks the task via `phase-block`, releases its lock, and returns control to the PM.
-- The PM classifies every escalation with `escalation-triage` (read-only) before any recovery, and only after verifying the Coordinator lock is free in the worktree.
+- The Coordinator dispatches `escalation-recovery` inline, under its own lock, when a subagent escalates, a `phase-gate` fails, or a phase is rejected twice. Recovery returns the gates its change invalidated; the Coordinator re-runs them and continues. No completed task is ever re-opened.
+- Only `needs-human`, `failed-recovery`, a gate that fails again, or a repeat of the same cause halts the Coordinator. It then blocks the task via `phase-block`, releases its lock, and returns control to the PM.
+- The PM classifies every escalation that reaches it with `escalation-triage` (read-only) before any recovery, and only after verifying the Coordinator lock is free in the worktree.
 - Routing is mechanical: `environment` -> `environment-recovery`, `artifact` -> `escalation-recovery`, `product-intent` and `scope-policy` -> the user. Any low-confidence result goes to the user.
 - One automatic attempt per root-cause fingerprint. If the fingerprint already appears in the task's annotations, route to the user instead of retrying.
 - Environment damage is mechanical and must not be dumped on the user; product and scope decisions must never be automated away.
+- Technical design is never a `scope-policy` decision. Interfaces, decomposition, fixtures, and code belong to the agents. Stop for the user only when a decision is irreversible, is about product intent, or exceeds the current milestone.
 
 ## Coordinator Supervision
 
@@ -158,7 +160,7 @@ The `roadmap-planner` agent may write `plan/project.md` only when the PM invokes
 
 Only designated phase-write agents may create or modify files in their respective directories.
 
-The `escalation-recovery` agent may modify artifacts only for bounded corrections to the current story, and only when the PM invokes it after a clean Coordinator halt.
+The `escalation-recovery` agent may modify artifacts only for bounded corrections to the current story, and only when dispatched by the Coordinator inline or by the PM after a halt. It is the one agent allowed to correct an artifact belonging to a completed phase; it does so by editing the file and naming the invalidated gates, never by re-opening the task.
 
 The `escalation-triage` agent writes nothing at all. The `environment-recovery` agent may run only its whitelisted commands (`doctor`, `doctor --fix`, `coordinator-status`, `epic-status`, read-only `tw`, `setup.sh --worktree`) and may write only an appended `## Recovery Result` section in the escalation file. It may never run a `git` command or mutate Taskwarrior directly.
 

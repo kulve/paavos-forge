@@ -51,8 +51,8 @@ Agents follow a strict hierarchy:
 - **Project Manager** (`/project-manager` skill, runs as the top-level chat): owns `plan/project.md`, defines milestones from the roadmap, creates epics, generates stories, dispatches epics for parallel execution, merges back to main, orchestrates escalation recovery
 - **Roadmap Planner** (`roadmap-planner`): PM-invoked; synthesizes `plan/project.md` from Paavo Notes
 - **Coordinator** (`coordinator`): drives all stories in an epic through phases, manages Taskwarrior and git within its worktree (never accesses Paavo Notes)
-- **Phase Agents**: specialized agents for each phase (requirements, architecture, tests, implementation) and state (plan, plan-review, write, review)
-- **Support Agents**: story review, escalation analysis, escalation triage, escalation recovery, environment recovery
+- **Phase Agents**: ten specialized agents. Architecture and implementation each have plan, write, and review; requirements and integration tests have write and review, with planning folded into the write agent
+- **Support Agents**: story review, escalation analysis, escalation triage, escalation recovery (also the Coordinator's inline reconciler), environment recovery
 - **Fixer** (`fixer`): fixes bugs in existing code outside the PM pipeline; invoked directly by the user
 
 See `ai-framework/LOGIC.md` for the full role descriptions and workflow rules.
@@ -91,8 +91,9 @@ All Taskwarrior read-only commands must use `taskwarrior/tw`, never bare `task`.
 
 1. Taskwarrior is the source of truth for execution state.
 2. All state mutations go through scripts, never raw `taskwarrior/tw` for writes.
-3. Agents follow the phase state machine: `plan -> plan-review -> write -> review -> done`.
-4. Reviews focus on blocking issues, not style nits.
+3. Agents follow the phase state machine: `[plan ->] write -> review -> gate -> done`. The `plan` state exists only for the architecture and implementation phases.
+4. Reviews grade findings as blocking or advisory. Zero blocking findings approves; advisories become discoveries and never trigger a rewrite.
+5. Technical design is the agents' decision. Stop for the user only when a decision is irreversible, is about product intent, or exceeds the current milestone.
 5. If you cannot complete your task, write an escalation to `plan/escalations/` and exit.
 6. All templates are in `plan/templates/`. Use them for every artifact.
 7. Read the project profile before every task for language and convention details.
@@ -117,8 +118,7 @@ All Taskwarrior read-only commands must use `taskwarrior/tw`, never bare `task`.
 - Epics: `plan/epics/`
 - Stories: `plan/stories/`
 - Requirements: `plan/requirements/[domain]/`
-- Phase plans: `plan/*-plans/`
-- Plan review feedback: `plan/*-plan-review/`
+- Phase plans: `plan/arch-plans/`, `plan/implementation-plans/`
 - Review feedback: `plan/*-review/`
 - Escalations: `plan/escalations/`
 - Discoveries: `plan/discoveries/`
@@ -135,8 +135,7 @@ Only specifically designated phase agents may write to implementation directorie
 - **Architecture artifacts** (e.g. `include/`, `src/interfaces/`) -- only the `architecture-write` agent
 - **Integration tests** (e.g. `tests/integration/`) -- only the `integration-test-write` agent
 - **Requirements** (`plan/requirements/`) -- only the `requirements-write` agent
-- **Phase plans** (`plan/*-plans/`) -- only the respective plan agents
-- **Plan review feedback** (`plan/*-plan-review/`) -- only the respective plan-review agents
+- **Phase plans** (`plan/arch-plans/`, `plan/implementation-plans/`) -- only `architecture-plan` and `implementation-plan`
 - **Review feedback** (`plan/*-review/`) -- only the respective review agents
 
 The `escalation-recovery` agent may modify artifacts for bounded corrections after a clean Coordinator halt. The `environment-recovery` agent may not modify artifacts at all: it repairs framework state through `taskwarrior/doctor --fix` and appends to the escalation file. The `escalation-triage` agent writes nothing. The `fixer` agent has limited write access to source and test directories for bug fixes only.

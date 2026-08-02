@@ -46,8 +46,8 @@ if ! grep -q 'ai-framework/LOGIC.md' DEPLOY.md; then
     fail "DEPLOY.md must document copying LOGIC.md to ai-framework/LOGIC.md"
 fi
 
-echo "--- Plan templates (10 required) ---"
-for tmpl in project milestone story epic requirement phase-plan plan-review-feedback review-feedback escalation discovery; do
+echo "--- Plan templates (9 required) ---"
+for tmpl in project milestone story epic requirement phase-plan review-feedback escalation discovery; do
     if [ ! -f "templates/base/plan/templates/${tmpl}.md" ]; then
         fail "Missing plan template: templates/base/plan/templates/${tmpl}.md"
     fi
@@ -66,7 +66,7 @@ echo "--- Taskwarrior scripts ---"
 REQUIRED_SCRIPTS="tw env.sh guard.sh setup.sh taskrc.template cleanup-ai-state.sh recipes.md
     epic-fork epic-merge epic-status epic-mark-ready epic-gate-status epic-gate-release epic-rebase
     story-init story-next story-complete story-merge
-    phase-start phase-stop phase-transition phase-annotate phase-done phase-block
+    phase-start phase-stop phase-transition phase-annotate phase-gate phase-done phase-block phase-resume
     pm-lock-acquire pm-lock-release pm-preflight
     coordinator-lock-acquire coordinator-lock-release coordinator-lock-status
     coordinator-heartbeat coordinator-status doctor"
@@ -115,7 +115,8 @@ done
 
 for script_name in coordinator-lock-acquire coordinator-lock-release coordinator-lock-status \
                    coordinator-heartbeat story-init story-next story-complete story-merge \
-                   phase-start phase-stop phase-transition phase-annotate phase-done phase-block; do
+                   phase-start phase-stop phase-transition phase-annotate phase-gate \
+                   phase-done phase-block phase-resume; do
     if ! grep -q 'require_context worktree' "templates/base/taskwarrior/${script_name}"; then
         fail "${script_name} must call require_context worktree"
     fi
@@ -167,8 +168,8 @@ if [ ! -d "templates/cursor/.cursor/agents" ]; then
     fail "Missing Cursor agent prompt directory"
 else
     AGENT_COUNT=$(find templates/cursor/.cursor/agents -maxdepth 1 -type f -name '*.md' | wc -l | tr -d ' ')
-    if [ "$AGENT_COUNT" -ne 25 ]; then
-        fail "Expected 25 Cursor agent prompt files, found $AGENT_COUNT"
+    if [ "$AGENT_COUNT" -ne 19 ]; then
+        fail "Expected 19 Cursor agent prompt files, found $AGENT_COUNT"
     fi
     for agent in escalation-recovery escalation-triage environment-recovery roadmap-planner; do
         if [ ! -f "templates/cursor/.cursor/agents/${agent}.md" ]; then

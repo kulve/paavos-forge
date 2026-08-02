@@ -1,0 +1,72 @@
+#!/bin/bash
+# Run the executable completion gate for a phase task.
+# Usage: phase-gate <task-id>
+# Exit 0: gate passed, or no gate is configured for this phase.
+# Exit 2: gate command failed, or the arguments are wrong.
+#
+# A review approval is an opinion about text. The gate is the part of phase
+# completion that a command either satisfies or does not, which is what stops a
+# contradiction between two approved artifacts from surfacing a phase too late.
+set -euo pipefail
+source "$(dirname "${BASH_SOURCE[0]}")/guard.sh"
+require_context worktree
+
+if [ $# -lt 1 ]; then
+    echo "Usage: phase-gate <task-id>"
+    exit 2
+fi
+
+TASK_ID="$1"
+
+PHASE=$(task "$TASK_ID" export | python3 -c "import sys,json; d=json.load(sys.stdin); print(d[0].get('aiphase',''))" 2>/dev/null)
+if [ -z "$PHASE" ]; then
+    echo "ERROR: Task $TASK_ID has no aiphase; it is not a phase task."
+    exit 2
+fi
+
+# Which profile line carries the gate for each phase. The requirements phase has
+# no executable gate: prose has nothing to compile.
+case "$PHASE" in
+    arch) GATE_LABEL="Architecture gate" ;;
+    test) GATE_LABEL="Test compile gate" ;;
+    impl) GATE_LABEL="Run integration tests" ;;
+    req)
+        echo "OK: Phase req has no executable gate."
+        exit 0 ;;
+    *)
+        echo "ERROR: Unknown phase '$PHASE'."
+        exit 2 ;;
+esac
+
+PROFILE="${AI_ROOT}/ai-framework/project-profile.md"
+if [ ! -f "$PROFILE" ]; then
+    echo "WARNING: No project profile at $PROFILE; skipping the $GATE_LABEL."
+    exit 0
+fi
+
+# The command lives inline on its "- <label>:" line, same shape story-complete reads.
+RAW=$(grep -i "^- *${GATE_LABEL}:" "$PROFILE" | head -1 | sed 's/^[^:]*:[[:space:]]*//' | sed 's/`//g' || true)
+case "$RAW" in
+    "["*) GATE_CMD="" ;;  # unfilled placeholder, e.g. "[e.g. cmake --build build]"
+    *)    GATE_CMD="$RAW" ;;
+esac
+
+if [ -z "$GATE_CMD" ]; then
+    echo "WARNING: '${GATE_LABEL}' is not filled in ${PROFILE}; skipping the gate for phase ${PHASE}."
+    echo "  A phase with no gate completes on review approval alone."
+    exit 0
+fi
+
+echo "Running ${GATE_LABEL}: ${GATE_CMD}"
+if eval "$GATE_CMD"; then
+    # shellcheck disable=SC2046  # word splitting is intended: three key=value args
+    ai_heartbeat gate-pass $(ai_task_fields "$TASK_ID") "detail=${PHASE}"
+    echo "OK: ${GATE_LABEL} passed for task ${TASK_ID}."
+    exit 0
+fi
+
+# shellcheck disable=SC2046  # word splitting is intended: three key=value args
+ai_heartbeat gate-fail $(ai_task_fields "$TASK_ID") "detail=${PHASE}"
+echo "ERROR: ${GATE_LABEL} failed for task ${TASK_ID} (phase ${PHASE})."
+echo "  The phase is not done. Route this to escalation-recovery as a gate failure."
+exit 2

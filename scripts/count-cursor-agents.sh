@@ -60,11 +60,11 @@ guess_role() {
     return
   fi
 
-  for role in integration-test-write integration-test-review integration-test-plan integration-test-plan-review \
-              requirements-write requirements-review requirements-plan requirements-plan-review \
-              architecture-write architecture-review architecture-plan architecture-plan-review \
-              implementation-write implementation-review implementation-plan implementation-plan-review \
-              project-manager coordinator cursor-guide explore generalPurpose fixer; do
+  for role in integration-test-write integration-test-review \
+              requirements-write requirements-review \
+              architecture-write architecture-review architecture-plan \
+              implementation-write implementation-review implementation-plan \
+              escalation-recovery project-manager coordinator cursor-guide explore generalPurpose fixer; do
     if head -1 "$f" 2>/dev/null | grep -q "$role"; then
       echo "$role"
       return

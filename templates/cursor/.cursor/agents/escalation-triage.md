@@ -45,7 +45,9 @@ bash "$WT/taskwarrior/tw" +ACTIVE -AI_LOCK count
 2. Run the diagnostics above. Record every failing `doctor` check id and the liveness value for this epic.
 3. Classify using these rules, in this priority order. The first matching rule wins:
    1. **environment** -- any `doctor` check FAILs, or this epic's liveness is `NO-HEARTBEAT` or `DEAD`, or the escalation describes a framework script exiting 2, a missing UDA, a wrong branch, a wrong database, or missing framework files. The product and the code are fine; the machinery is broken.
-   2. **scope-policy** -- the escalation asks to widen or reinterpret acceptance criteria, change a public interface, add a dependency, add a new domain or cross-domain dependency, create or skip a story, or skip a phase. These are policy decisions regardless of how easy the edit would be.
+   2. **scope-policy** -- the escalation asks to widen or reinterpret acceptance criteria, add a new external dependency to the project, or create or skip a story, epic, or phase. These are policy decisions regardless of how easy the edit would be.
+
+      Technical design is **not** in this class. Changing a public interface, adding a field, adding a domain or a cross-domain dependency, restructuring a fixture, or reorganizing modules are decisions the agents own. They belong to `artifact`. A change is `scope-policy` when it alters what the product does, not when it alters how the code is shaped.
    3. **product-intent** -- the required product behavior is missing, ambiguous, or self-contradictory, so no correct artifact can be written without a decision from Paavo Notes or the user.
    4. **artifact** -- everything else: a story-local inconsistency between requirements, architecture, tests, or source that a bounded correction can fix.
 4. Assign confidence. Use `low` whenever the evidence is incomplete, the escalation is vague, or two classes fit equally well.

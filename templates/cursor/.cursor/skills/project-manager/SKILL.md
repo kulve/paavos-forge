@@ -89,7 +89,7 @@ Before any planning or execution work, verify the Paavo Notes MCP is reachable (
 ### First Run (No Project / Milestone / Epic)
 
 1. Read the project's `README.md` and `ai-framework/project-profile.md` (Paavo Notes project name).
-2. If `plan/project.md` is missing: invoke the `roadmap-planner` subagent in foreground (`run_in_background: false`). Pass the profile's Paavo Notes project name and instruct it to propose a roadmap for user refinement, then write `plan/project.md`. Discuss and refine with the user until accepted.
+2. If `plan/project.md` is missing: invoke the `roadmap-planner` subagent in foreground (`run_in_background: false`). Pass the profile's Paavo Notes project name and instruct it to write `plan/project.md` from the pinned Paavo Notes version. **Commit the roadmap and proceed; do not ask the user to approve it.** A roadmap is a reversible markdown file and the milestone checkpoint in step 25 is where the user actually engages. Summarize it in two or three lines so the user can object if they want to, then continue without waiting.
 3. Git commit: `git add plan/project.md && git commit -m "plan: project roadmap"`
 4. Create the current In-Progress milestone from the roadmap: write `plan/milestones/XX-name.md` using `plan/templates/milestone.md`. Set Status In Progress; link `## Project` to `plan/project.md`. Update the matching roadmap entry.
 5. Write the first epic to `plan/epics/EXXXX-slug.md` using `plan/templates/epic.md`. Include goal, boundaries, done criteria.
@@ -99,13 +99,14 @@ If `plan/project.md` already exists, skip steps 2-3 and continue from the In-Pro
 
 ### Story Generation (Rolling Batch)
 
-7. Read the current epic file and any existing stories.
+7. Run Discovery Triage (below), then read the current epic file and any existing stories.
 8. Identify the next 2-3 vertical feature slices. Each story must be:
    - A vertical slice (touches all layers needed for one user-facing behavior)
    - NOT a horizontal layer (e.g. "add database support" is wrong; "user can save game state" is right)
    - Small enough for one Coordinator story-loop iteration
    - Ordered within the epic (later stories may depend on earlier ones)
 9. Write each story to `plan/stories/XXXXX-slug.md` using `plan/templates/story.md`. Assign sequential 5-digit IDs. The `## Epic` field must reference the epic file.
+   Set `## Rigor` on every story. Use `light` only when all three qualifying tests in the template hold: no new or changed architecture artifact, no new integration test, and no new product intent. Otherwise `full`. Feature stories are almost always `full`; discovery-derived stories are almost always `light`.
    Fill `## Product Intent Source` for every story: the Paavo Notes project id and pinned closed version from `plan/project.md`, plus one line per source article with the article id, its title at that version, and its domain id. Retrieve the ids from Paavo Notes at the pinned version -- never write an id from memory or guess one. Use `None -- [reason]` only when no single article backs the story (intent synthesized across a whole domain, framework scaffolding); never leave the template placeholder unfilled.
 10. Update the epic file's "Stories (ordered)" section with the new story list.
 11. Git commit: `git add plan/stories/ plan/epics/ && git commit -m "stories: XXXXX-XXXXX for epic EXXXX"`
@@ -188,18 +189,21 @@ If `plan/project.md` already exists, skip steps 2-3 and continue from the In-Pro
 
 ### Discovery Triage
 
-When the milestone is otherwise complete (all epics merged):
+Run this **at the start of every story batch**, before step 8, and again at milestone completion on whatever has accumulated since. Discoveries hold every advisory review finding, so they arrive continuously rather than in a lump at the end; triaging them at batch start is what turns them into work instead of a backlog.
 
 1. Read all files in `plan/discoveries/`.
-2. Group duplicates and related findings.
-3. Write `plan/discoveries/triage-XX.md` for the completed milestone.
-4. Git commit: `git add plan/discoveries/ && git commit -m "discoveries: triage milestone XX"`
-5. Summarize proposed dispositions to the user and wait for their decision.
-6. Product-intent gaps belong as Paavo Notes open questions (post if needed), not as local discoveries.
+2. Group related findings. Subagents cannot read existing discoveries, so the same advisory recurs across stories -- that repetition is evidence of severity, not noise. Count the group; do not collapse it silently.
+3. Write `plan/discoveries/triage-XX.md` recording a disposition for **every** file:
+   - **keep** -- becomes a story in this batch. Note which one.
+   - **decline** -- with a one-line reason.
+4. Delete the declined discovery files. Git preserves them and the triage file is the durable record; leaving them means every future triage re-reads decisions already made.
+5. Generate a story for each kept group as part of this batch, **without asking the user**. Default them to `## Rigor: light` -- a discovery-derived story cites no new Paavo Notes article, which is one of the three qualifying tests. Promote to `full` if it needs an architecture change or a new integration test.
+6. Git commit: `git add plan/discoveries/ plan/stories/ && git commit -m "discoveries: triage and derived stories"`
+7. Product-intent gaps belong as Paavo Notes open questions (post if needed), not as local discoveries.
 
 ### Escalation Received
 
-Triage first, then dispatch. Do not decide the handler yourself, and do not default to asking the user.
+An escalation reaching you means the Coordinator's inline reconciler already failed or refused, so these are rarer and harder than they used to be. Triage first, then dispatch. Do not decide the handler yourself, and do not default to asking the user.
 
 1. Read the escalation file (`<WT>/plan/escalations/...`) reported by the Coordinator or by `coordinator-status`.
 2. Verify the Coordinator lock is free:
@@ -222,12 +226,11 @@ Triage first, then dispatch. Do not decide the handler yourself, and do not defa
    - `escalation-recovery` -- invoke the existing `escalation-recovery` subagent in the foreground for bounded artifact corrections.
    - `user` -- report the triage block to the user and stop. `product-intent` and `scope-policy` classes always stop here, as does any `low` confidence result.
 7. Handle the outcome:
-   - `resolved` -- clear the escalation state, then continue:
+   - `resolved` -- clear the block and leave the task where it is:
      ```bash
-     bash <WT>/taskwarrior/phase-annotate <id> Recovery "<summary>"
-     bash <WT>/taskwarrior/phase-transition <id> <resume-state>
+     bash <WT>/taskwarrior/phase-resume <uuid> "<summary>"
      ```
-     Then launch a fresh background Coordinator for the epic (step 16). Never resume the old one.
+     `phase-resume` clears `+blocked`, which `phase-transition` does not do. Do not transition the task: `escalation-recovery` returns invalidated gates, not a resume state, and never moves a task. Then launch a fresh background Coordinator for the epic (step 16). Never resume the old one.
    - `needs-human` or `failed-recovery` -- report the recovery report and the triage block to the user and stop.
 
 ### Unexpectedly Stopped Coordinator
@@ -269,6 +272,18 @@ Release the PM lock only when PM work is intentionally complete:
 bash taskwarrior/pm-lock-release
 ```
 
+## When to Stop for the User
+
+Stop and ask only when a decision meets one of these three tests:
+
+1. **Irreversible.** Undoing it would cost real work: merging to `main`, adopting a new Paavo Notes version, deleting a story or milestone, adding an external dependency.
+2. **About product intent.** What the product should do, what a feature means, which behavior is correct. This is the user's domain and the reason Paavo Notes is a hard dependency.
+3. **Beyond the current milestone.** Work that changes the roadmap rather than executing it.
+
+Everything else you decide and proceed. Technical design in particular is never yours to escalate: interfaces, decomposition, module boundaries, test fixtures, and code belong to the agents, who read the artifacts you never do.
+
+The natural user checkpoint is milestone completion, not each decision inside a milestone. A user asked to approve a roadmap they have no basis to evaluate, or a struct field, learns to approve without reading -- which removes the value of the checkpoints that do matter.
+
 ## Quality Criteria
 
 - `plan/project.md` exists and pins a closed Paavo Notes version before any milestone work
@@ -276,6 +291,7 @@ bash taskwarrior/pm-lock-release
 - Every story cites its Paavo Notes source articles by id, with the version it was authored against, or states `None` with a reason
 - Every story has binary, verifiable acceptance criteria
 - Every story has explicit scope boundaries (in-scope AND out-of-scope)
+- Every story declares `## Rigor`, and every `light` one satisfies all three qualifying tests
 - Stories are vertical slices, not horizontal layers
 - No more than 2-3 stories generated per batch
 - Project, epic, and story files are committed before dispatch
@@ -284,6 +300,7 @@ bash taskwarrior/pm-lock-release
 ## Anti-Patterns (NEVER DO)
 
 - NEVER invent product goals; derive them from Paavo Notes via the roadmap.
+- NEVER ask the user to approve a roadmap, a technical decision, or anything else that fails all three tests in "When to Stop for the User". Summarize and proceed.
 - NEVER define a milestone that is not traceable to `plan/project.md`.
 - NEVER proceed with framework work if the Paavo Notes MCP is unreachable.
 - NEVER leave a story's `## Product Intent Source` as an unfilled template placeholder, and NEVER cite an article id that does not resolve at the pinned version.
@@ -304,7 +321,8 @@ bash taskwarrior/pm-lock-release
 - NEVER retry a recovery for a fingerprint that already appears in the task's annotations.
 - NEVER write technical implementation stories. Stories describe user-visible features.
 - NEVER leave planning artifacts uncommitted before dispatching an epic.
-- NEVER silently act on discoveries. Triage after milestone completion; wait for user decision.
+- NEVER silently drop a discovery. Every file gets a recorded disposition in the triage file before it is deleted.
+- NEVER wait for a user decision on discovery triage. Record dispositions, generate the kept stories, and proceed.
 - NEVER start PM work if `pm-lock-acquire` fails. Report status and exit.
 - NEVER hardcode Paavo Notes MCP tool signatures; discover them via MCP.
 - NEVER rewrite Done milestones or Done roadmap entries.

@@ -1,8 +1,8 @@
 #!/bin/bash
 # Add a validated annotation to a phase task.
 # Usage: phase-annotate <task-id> <prefix> <value>
-# Valid prefixes: Plan, Plan-review, Plan-feedback, Artifact, Deleted,
-#                 Test fix, Feedback, Review, Escalation, Recovery
+# Valid prefixes: Plan, Artifact, Deleted, Test fix, Verification, Feedback,
+#                 Review, Escalation, Recovery
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/guard.sh"
 require_context worktree
@@ -17,7 +17,7 @@ PREFIX="$2"
 shift 2
 VALUE="$*"
 
-VALID_PREFIXES="Plan|Plan-review|Plan-feedback|Artifact|Deleted|Test fix|Feedback|Review|Escalation|Recovery"
+VALID_PREFIXES="Plan|Artifact|Deleted|Test fix|Verification|Feedback|Review|Escalation|Recovery"
 if ! echo "$PREFIX" | grep -qE "^($VALID_PREFIXES)$"; then
     echo "ERROR: Invalid prefix '$PREFIX'. Valid: $VALID_PREFIXES"
     exit 2

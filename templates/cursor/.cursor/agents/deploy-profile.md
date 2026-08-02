@@ -13,7 +13,7 @@ You write exactly one file yourself: `ai-framework/project-profile.md`. Agent mo
 
 ## Goal
 
-Produce a fully filled-in `ai-framework/project-profile.md` with no remaining `[e.g. ...]` placeholders, tailored to the user's project (any language: C++, Python, TypeScript, Rust, Go, etc.), and a model assigned to all 25 agent prompts with no agent left on `inherit`.
+Produce a fully filled-in `ai-framework/project-profile.md` with no remaining `[e.g. ...]` placeholders, tailored to the user's project (any language: C++, Python, TypeScript, Rust, Go, etc.), and a model assigned to all 19 agent prompts with no agent left on `inherit`.
 
 ## Context Loading
 

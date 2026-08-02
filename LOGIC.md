@@ -36,9 +36,13 @@ A deterministic state machine that drives all stories within a single epic throu
 
 ### 2.3 Phase Agents
 
-Sixteen specialized agents (4 phases x 4 states: plan, plan-review, write, review) that produce and verify artifacts. Each has a narrow context window and strict input/output contracts. Plan-review agents verify plans before execution begins; review agents verify the artifacts produced by write agents.
+Ten specialized agents that produce and verify artifacts. Each has a narrow context window and strict input/output contracts.
 
-**Paavo Notes access**: only the four requirements-phase agents may read Paavo Notes (and requirements-plan/write may post open questions). Architecture, integration-test, and implementation agents must never access Paavo Notes.
+The four phases are deliberately not symmetric. Architecture and implementation each get three agents (plan, write, review); requirements and integration tests get two (write, review), with planning folded into the write agent as its first step. A phase earns a separate plan dispatch when the planning decision is genuinely distinct from the writing: architecture decides requirement-to-interface mapping and dependency direction, and implementation distils the largest input context in the pipeline into an ordered change list. Requirements decomposition largely restates a story that already carries acceptance criteria and scope, and test scenario selection is bounded by the compile gate, so neither justifies a dispatch of its own.
+
+There are no plan-review agents. A plan is an intention, so there is nothing factual to check it against; the check on a plan is the executable gate and the review that follow the write.
+
+**Paavo Notes access**: only the two requirements-phase agents may read Paavo Notes (and requirements-write may post open questions). Architecture, integration-test, and implementation agents must never access Paavo Notes.
 
 ### 2.4 Support Agents
 
@@ -58,7 +62,9 @@ A PM-invoked support agent that repairs framework runtime state after an `enviro
 
 ### 2.5 Escalation Recovery
 
-A PM-invoked support agent that handles the `artifact` class after a clean Coordinator escalation halt. It reads the escalation report and the minimum relevant story artifacts, applies the smallest correction needed to make the current story internally consistent, and reports the earliest phase state that must be rerun. It is not part of the Coordinator's dispatch table. It must stop for human input if recovery requires changing product intent, widening scope, changing public interfaces, adding dependencies, creating stories, skipping phases, or resolving suspicious runtime state.
+The pipeline's reconciler. The Coordinator dispatches it inline, in the foreground and under its own lock, whenever a subagent escalates, a `phase-gate` fails, or a phase is rejected twice (Section 9.0). It reads the failure and the minimum relevant story artifacts, applies the smallest correction that makes the story internally consistent -- in whichever phase's artifact is wrong, including a completed one -- and returns the list of gates its change invalidated. It never moves a task. The PM may also invoke it directly for the `artifact` class after a halt.
+
+It is the one agent besides the Coordinator that the Coordinator dispatches, and the only one at level 2 permitted to edit artifacts outside the current phase. It must stop for human input only if recovery requires changing story intent or acceptance criteria, product intent absent from the pinned Paavo Notes version, a new external dependency, creating or deleting a story, or resolving suspicious runtime state. Technical design -- interfaces, decomposition, fixtures, code -- is its own to decide.
 
 ### 2.6 Fixer
 
@@ -109,7 +115,28 @@ active → merge-ready → merging → merged
 
 ### 3.3 Phase States (tracked per-worktree)
 
-Every story spawns four Taskwarrior tasks, one per phase, with explicit dependencies:
+#### Story rigor
+
+Every story declares a `## Rigor` in its story file, `full` or `light`, set by the PM and enforced by `story-review`. `story-init` reads it as `--rigor`.
+
+- **`full`** (default) runs all four phases: 10 dispatches.
+- **`light`** runs the implementation phase only -- write plus review, skipping even the implementation plan: 2 dispatches.
+
+A story qualifies as `light` only if **all three** of these hold; any one false makes it `full`:
+
+1. No new or changed architecture artifact.
+2. No new integration test needed; existing tests already cover the behavior.
+3. No new product intent -- `## Product Intent Source` cites a discovery rather than a Paavo Notes article, using the `None -- [reason]` form.
+
+The tests are deliberately objective. Loosened into a judgement about size, `light` becomes the default and review disappears. Discovery-derived stories (Section 15) normally satisfy all three and default to `light`.
+
+Dropping `light`'s review as well was considered and rejected. Review is the cheaper half of the pair, the tests and the gate already prove correctness, and the review is the only remaining check that catches "this passes but it is the wrong abstraction" -- the extensibility property the pipeline exists to protect.
+
+**Escape hatch, load-bearing:** if a light story's write agent finds the change is not actually small, it escalates rather than pushing on, and the reconciler or PM reissues the story as `full`. Without it, `light` is a route for unreviewed architectural change.
+
+#### Phase tasks
+
+A full story spawns four Taskwarrior tasks, one per phase, with explicit dependencies; a light story spawns only the `impl` task, at `aistate:write`:
 
 ```
 requirements --> architecture --> integration_tests --> implementation
@@ -118,19 +145,30 @@ requirements --> architecture --> integration_tests --> implementation
 Each task transitions through states:
 
 ```
-blocked -> plan -> plan-review -> write -> review -> done
-             ^         |            ^         |
-             +--reject-+            +--reject-+
+blocked -> [plan] -> write -> review -> gate -> done
+                       ^         |
+                       +--reject-+
 ```
 
 - **blocked**: waiting for upstream phase to complete (managed by Taskwarrior dependencies)
-- **plan**: the Plan agent reads context and writes a plan file
-- **plan-review**: the Plan Review agent evaluates the plan for completeness and feasibility
-- **write**: the Write agent executes the approved plan or addresses review feedback
+- **plan**: the Plan agent reads context and writes a plan file. **Present only for the `arch` and `impl` phases.** The `req` and `test` tasks start directly at `write`.
+- **write**: the Write agent executes the plan (or, for `req` and `test`, plans and executes) or addresses review feedback
 - **review**: the Review agent evaluates the produced artifacts
-- **done**: the phase passed review; artifacts are committed
+- **gate**: an executable check from the project profile, run by the Coordinator between review approval and `done` (Section 5.1)
+- **done**: the phase passed both review and its gate; artifacts are committed
 
-Plan-review can return to plan (rejection). Review can return to write (rejection). After 3 rejections of either review loop, the Coordinator writes an escalation instead of retrying.
+Per-phase initial state, set by `story-init` and restored by `phase-done` when it opens the successor task:
+
+| Phase | Initial state |
+|-------|---------------|
+| `req` | `write` |
+| `arch` | `plan` |
+| `test` | `write` |
+| `impl` | `plan` |
+
+Review can return to write (rejection), and only blocking findings do so (Section 13.1). After 3 rejections of the same phase the Coordinator escalates instead of retrying.
+
+`done` is terminal: no transition leaves it. Corrections to a completed phase are made by the reconciler in Section 9, which edits the artifact and re-runs the invalidated gates rather than reopening the task.
 
 ### 3.4 Taskwarrior UDAs
 
@@ -156,7 +194,7 @@ uda.aiphase.values=req,arch,test,impl
 
 uda.aistate.type=string
 uda.aistate.label=AI State
-uda.aistate.values=blocked,plan,plan-review,write,review,done
+uda.aistate.values=blocked,plan,write,review,done
 
 uda.aistory.type=string
 uda.aistory.label=AI Story ID
@@ -170,8 +208,7 @@ uda.airole.values=coordinator
 
 Agents never talk to each other directly. All context passes through Taskwarrior annotations containing file paths:
 
-- Plan agents annotate: `Plan: plan/requirement-plans/XXXXX-slug.md`
-- Plan-review agents annotate: `Plan-review: approved` or `Plan-feedback: plan/requirement-plan-review/XXXXX-feedback.md`
+- Plan agents annotate: `Plan: plan/arch-plans/XXXXX-slug.md`
 - Write agents annotate: `Artifact: plan/requirements/core/XXXXX-name.md`
 - Review agents annotate: `Review: approved` or `Feedback: plan/requirements-review/XXXXX-feedback.md`
 - Escalating agents annotate: `Escalation: plan/escalations/XXXXX-phase-slug.md`
@@ -228,14 +265,14 @@ The PM operates in the main project tree. It owns the project roadmap, defines m
 
 12. **Re-evaluation**: After epic merge, PM re-reads the milestone file and `plan/project.md`. If milestone done criteria are met:
     - Mark the milestone Status Done (immutable history) in both the milestone file and the roadmap entry in `plan/project.md`
-    - Perform discovery triage (step 15)
+    - Perform discovery triage on whatever accumulated since the last story batch (Section 15)
     - Advance the next TODO roadmap entry to In Progress, or rewrite/reorder remaining TODO milestones (optionally re-invoke `roadmap-planner`) based on Paavo Notes and user direction
     - If the product Definition of Done in `plan/project.md` is met, declare the product complete
     - **Version migration**: if Paavo Notes has a newer closed version the user wants to adopt, the PM re-pins `plan/project.md` to the new version, scopes changes via the MCP per-step change/diff tools (one call per version step), and inserts one or more **migration milestones** (Status TODO / In Progress as appropriate) before continuing normal roadmap work
 
 13. **Git for planning artifacts**: PM commits project, milestone, epic, and story files to `main` directly, before dispatching the epic.
 
-14. **Escalation received**: When a Coordinator returns due to escalation, PM reads the escalation file, verifies the Coordinator lock is inactive (via worktree status), then invokes `escalation-recovery` in foreground within the epic's worktree. If recovery succeeds, PM clears the resolved escalation state via scripts and launches a fresh Coordinator for the same epic.
+14. **Escalation received**: A Coordinator that returns due to escalation has already tried inline recovery (Section 9.0), so what reaches the PM is what the reconciler could not settle. PM reads the escalation file, verifies the Coordinator lock is inactive (via worktree status), then invokes `escalation-triage` in the foreground and routes by class per Section 9.1. If a handler resolves it, PM clears the block with `phase-resume` and launches a fresh Coordinator for the same epic.
 
 15. **Discovery triage**: Once a milestone is otherwise complete (all epics merged), the PM reads `plan/discoveries/`, groups findings, writes `plan/discoveries/triage-XX.md`, and summarizes proposed handling for the user. Product-intent gaps that belong in Paavo Notes are surfaced as open questions there (Section 16), not as local discoveries.
 
@@ -257,10 +294,11 @@ The Coordinator drives all stories within a single epic through all four phases.
 
 3. **For each story in the epic** (serial, in order):
 
-4. Initialize story tasks:
+4. Read the story file's `## Rigor` field -- the only content the Coordinator reads from a story file -- and initialize its tasks:
    ```
-   bash "$WT/taskwarrior/story-init" XXXXX slug
+   bash "$WT/taskwarrior/story-init" XXXXX slug --rigor <full|light>
    ```
+   `full` creates four phase tasks; `light` creates only the `impl` task, at `aistate:write` (Section 3.3). A missing or unreadable field means `full`.
 
 5. **Story loop start**: Query next actionable task:
    ```
@@ -271,21 +309,15 @@ The Coordinator drives all stories within a single epic through all four phases.
 
 7. Read the task's `phase` and `state` from the JSON output.
 
-8. Determine subagent from the mapping:
-   - `(req, plan)` -> `requirements-plan`
-   - `(req, plan-review)` -> `requirements-plan-review`
+8. Determine subagent from the mapping. `plan` exists only for `arch` and `impl`:
    - `(req, write)` -> `requirements-write`
    - `(req, review)` -> `requirements-review`
    - `(arch, plan)` -> `architecture-plan`
-   - `(arch, plan-review)` -> `architecture-plan-review`
    - `(arch, write)` -> `architecture-write`
    - `(arch, review)` -> `architecture-review`
-   - `(test, plan)` -> `integration-test-plan`
-   - `(test, plan-review)` -> `integration-test-plan-review`
    - `(test, write)` -> `integration-test-write`
    - `(test, review)` -> `integration-test-review`
    - `(impl, plan)` -> `implementation-plan`
-   - `(impl, plan-review)` -> `implementation-plan-review`
    - `(impl, write)` -> `implementation-write`
    - `(impl, review)` -> `implementation-review`
 
@@ -304,16 +336,17 @@ The Coordinator drives all stories within a single epic through all four phases.
     bash "$WT/taskwarrior/phase-stop" <task-id>
     ```
 
-13. Process outcome. Track a reject counter per phase (plan-review rejections and review rejections counted separately):
-    - If plan-review approved (annotation says `Plan-review: approved`): state is already `write`, continue loop; reset plan-review reject counter
-    - If plan-review rejected (annotation says `Plan-feedback:`): state is already `plan`, continue loop; increment plan-review reject counter; if counter reaches 3, go to step 15
-    - If review approved (annotation says `Review: approved`): call `bash "$WT/taskwarrior/phase-done" <task-id>`, commit phase artifacts: `git commit -am "phase(PHASE): XXXXX"`; reset review reject counter
-    - If review rejected (feedback file annotated): state is already `write`; increment review reject counter; if counter reaches 3, go to step 15; otherwise continue loop
-    - If escalation annotated: go to step 15
+13. Process outcome. Track one reject counter per phase:
+    - If a plan was written (annotation says `Plan:`): state is already `write`, continue loop
+    - If review approved (annotation says `Review: approved`): run the phase gate (Section 5.1) and only then call `bash "$WT/taskwarrior/phase-done" <uuid>`, commit phase artifacts: `git commit -am "phase(PHASE): XXXXX"`; reset the reject counter. `phase-done` opens the successor phase task at its initial state
+    - If review rejected (feedback file annotated): state is already `write`; increment the reject counter; if the counter reaches 2, dispatch the reconciler (Section 9); otherwise continue loop
+    - If escalation annotated: dispatch the reconciler (Section 9); go to step 15 only if it returns `needs-human`
+
+    Task identity: use the `uuid` from `story-next`, never the numeric `id`. Taskwarrior renumbers pending ids whenever a task completes, so an id captured before a `phase-done` points at a different task after it.
 
     **Story loop end**: go to step 5.
 
-14. **Story complete**: Verify and merge within worktree:
+14. **Story complete** -- every phase done, four for a full story or one for a light one. Verify and merge within worktree:
     ```
     bash "$WT/taskwarrior/story-complete" XXXXX --run-tests
     bash "$WT/taskwarrior/story-merge" XXXXX slug
@@ -332,6 +365,29 @@ The Coordinator drives all stories within a single epic through all four phases.
     bash "$WT/taskwarrior/coordinator-lock-release"
     ```
     Signal completion (the PM detects this via `epic-status` or checks the worktree state).
+
+### 5.1 Phase Gates
+
+A review approval is a judgement about text. It cannot catch two artifacts that are each individually reasonable and jointly contradictory, because no reviewer sees both against a compiler. Every phase therefore has a second completion condition that a command either satisfies or does not:
+
+```
+bash "$WT/taskwarrior/phase-gate" <uuid>
+```
+
+The Coordinator runs it after `Review: approved` and before `phase-done`. Exit 0 completes the phase; exit 2 routes to the reconciler in Section 9 exactly as an escalation does, with the gate output as the failure description.
+
+Gate per phase, resolved from `ai-framework/project-profile.md`:
+
+| Phase | Profile line | What it proves |
+|-------|--------------|----------------|
+| `req` | none | Prose has nothing to compile; review is the only gate. |
+| `arch` | `Architecture gate` | The architecture artifacts compile or typecheck standalone, without linking. |
+| `test` | `Test compile gate` | The integration tests compile against the architecture with no implementation present. |
+| `impl` | `Run integration tests` | The tests written in the `test` phase now pass. |
+
+An unfilled placeholder skips its gate with a warning rather than failing, so an incompletely filled profile degrades to the pre-gate behaviour instead of blocking the pipeline.
+
+The integration test phase is red-gated: the tests must compile **and** the named tests must fail. A green suite before any implementation exists means the tests do not constrain anything. The compile half is the gate; whether the failure is for the right reason is the reviewer's judgement, made against the gate's actual output rather than by reading the file.
 
 ---
 
@@ -422,13 +478,27 @@ The project profile may specify a recommended concurrency limit.
 
 ## 9. Escalation Protocol
 
-Escalations halt Coordinator work and surface the problem to the PM. Every escalation is classified before anything is repaired: the PM may attempt one bounded automatic recovery per root cause, and only after proving that no Coordinator or phase subagent is still active. Stopping for the user is a routing outcome for product and policy decisions, not the default response to failure.
+Most failures are two artifacts disagreeing, which is a technical problem with a technical answer. The Coordinator therefore repairs them inline (9.0) and halts only when repair is impossible or the decision is genuinely the user's. Stopping for the user is a routing outcome for product decisions, not the default response to failure.
 
-1. **Trigger**: a subagent hits an impossible constraint, a contradiction it cannot resolve, the Coordinator detects the 3rd plan-review or review rejection for the same phase, the Paavo Notes MCP is unreachable when required, or a product-intent gap cannot be resolved from the pinned Paavo Notes version (blocking). Non-blocking product-intent gaps may instead be posted as open questions to Paavo Notes (Section 16) without escalating.
+### 9.0 Inline Recovery (the normal path)
+
+The Coordinator dispatches `escalation-recovery` in the foreground, while holding its lock, on any of three triggers:
+
+- a subagent wrote an `Escalation:` annotation,
+- a `phase-gate` exited 2,
+- the same phase was rejected by review for the **2nd** time.
+
+The reconciler may edit any story artifact, including one belonging to a completed phase. It returns `resolved` with a list of **invalidated gates**, `needs-human`, or `failed-recovery`. On `resolved` the Coordinator re-runs those gates and continues the same phase; the completed task stays completed and nothing is re-opened. Returning a resume state instead is what produced the `Illegal transition done -> review` deadlock this protocol replaced.
+
+Only `needs-human`, `failed-recovery`, a gate that fails again after a fix, or a recurrence of the same cause reaches the halt below. One reconciliation attempt per cause.
+
+### 9.1 Escalation Halt (the exception path)
+
+1. **Trigger**: inline recovery could not resolve the failure, the Coordinator detects the 3rd review rejection for the same phase, the Paavo Notes MCP is unreachable when required, or a product-intent gap cannot be resolved from the pinned Paavo Notes version (blocking). Non-blocking product-intent gaps may instead be posted as open questions to Paavo Notes (Section 16) without escalating.
 
 2. **Report**: the subagent (or Coordinator on reject limit) writes `plan/escalations/XXXXX-phase-slug.md` using the escalation template, annotates the task with `Escalation: <path>`, and exits immediately. The subagent does not continue working after writing the escalation.
 
-3. **Coordinator halt**: the Coordinator detects the `Escalation:` annotation or reject limit, blocks the task via `bash taskwarrior/phase-block <task-id> <path>`, releases the Coordinator lock via `bash taskwarrior/coordinator-lock-release`, and returns control to the PM. No git rollback. No upstream phase reopening.
+3. **Coordinator halt**: the Coordinator blocks the task via `bash taskwarrior/phase-block <uuid> <path>`, releases the Coordinator lock via `bash taskwarrior/coordinator-lock-release`, and returns control to the PM, reporting the reconciler's outcome alongside the escalation path. No git rollback.
 
 4. **Triage**: the PM first verifies the Coordinator lock is FREE in the epic's worktree:
    ```
@@ -441,9 +511,9 @@ Escalations halt Coordinator work and surface the problem to the PM. Every escal
    | Class | Handler | Rationale |
    |-------|---------|-----------|
    | `environment` | `environment-recovery` | Framework state, configuration, or runtime damage. Mechanical, so no user decision exists to make. |
-   | `artifact` | `escalation-recovery` | Story-local inconsistency between requirements, architecture, tests, or source. |
+   | `artifact` | `escalation-recovery` | Story-local inconsistency between requirements, architecture, tests, or source. Rare at this point: the Coordinator already tried it inline. |
    | `product-intent` | user (or a Paavo Notes open question) | The required behavior is missing or contradictory. **Always stops for the user.** |
-   | `scope-policy` | user | Widening scope, changing a public interface, adding a dependency, creating/skipping a story, or skipping a phase. **Always stops for the user.** |
+   | `scope-policy` | user | Widening story scope, adding an external dependency, or creating/skipping a story or phase. **Always stops for the user.** Technical design -- interfaces, decomposition, fixtures, code -- is not in this class. |
 
    Any `Confidence: low` result routes to the user regardless of class.
 
@@ -453,21 +523,22 @@ Escalations halt Coordinator work and surface the problem to the PM. Every escal
    ```
    This makes the "resolving the same root cause repeatedly" stop condition in 9.8 mechanical rather than a judgment call.
 
-5. **Bounded recovery**: the PM invokes the handler from step 4 in the foreground, passing the absolute worktree path, the escalation path, the blocked task ID, the story path, and the triage block. Subagents receive no working directory, so every path must be absolute or explicitly relative to the given worktree. Both recovery agents return one of:
-   - `resolved`: `escalation-recovery` includes the earliest phase and `aistate` to rerun; `environment-recovery` includes a recorded clean `doctor` run (exit 0)
+5. **Bounded recovery**: the PM invokes the handler from step 4 in the foreground, passing the absolute worktree path, the escalation path, the blocked task's **uuid**, the story path, and the triage block. Subagents receive no working directory, so every path must be absolute or explicitly relative to the given worktree. Both recovery agents return one of:
+   - `resolved`: `escalation-recovery` includes the list of gates its change invalidated; `environment-recovery` includes a recorded clean `doctor` run (exit 0)
    - `needs-human`: explains the decision required
    - `failed-recovery`: explains why its attempted fix did not resolve the blocker
 
-6. **PM state restoration**: if recovery returns `resolved`, the PM uses scripts to clear the escalation and restore the task:
+6. **PM state restoration**: if recovery returns `resolved`, the PM clears the block and leaves the task in the state it was already in:
    ```
-   bash <worktree>/taskwarrior/phase-annotate <id> Recovery "<summary>"
-   bash <worktree>/taskwarrior/phase-transition <id> <resume-state>
+   bash <worktree>/taskwarrior/phase-resume <uuid> "<summary>"
    ```
-   (The `phase-transition` script handles clearing `+blocked` when transitioning from blocked state.)
+   `phase-resume` is the counterpart to `phase-block`: it clears `+blocked` and annotates. `phase-transition` does **not** clear `+blocked` -- it only changes `aistate` -- so a task recovered without `phase-resume` never becomes READY again.
 
 7. **Resume**: PM launches a fresh Coordinator for the same epic in the background (see Section 17). The Coordinator picks up from the restored task state. The old Coordinator is never resumed.
 
-8. **Human stop conditions**: PM stops and asks the user when recovery requires changing story intent, widening acceptance criteria, changing public interfaces, adding dependencies, creating or skipping stories, skipping phases, adopting a new Paavo Notes version / rewriting product goals, or resolving a root cause whose fingerprint has already been attempted.
+8. **Human stop conditions**: PM stops and asks the user when a decision is **irreversible**, is about **product intent**, or **exceeds the current milestone's scope**. Concretely: changing story intent, widening acceptance criteria, adding a new external dependency, creating or skipping stories, skipping phases, adopting a new Paavo Notes version or rewriting product goals, or resolving a root cause whose fingerprint has already been attempted.
+
+   Technical design is explicitly **not** a stop condition. Interfaces, decomposition, module boundaries, test fixtures, and code are the agents' to decide, and asking the user to approve them is the failure mode this rule exists to prevent -- a user asked to approve a struct field is a user who stops reading. Milestone completion is the natural checkpoint, not each technical choice inside one.
 
    Runtime-state cleanup remains user-only exactly where `taskwarrior/doctor` marks a check manual: D07 (`.taskrc` tracked by git), D09 (multiple active phase tasks in a worktree), D10 (a held Coordinator lock with a stale, dead, or missing heartbeat), D11 (an active epic with no worktree), and D12 (blocked task / escalation file mismatch). Checks that `doctor` marks fixable are not human stop conditions: `environment-recovery` repairs them through `doctor --fix`. No agent may ever clear a lock or an orphaned active task; that is `cleanup-ai-state.sh`, run by the user.
 
@@ -515,31 +586,27 @@ Shift-left tests written BEFORE implementation. They enforce interface contracts
 - Never mock internal collaborators
 - Tests must compile/parse against the architecture artifacts even before implementation exists
 
-These frozen contract tests are distinct from the **verification tooling** the implementation agent builds and runs during the impl phase (state inspection, scenario checks, screenshot capture -- see Section 13.2). Contract tests constrain the implementation up front; verification tooling lets the implementation agent confirm the feature actually works while building it.
+These contract tests are distinct from the **verification tooling** the implementation agent builds and runs during the impl phase (state inspection, scenario checks, screenshot capture -- see Section 13.2). Contract tests constrain the implementation up front; verification tooling lets the implementation agent confirm the feature actually works while building it.
 
 ### 10.7 Phase Plans (`plan/*-plans/XXXXX-slug.md`)
 
-Written by Plan agents. Specify what the Write agent should do: which files to create/modify, the approach, risks, and verification steps.
+Written by the Architecture Plan and Implementation Plan agents, in `plan/arch-plans/` and `plan/implementation-plans/` respectively. Specify what the Write agent should do: which files to create/modify, the approach, risks, and verification steps. Plans are not reviewed, so they must be concrete enough to execute without further interpretation. The requirements and integration-test phases have no plan artifact.
 
-### 10.8 Plan Review Feedback (`plan/*-plan-review/XXXXX-feedback.md`)
-
-Written by Plan Review agents when rejecting plans. Must contain: verdict, specific blocking issues each carrying an anchor and a fix instruction, missing coverage, non-blocking observations, and approved aspects.
-
-### 10.9 Review Feedback (`plan/*-review/XXXXX-feedback.md`)
+### 10.8 Review Feedback (`plan/*-review/XXXXX-feedback.md`)
 
 Written by Review agents when rejecting artifacts. Must contain: verdict, specific blocking issues each carrying an anchor, a file path, and a fix instruction, missed requirements, non-blocking observations, and approved aspects.
 
-### 10.10 Escalation Reports (`plan/escalations/XXXXX-phase-slug.md`)
+### 10.9 Escalation Reports (`plan/escalations/XXXXX-phase-slug.md`)
 
 Written by any agent that cannot complete its task. Must contain: blocked task ID, failure description with exact errors, reproduction steps, root cause analysis, and proposed recovery action.
 
-### 10.11 Architecture Policy (`ARCHITECTURE.md`)
+### 10.10 Architecture Policy (`ARCHITECTURE.md`)
 
 A living document at the project root maintained by the Architecture Plan agent. Lists domain definitions and their strict dependency rules as a DAG. Must NEVER list classes, methods, or internal design patterns.
 
-### 10.12 Discoveries (`plan/discoveries/YYYYMMDD-HHMMSS-slug.md`)
+### 10.11 Discoveries (`plan/discoveries/YYYYMMDD-HHMMSS-slug.md`)
 
-Short records of significant out-of-scope findings. Any subagent may create one; only the PM triages after milestone completion.
+Short records of significant findings, and the destination for every advisory review finding. Any subagent may create one; only the PM triages, at the start of each story batch and again at milestone completion.
 
 ---
 
@@ -553,9 +620,8 @@ You are the [Role] agent. Your task:
 - Story: plan/stories/XXXXX-slug.md
 - Epic: plan/epics/EXXXX-slug.md
 - Phase: <req|arch|test|impl>
-- State: <plan|plan-review|write|review>
-- Plan file: <path from annotation, if applicable>
-- Plan feedback: <path from Plan-feedback annotation, if re-doing after plan-review rejection>
+- State: <plan|write|review>
+- Plan file: <path from the Plan annotation, if applicable>
 - Feedback: <path from Feedback annotation, if re-doing after review rejection>
 
 Follow your role instructions. Read the files listed above. Write your outputs.
@@ -656,21 +722,32 @@ Agents may call `taskwarrior/tw` directly for **read-only queries** (status chec
 
 ### 13.1 Review Principles
 
-All review agents (plan-review and review) follow these principles:
+All review agents follow these principles:
 - Focus on blocking issues: logic errors, missed requirements, incorrect contracts, test gaps
 - Do NOT nitpick formatting, naming conventions, or style unless they cause actual confusion
 - If it works and is structurally sound, approve it
 - Every rejection must include exact file paths, line references, and concrete fix instructions
 - Never rubber-stamp -- actually read and verify each artifact
-- Limit to 3 review rounds per artifact; the Coordinator enforces this by counting rejections
+- Limit to 3 review rounds per artifact; the Coordinator enforces this by counting rejections, and dispatches the reconciler at the 2nd
 
-**Anchoring.** A rejection is binding: the Write agent must comply with it and has no channel to dispute it. A blocking issue must therefore be **anchored** -- it names a specific artifact element and states how the work under review contradicts it. An issue the reviewer cannot anchor is not blocking.
+**Two tiers of finding.** Review is not binary. Every finding a reviewer makes is one of:
+
+- **Blocking** -- the work is incorrect, unsafe, fails to meet a requirement, or diverges from the architecture. It goes in the review feedback file, the Write agent must fix it, and it counts toward the rejection limit.
+- **Advisory** -- everything else, including anything the reviewer would have done differently. It does not enter the feedback file at all. The reviewer records advisories in **one** discovery file (Section 15) and approves.
+
+**A review with zero blocking findings is APPROVED, however many advisories it produced.** Binary review is why every "I would have done this differently" used to cost a full Write agent re-dispatch. Each classification carries one line of justification.
+
+**The out-of-scope demotion test.** A finding that falls outside the story's declared scope boundaries is advisory whatever its severity, cited against the specific In Scope / Out of Scope line. Either party may apply this one, because it is a check against a written contract rather than a judgement. The Write agent has no other demotion power: letting the criticized party reclassify criticism is how review quietly stops happening.
+
+Two risks are accepted rather than engineered around. A reviewer could label everything advisory, which the phase gate (Section 5.1) and `implementation-review`'s independent test re-run already catch. Advisory volume could grow, which the "no style nits" bar above and the per-classification justification must keep in check.
+
+**Anchoring.** A blocking finding is binding: the Write agent must comply with it and has no channel to dispute it. It must therefore be **anchored** -- it names a specific artifact element and states how the work under review contradicts it. An issue the reviewer cannot anchor is advisory by definition.
 
 Each review agent's prompt lists the anchors valid for its phase, drawn only from what that agent is permitted to read. Across the pipeline they are: a story acceptance criterion, a requirement ID, a rule or DAG edge in `ARCHITECTURE.md`, a named element in an architecture artifact, a named test case, an observed command or test result, a project-profile entry (domain tag, mock boundary, convention, review standard, or Forbidden entry), and a Paavo Notes item at the pinned closed version.
 
 Judgment criteria -- cohesion, meaningfulness, actionability, scope appropriateness -- remain enforceable. They are anchored by naming the specific element and the concrete consequence, never by asserting a quality label. "Interface X is not cohesive" is not anchored; "class X exposes `save()` and `render()`; `render()` traces to no requirement" is.
 
-**Non-blocking observations.** A reviewer already rejecting for anchored reasons may list unanchored concerns under a `Non-Blocking Observations` heading in the feedback file; they inform the Write agent but do not gate approval. If every concern a reviewer holds is unanchored, it approves and writes no file. This keeps the approval contract unchanged: approval is a task annotation only.
+Unanchored concerns are advisory and go to the discovery file, never to the feedback file. If every concern a reviewer holds is unanchored, it approves and writes no feedback file. The approval contract is unchanged: approval is a task annotation only.
 
 Anchoring constrains how a rejection is justified, not whether one happens. It is not licence to rubber-stamp: every quality criterion in each review prompt still applies, and each maps to at least one valid anchor.
 
@@ -685,7 +762,7 @@ Implementation agents must never:
 - Add dependencies not justified by requirements
 - Silently deviate from the architecture
 
-Implementation agents must also self-verify before review. Beyond passing the frozen integration tests, the implementation agent builds and runs **verification tooling** (defined by the project profile's "Verification Tooling" section) to confirm the feature actually works:
+Implementation agents must also self-verify before review. Beyond passing the integration tests, the implementation agent builds and runs **verification tooling** (defined by the project profile's "Verification Tooling" section) to confirm the feature actually works:
 - Verify acceptance-criteria scenarios via a read-only internal-state inspection surface (snapshot -> act -> snapshot -> assert the observable delta). The inspection surface must be derived from real runtime state, never a hand-maintained parallel field.
 - For projects with a UI, verify each Visual Acceptance Criterion by driving the app to a named state, capturing a screenshot, and reasoning about the image with the agent's own vision. Verifying screenshots with image-processing scripts (histograms, pixel/color counts) does not count as visual verification.
 - The implementation-review agent independently re-runs these checks; it must not approve verifiable behavior or visuals on code-reading alone.
@@ -722,17 +799,23 @@ Agent prompts read the project profile to adapt their behavior. The core workflo
 
 ## 15. Discovery Protocol
 
-Discoveries preserve important out-of-scope observations without derailing the current task.
+Discoveries preserve important observations without derailing the current task. They are also the destination for every advisory review finding (Section 13.1), which is what lets a review approve while still recording what it saw.
 
-1. **Trigger**: while performing its assigned task, any subagent notices a clear and significant bug, gap, stub, design flaw, or risk outside the current task scope.
+1. **Trigger**, either of:
+   - While performing its assigned task, any subagent notices a clear and significant bug, gap, stub, design flaw, or risk. The finding need not be outside the current task's scope: an advisory about the very artifact under review is the common case, and the earlier "outside the current task scope" wording wrongly excluded it.
+   - A review agent classifies one or more findings as advisory.
 
-2. **Record**: the subagent writes exactly one new file under `plan/discoveries/` using `plan/templates/discovery.md`. The filename must be `YYYYMMDD-HHMMSS-slug.md`.
+2. **Record**: the subagent writes one new file under `plan/discoveries/` using `plan/templates/discovery.md`, named `YYYYMMDD-HHMMSS-slug.md`. One file per occasion, not per finding: a review that produced six advisories writes one file holding all six.
 
 3. **Do not inspect existing discoveries**: the subagent must not read, list, search, deduplicate, modify, or delete existing files in `plan/discoveries/`.
 
-4. **Continue current task**: after writing the discovery, the subagent continues its assigned task.
+4. **Continue current task**: after writing the discovery, the subagent continues its assigned task. For a review, that means approving if it has no blocking findings.
 
-5. **PM triage**: once a milestone is otherwise complete, the PM reads all files in `plan/discoveries/`, groups duplicates, writes `plan/discoveries/triage-XX.md`, and summarizes proposed handling for the user.
+5. **PM triage at story-batch start**: before generating each batch of stories, the PM reads all files in `plan/discoveries/`, groups related findings, and writes `plan/discoveries/triage-XX.md` recording a disposition for every file: **keep** (becomes a story in this batch) or **decline** (with a one-line reason). The PM then deletes the declined files -- git preserves them and the triage file is the durable record -- and generates stories for the kept ones **without asking the user**. Triage also runs at milestone completion, on whatever has accumulated since the last batch.
+
+   Because subagents cannot read existing discoveries, the same advisory recurs across stories. That is signal, not duplication: three independent reviewers flagging the same awkwardness is stronger evidence than one. Triage reports grouping counts rather than a flat list.
+
+   Discovery-derived stories default to `light` rigor (Section 3.3).
 
 **Discoveries vs open questions**: local discoveries capture code/implementation findings that belong in the repo. Product-intent gaps (unclear goals, missing product rules, ambiguous user-facing behavior) belong in Paavo Notes as open questions (Section 16), not as discovery files.
 
@@ -773,7 +856,7 @@ Every story cites the product intent it derives from as `(project_id, version, a
 
 ### 16.5 Who may access Paavo Notes
 
-- **Allowed**: PM, Roadmap Planner, and the four requirements-phase agents (plan, plan-review, write, review).
+- **Allowed**: PM, Roadmap Planner, and the two requirements-phase agents (write, review).
 - **Forbidden**: Coordinator, architecture / integration-test / implementation agents, story-review, escalation-analysis, escalation-triage, escalation-recovery, environment-recovery, fixer, and general agents.
 
 Requirements-plan and requirements-write may post open questions. Review agents may read the pinned version to verify traceability but should not post open questions unless needed to record a blocking product-intent gap.

@@ -101,7 +101,7 @@ templates/base/                            # Copied to downstream project root
   ai-framework/project-profile.md          # Filled by deploying user
   ai-framework/README.md                   # Notes that LOGIC.md is copied at deploy time
   ai-framework/set-agent-models.sh         # Canonical agent->bucket map; writes model: lines
-  plan/templates/*.md                      # 10 artifact templates (incl. project.md, epic.md)
+  plan/templates/*.md                      # 9 artifact templates (incl. project.md, epic.md)
   plan/epics/.gitkeep                      # Epic artifacts directory
   taskwarrior/setup.sh                     # Generates .taskrc + UDA setup (--main / --worktree)
   taskwarrior/taskrc.template              # Base config for the generated .taskrc
@@ -115,12 +115,12 @@ templates/base/                            # Copied to downstream project root
   taskwarrior/coordinator-status           # Liveness/progress aggregator (PM supervision)
   taskwarrior/epic-*                       # Epic lifecycle scripts (7)
   taskwarrior/story-*                      # Story lifecycle scripts (4)
-  taskwarrior/phase-*                      # Phase state scripts (6)
+  taskwarrior/phase-*                      # Phase state scripts (8, incl. phase-gate, phase-resume)
   taskwarrior/pm-lock-* / pm-preflight     # PM lock/status scripts (3)
   taskwarrior/coordinator-lock-*           # Coordinator lock scripts (3)
 
 templates/cursor/.cursor/                  # Copied to downstream .cursor/
-  agents/*.md                              # 25 agent prompts (incl. roadmap-planner, deploy-profile,
+  agents/*.md                              # 19 agent prompts (incl. roadmap-planner, deploy-profile,
                                            #   escalation-triage, environment-recovery). No PM here.
   rules/ai-framework.mdc                   # Always-on rules
   skills/project-manager/SKILL.md          # The PM; runs as the top-level chat, not a subagent
@@ -186,10 +186,10 @@ Cursor allows two levels of subagents below the top-level chat. A subagent launc
 |-------|-----|--------------|
 | 0 | PM, via the `project-manager` skill in the top-level chat | yes |
 | 1 | Coordinator, `roadmap-planner`, `story-review`, escalation agents | Coordinator only |
-| 2 | Phase agents dispatched by a Coordinator | no |
+| 2 | Phase agents and `escalation-recovery`, dispatched by a Coordinator | no |
 
 Consequences for anything you edit here:
 
 - The PM stays a skill. Shipping a `project-manager` agent prompt makes `/project-manager` delegate, which moves every Coordinator to level 2 and silently disables the whole phase pipeline. Both validators fail if that file reappears.
 - The Coordinator is the only agent prompt permitted to contain subagent-dispatch instructions. `validate-template-repo.sh` enforces this by asserting that `run_in_background` appears in `coordinator.md` and nowhere else under `templates/cursor/.cursor/agents/`.
-- Do not add a dispatch step to any phase agent. There is no level left for it.
+- Do not add a dispatch step to any phase agent, or to `escalation-recovery`. There is no level left for it: the reconciler runs at level 2 when the Coordinator dispatches it inline, and it must do its own repair work rather than delegate.

@@ -169,8 +169,8 @@ SEQ_BEFORE=$(python3 -c "import json,sys; print(json.load(open(sys.argv[1])).get
 bash "${WT}/taskwarrior/coordinator-lock-acquire" >/dev/null 2>&1
 REQ_TASK=$(bash "${WT}/taskwarrior/tw" aistory:00001 aiphase:req ids 2>/dev/null | awk '{print $1}')
 bash "${WT}/taskwarrior/phase-start" "$REQ_TASK" >/dev/null 2>&1
-bash "${WT}/taskwarrior/phase-annotate" "$REQ_TASK" Plan plan/requirement-plans/00001-smoke.md >/dev/null 2>&1
-bash "${WT}/taskwarrior/phase-transition" "$REQ_TASK" plan-review >/dev/null 2>&1
+bash "${WT}/taskwarrior/phase-annotate" "$REQ_TASK" Artifact plan/requirements/core/00001-smoke.md >/dev/null 2>&1
+bash "${WT}/taskwarrior/phase-transition" "$REQ_TASK" review >/dev/null 2>&1
 
 SEQ_AFTER=$(python3 -c "import json,sys; print(json.load(open(sys.argv[1])).get('sequence',0))" "$HB_FILE" 2>/dev/null || echo "0")
 if [ "$SEQ_AFTER" -gt "$SEQ_BEFORE" ]; then
@@ -232,11 +232,59 @@ else
     echo "$CS_DONE" | sed 's/^/    /'
 fi
 
+# --- 6b. Phase boundary, gate, and rigor --------------------------------
+# The failed run this rework came from deadlocked at a phase boundary: phase-done
+# completed a task without opening its successor, which stayed aistate:blocked
+# forever. Guard that, the gate, and light rigor here.
+echo "--- 6b. Phase boundary, gate, and rigor ---"
+
+# req has no gate, so phase-gate must pass rather than block the phase.
+bash "${WT}/taskwarrior/phase-gate" "$REQ_TASK" >/dev/null 2>&1
+assert_eq "phase-gate exit code (req has no gate)" "0" "$?"
+
+bash "${WT}/taskwarrior/phase-transition" "$REQ_TASK" done >/dev/null 2>&1
+bash "${WT}/taskwarrior/phase-done" "$REQ_TASK" >/dev/null 2>&1
+assert_eq "phase-done exit code" "0" "$?"
+
+ARCH_STATE=$(bash "${WT}/taskwarrior/tw" aistory:00001 aiphase:arch export 2>/dev/null | python3 -c "
+import json, sys
+t = json.load(sys.stdin)
+print(t[0].get('aistate', '') if t else 'MISSING')
+" 2>/dev/null || echo "ERR")
+assert_eq "phase-done opened the successor at its initial state" "plan" "$ARCH_STATE"
+
+# An unfilled gate placeholder must warn and pass, not fail the pipeline.
+bash "${WT}/taskwarrior/phase-gate" "$(bash "${WT}/taskwarrior/tw" aistory:00001 aiphase:arch ids 2>/dev/null | awk '{print $1}')" >/dev/null 2>&1
+assert_eq "phase-gate exit code (unfilled profile placeholder)" "0" "$?"
+
+# A light story gets one impl task, opened at write. story-init cuts story
+# branches from the epic branch, so go back to it first.
+git -C "$WT" checkout -q "epic/E0001-smoke" 2>/dev/null
+bash "${WT}/taskwarrior/story-init" 00002 light-story --rigor light >/dev/null 2>&1
+assert_eq "story-init --rigor light exit code" "0" "$?"
+LIGHT_COUNT=$(bash "${WT}/taskwarrior/tw" aistory:00002 count 2>/dev/null || echo "0")
+assert_eq "light story phase task count" "1" "$LIGHT_COUNT"
+LIGHT_STATE=$(bash "${WT}/taskwarrior/tw" aistory:00002 export 2>/dev/null | python3 -c "
+import json, sys
+t = json.load(sys.stdin)
+print('%s:%s' % (t[0].get('aiphase', ''), t[0].get('aistate', '')) if t else 'MISSING')
+" 2>/dev/null || echo "ERR")
+assert_eq "light story opens at impl/write" "impl:write" "$LIGHT_STATE"
+
+git -C "$WT" checkout -q "epic/E0001-smoke" 2>/dev/null
+bash "${WT}/taskwarrior/story-init" 00003 bad-rigor --rigor sloppy >/dev/null 2>&1
+assert_eq "story-init rejects an unknown rigor" "2" "$?"
+
+# Put the tree back where section 7 and doctor expect it.
+git -C "$WT" checkout -q "story/00001-smoke-story" 2>/dev/null
+
 # --- 7. Escalation is visible to the PM ---------------------------------
+# The req task is completed by now, so block the arch task instead.
 echo "--- 7. Escalation visibility ---"
+ARCH_TASK=$(bash "${WT}/taskwarrior/tw" aistory:00001 aiphase:arch ids 2>/dev/null | awk '{print $1}')
 mkdir -p "${WT}/plan/escalations"
 echo "# Escalation" > "${WT}/plan/escalations/00001-req-smoke.md"
-bash "${WT}/taskwarrior/phase-block" "$REQ_TASK" plan/escalations/00001-req-smoke.md >/dev/null 2>&1
+bash "${WT}/taskwarrior/phase-block" "$ARCH_TASK" plan/escalations/00001-req-smoke.md >/dev/null 2>&1
 CS_ESC=$(bash "${PROJ}/taskwarrior/coordinator-status" 2>&1)
 CS_ESC_RC=$?
 assert_eq "coordinator-status exit code (escalation recorded)" "2" "$CS_ESC_RC"
@@ -246,6 +294,15 @@ else
     fail "escalation path surfaced to the PM"
     echo "$CS_ESC" | sed 's/^/    /'
 fi
+
+# phase-resume is the only thing that clears +blocked; phase-transition does not.
+bash "${WT}/taskwarrior/phase-resume" "$ARCH_TASK" "smoke recovery" >/dev/null 2>&1
+assert_eq "phase-resume exit code" "0" "$?"
+BLOCKED_AFTER=$(bash "${WT}/taskwarrior/tw" "$ARCH_TASK" +blocked count 2>/dev/null || echo "ERR")
+assert_eq "phase-resume cleared +blocked" "0" "$BLOCKED_AFTER"
+
+# Re-block so doctor's blocked-task/escalation-file invariant still holds below.
+bash "${WT}/taskwarrior/phase-block" "$ARCH_TASK" plan/escalations/00001-req-smoke.md >/dev/null 2>&1
 
 # --- 8. Doctor sees a healthy deployment --------------------------------
 echo "--- 8. Doctor ---"

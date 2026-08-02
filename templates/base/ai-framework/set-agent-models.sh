@@ -19,26 +19,20 @@ BUCKETS="deep critic builder checker mechanical"
 BUCKET_MAP="
 deep:roadmap-planner
 deep:architecture-plan
-deep:architecture-write
 deep:fixer
 deep:escalation-analysis
 deep:escalation-recovery
 deep:deploy-profile
 critic:implementation-review
 critic:architecture-review
-critic:architecture-plan-review
 critic:story-review
+builder:architecture-write
 builder:implementation-write
 builder:implementation-plan
 builder:integration-test-write
-builder:integration-test-plan
 builder:requirements-write
-builder:requirements-plan
 checker:requirements-review
-checker:requirements-plan-review
 checker:integration-test-review
-checker:integration-test-plan-review
-checker:implementation-plan-review
 checker:escalation-triage
 mechanical:coordinator
 mechanical:environment-recovery
@@ -63,9 +57,12 @@ Buckets:
               escalation recovery. Low token volume, highest leverage per token.
   critic      Adversarial review. Judges semantic correctness of work it did not write.
               Prefer a different model family than builder and deep.
-  builder     Bulk write volume: implementation, tests, requirements, and their plans.
+  builder     Bulk write volume: architecture headers, implementation, tests, and
+              requirements. Turning an approved architecture plan into interface
+              declarations is mechanical, so architecture-write sits here while
+              architecture-plan stays in deep.
               Must be vision-capable if the project profile's UI kind is not `none`.
-  checker     Bounded structural checks against a written plan. Prefer a different
+  checker     Bounded structural checks against a written artifact. Prefer a different
               family than builder, but not at the cost of a clearly weaker model.
   mechanical  Procedure following: the Coordinator state machine and environment repair.
 
@@ -304,7 +301,7 @@ echo ""
 if [ "$DRY_RUN" -eq 1 ]; then
     echo "Dry run: $CHANGED agent prompt(s) would change. Nothing written."
 elif [ "$CHANGED" -eq 0 ]; then
-    echo "All 25 agent prompts already match the requested buckets."
+    echo "All 19 agent prompts already match the requested buckets."
 else
     echo "Updated $CHANGED agent prompt(s). Commit .cursor/agents/ so epic worktrees inherit the change."
 fi

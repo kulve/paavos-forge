@@ -110,7 +110,7 @@ elif [ "$MODE" = "--worktree" ]; then
     # State: current progress within a phase
     tw_config uda.aistate.type string
     tw_config uda.aistate.label "AI State"
-    tw_config uda.aistate.values "blocked,plan,plan-review,write,review,done"
+    tw_config uda.aistate.values "blocked,plan,write,review,done"
 
     # Story ID: links task to its parent story
     tw_config uda.aistory.type string

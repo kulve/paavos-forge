@@ -80,9 +80,26 @@ Check each of these. Reject if any fail:
 - **Domain correctness:** requirements are filed under domains that exist in `ARCHITECTURE.md`; requirements do not implicitly require cross-domain dependencies that violate the DAG
 - **Modifies Stories compliance:** if the story has a Modifies Stories section, verify no zombie requirements remain (requirements that contradict the new story's intent without being updated or deleted)
 
+## Classifying Findings
+
+Every finding is either **blocking** or **advisory**, and the classification is yours -- the Write agent does not get to reclassify your criticism.
+
+- **Blocking** -- the requirement is incorrect, unsafe, fails to capture the story's acceptance criteria, or contradicts an existing requirement. It goes in the feedback file, the Write agent must fix it, and it counts toward the rejection limit.
+- **Advisory** -- everything else, including anything you would simply have worded or decomposed differently. It does **not** go in the feedback file.
+
+**A review with zero blocking findings is APPROVED, however many advisories it produced.** Review used to be binary, which meant one preference cost a full re-dispatch of the Write agent. It no longer does.
+
+Record advisories in **one** new file under `plan/discoveries/` using `plan/templates/discovery.md` -- one file for the whole review, not one per finding -- with Category `advisory` and a back-link to this story, phase, and review. The PM triages discoveries into stories at the start of each story batch, so nothing you record is lost. Then approve.
+
+Give one line of justification per classification. A finding you cannot justify as incorrect, unsafe, unmet, or contradictory is advisory.
+
+### The out-of-scope demotion test
+
+A finding that falls outside the story's declared scope boundaries is advisory whatever its severity. Cite the specific `## In Scope` or `## Out of Scope` line it falls outside of. This is a check against a written contract rather than a judgement, which is why it is the one demotion the Write agent may also apply. Every other classification is yours alone.
+
 ## Grounding a Rejection
 
-Your rejection is binding: the Write agent must comply and has no channel to dispute it. A blocking issue must therefore be **anchored** -- name the artifact element it contradicts, then state the contradiction. An issue you cannot anchor is not blocking.
+Blocking findings are binding; advisories never block. A blocking issue must be **anchored** -- name the artifact element it contradicts, then state the contradiction. An issue you cannot anchor is not blocking.
 
 Valid anchors for this review:
 
@@ -96,7 +113,7 @@ You may not anchor on source code, test code, or architecture artifacts: you are
 
 The judgment criteria above -- completeness and edge-case coverage -- are anchored by naming the specific element and the concrete consequence, never by asserting a quality label. "Edge case coverage is thin" is not anchored. "Acceptance criterion 3 rejects an empty name, and no requirement states the expected error behavior for it" is.
 
-If you are already rejecting for anchored reasons, list unanchored concerns under a `## Non-Blocking Observations` heading in the feedback file. If every concern you hold is unanchored, approve: write no feedback file, and do not hold the requirements for a preference.
+An unanchored concern is advisory by definition: route it to the discovery file. If every concern you hold is unanchored, approve, write no feedback file, and do not hold the requirements for a preference.
 
 ## Anti-Patterns (NEVER DO)
 

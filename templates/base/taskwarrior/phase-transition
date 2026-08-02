@@ -1,8 +1,8 @@
 #!/bin/bash
 # Transition a phase task to a new aistate. Validates the transition is legal.
 # Usage: phase-transition <task-id> <new-state>
-# Legal transitions: plan→plan-review, plan-review→write, plan-review→plan (reject),
-#                    write→review, review→done, review→write (reject)
+# Legal transitions: plan→write, write→review, review→done, review→write (reject)
+# Only the arch and impl phases start in `plan`; req and test start in `write`.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/guard.sh"
 require_context worktree
@@ -19,14 +19,11 @@ CURRENT_STATE=$(task "$TASK_ID" export | python3 -c "import sys,json; d=json.loa
 
 validate_transition() {
     case "$CURRENT_STATE→$NEW_STATE" in
-        "plan→plan-review") return 0 ;;
-        "plan-review→write") return 0 ;;
-        "plan-review→plan") return 0 ;;
+        "plan→write") return 0 ;;
         "write→review") return 0 ;;
         "review→done") return 0 ;;
         "review→write") return 0 ;;
         "blocked→plan") return 0 ;;
-        "blocked→plan-review") return 0 ;;
         "blocked→write") return 0 ;;
         "blocked→review") return 0 ;;
         *) return 1 ;;

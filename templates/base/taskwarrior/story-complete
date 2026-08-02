@@ -1,5 +1,6 @@
 #!/bin/bash
-# Verify all 4 phases of a story are done. Optionally runs the test suite.
+# Verify every phase of a story is done. Optionally runs the test suite.
+# A full story has 4 phase tasks; a light story (story-init --rigor light) has 1.
 # Usage: story-complete <story-id> [--run-tests]
 # Exit 0: all done (and tests pass if --run-tests). Exit 1: not all done. Exit 2: tests fail.
 set -euo pipefail
@@ -23,9 +24,13 @@ if [ "$PENDING" -gt 0 ]; then
     exit 1
 fi
 
-if [ "$COMPLETED" -ne 4 ]; then
-    echo "WARNING: Story $STORY_ID has $COMPLETED completed tasks (expected 4)."
-fi
+case "$COMPLETED" in
+    4) RIGOR="full" ;;
+    1) RIGOR="light" ;;
+    *)
+        echo "WARNING: Story $STORY_ID has $COMPLETED completed tasks (expected 4 for a full story, 1 for a light one)."
+        RIGOR="unknown" ;;
+esac
 
 if [ "$RUN_TESTS" = "--run-tests" ]; then
     PROFILE="${AI_ROOT}/ai-framework/project-profile.md"
@@ -49,4 +54,4 @@ if [ "$RUN_TESTS" = "--run-tests" ]; then
 fi
 
 ai_heartbeat story-verified "story=${STORY_ID}"
-echo "OK: Story $STORY_ID complete ($COMPLETED tasks done)."
+echo "OK: Story $STORY_ID complete ($COMPLETED tasks done, rigor=${RIGOR})."

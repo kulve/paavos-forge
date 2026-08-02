@@ -53,7 +53,7 @@ This creates:
 - `ai-framework/LOGIC.md` -- workflow specification (copied from framework repo root)
 - `ai-framework/project-profile.md` -- to be filled in by you
 - `ai-framework/set-agent-models.sh` -- assigns a model to every agent prompt by bucket (see Step 6)
-- `plan/templates/` -- 10 artifact templates used by agents (project, milestone, epic, story, requirement, phase-plan, plan-review-feedback, review-feedback, escalation, discovery)
+- `plan/templates/` -- 9 artifact templates used by agents (project, milestone, epic, story, requirement, phase-plan, review-feedback, escalation, discovery)
 - `plan/epics/.gitkeep` -- directory for epic definition files
 - `taskwarrior/setup.sh` -- generates `.taskrc` and configures the UDAs for the tree
 - `taskwarrior/taskrc.template` -- base config used to generate `.taskrc`
@@ -72,7 +72,7 @@ cp -r "$FRAMEWORK/templates/cursor/.cursor" "$PROJECT/"
 ```
 
 This creates:
-- `.cursor/agents/` -- 25 agent prompt files (Coordinator, 16 phase agents, Roadmap Planner, Deploy Profile, Story Review, Escalation Analysis, Escalation Triage, Escalation Recovery, Environment Recovery, and Fixer)
+- `.cursor/agents/` -- 19 agent prompt files (Coordinator, 10 phase agents, Roadmap Planner, Deploy Profile, Story Review, Escalation Analysis, Escalation Triage, Escalation Recovery, Environment Recovery, and Fixer)
 - `.cursor/skills/project-manager/SKILL.md` -- the PM, invoked as `/project-manager` in a top-level chat
 - `.cursor/rules/ai-framework.mdc` -- always-on framework rules
 - `.cursor/skills/` -- the `project-manager` and `ai-status` skills, invoked as `/project-manager` and `/ai-status`
@@ -272,7 +272,7 @@ Note: adapting the framework to a language requires editing only `ai-framework/p
 
 The framework ships every agent prompt with `model: inherit`, which means each agent runs on whatever model happens to be selected in the chat that started the PM. That makes pipeline quality a side effect of an unrelated UI choice, and it drifts whenever you switch models. Pin the models deliberately before your first run.
 
-Model choice trades off two independent axes. **World knowledge** decides which library, algorithm, or architecture is the right one -- it matters enormously where designs are generated and barely at all where a written plan is being executed. **Reasoning effort** buys long-horizon consistency and self-checking, which matters wherever an agent runs a long tool loop, even when the thinking has already been done upstream. Configuring 25 agents individually is unmanageable, so the framework groups them into five buckets. The PM is not among them: it is a skill, so it runs on whatever model you select for the top-level chat.
+Model choice trades off two independent axes. **World knowledge** decides which library, algorithm, or architecture is the right one -- it matters enormously where designs are generated and barely at all where a written plan is being executed. **Reasoning effort** buys long-horizon consistency and self-checking, which matters wherever an agent runs a long tool loop, even when the thinking has already been done upstream. Configuring 19 agents individually is unmanageable, so the framework groups them into five buckets. The PM is not among them: it is a skill, so it runs on whatever model you select for the top-level chat.
 
 ### The buckets
 
@@ -408,7 +408,7 @@ Or verify manually:
 - [ ] `.taskrc` is NOT tracked by git: `git ls-files --error-unmatch .taskrc` must fail
 - [ ] `ai-framework/LOGIC.md` exists (copied from framework repo root `LOGIC.md` in Step 1b)
 - [ ] `ai-framework/project-profile.md` exists and is filled in
-- [ ] `plan/templates/` contains 10 template files (project, milestone, epic, story, requirement, phase-plan, plan-review-feedback, review-feedback, escalation, discovery)
+- [ ] `plan/templates/` contains 9 template files (project, milestone, epic, story, requirement, phase-plan, review-feedback, escalation, discovery)
 - [ ] `plan/epics/.gitkeep` exists
 - [ ] `taskwarrior/setup.sh` exists and is executable
 - [ ] `taskwarrior/env.sh` exists and is executable
@@ -418,7 +418,7 @@ Or verify manually:
 - [ ] `taskwarrior/recipes.md` exists
 - [ ] `taskwarrior/` contains 27 orchestration scripts (epic, story, phase, lock management, diagnostics, telemetry)
 - [ ] `bash taskwarrior/doctor` exits 0
-- [ ] `.cursor/agents/` contains 25 agent files (including `roadmap-planner.md`, `escalation-triage.md`, and `environment-recovery.md`) and **no** `project-manager.md`
+- [ ] `.cursor/agents/` contains 19 agent files (including `roadmap-planner.md`, `escalation-triage.md`, and `environment-recovery.md`) and **no** `project-manager.md`
 - [ ] `ai-framework/set-agent-models.sh` exists and is executable
 - [ ] Every agent has a model assigned and none still says `inherit`: `bash ai-framework/set-agent-models.sh --list`
 - [ ] `.cursor/rules/ai-framework.mdc` exists

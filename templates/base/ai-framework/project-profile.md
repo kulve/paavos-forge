@@ -22,6 +22,19 @@ Fill in this file when deploying the AI execution framework. Agents read this to
 - Run all tests: [e.g. `make test`, `pytest`, `cargo test`]
 - Lint/typecheck: [e.g. `clang-tidy src/`, `mypy src/`, `eslint .`, `cargo clippy`]
 
+### Phase Gates
+
+`taskwarrior/phase-gate` runs one of these commands before a phase may reach `done`. A review approval is a judgement about text; the gate is the part a command either satisfies or does not. Leaving a placeholder unfilled skips that gate with a warning, which puts the phase back on review approval alone -- fill them in.
+
+Each command must succeed (exit 0) when the phase's artifacts are correct, and must not require artifacts from a later phase to exist.
+
+- Architecture gate: [compile or typecheck the architecture artifacts standalone, no linking. e.g. `for h in include/**/*.hpp; do g++ -std=c++17 -fsyntax-only -Iinclude "$h" || exit 1; done`, `mypy src/interfaces/`, `tsc --noEmit -p tsconfig.interfaces.json`]
+- Test compile gate: [compile or parse the integration test target without linking it against an implementation. e.g. `cmake --build build --target integration_tests_compile`, `pytest --collect-only tests/integration/`, `tsc --noEmit -p tsconfig.test.json`]
+
+The integration test phase completes when this gate passes **and** the named tests fail for the right reason -- the tests are written before the implementation exists, so a green suite at this point means the tests do not test anything. The compile half is the gate; "for the right reason" is the reviewer's call, made against the gate's actual output rather than by reading the file.
+
+The implementation phase gate is `Run integration tests` above.
+
 ## Architecture Conventions
 
 - Architecture artifact type: [e.g. "C++ header files", "Python abstract base classes", "TypeScript interfaces", "Rust trait definitions"]
@@ -41,7 +54,7 @@ Do NOT mock internal collaborators.
 
 ## Verification Tooling
 
-This section guides the implementation agent's self-verification during the impl phase. The tooling described here is real code the implementation agent builds and runs while implementing a story -- it is distinct from the frozen shift-left integration tests. Keep entries concrete and deterministic so a weak model can rely on them.
+This section guides the implementation agent's self-verification during the impl phase. The tooling described here is real code the implementation agent builds and runs while implementing a story -- it is distinct from the shift-left integration tests. Keep entries concrete and deterministic so a weak model can rely on them.
 
 ### Internal State Inspection
 

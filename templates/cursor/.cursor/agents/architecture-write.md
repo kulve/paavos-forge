@@ -48,7 +48,9 @@ Discovery note: If you notice a significant out-of-scope bug, gap, stub, design 
 ### Re-do After Review
 
 1. Read the feedback file for specific issues.
-2. Fix ONLY what the review flagged. Do not rewrite from scratch.
+2. Fix ONLY what the review flagged. Do not rewrite from scratch. Everything in the feedback file is blocking -- the reviewer already routed its advisories to a discovery file, so there is nothing here to negotiate.
+
+   One exception, and only one: if a blocking finding falls outside the story's declared scope boundaries, you may demote it. Record it in a new file under `plan/discoveries/` using `plan/templates/discovery.md`, cite the specific `## In Scope` or `## Out of Scope` line it falls outside of, and say so in your response. That is a check against a written contract. You may not demote a finding for any other reason.
 3. Annotate any new files. Advance: `bash taskwarrior/phase-transition <id> review`
 
 ## Output Specification

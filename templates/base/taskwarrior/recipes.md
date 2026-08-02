@@ -123,13 +123,15 @@ bash taskwarrior/coordinator-lock-status    # read-only
 ### Story Lifecycle
 
 ```bash
-# Initialize story (creates 4 phase tasks + git branch)
-bash taskwarrior/story-init XXXXX slug
+# Initialize story + git branch.
+#   full  (default): 4 phase tasks -- req, arch, test, impl
+#   light          : 1 phase task  -- impl only, starting at aistate:write
+bash taskwarrior/story-init XXXXX slug [--rigor full|light]
 
 # Query next actionable task (returns JSON or "NONE")
 bash taskwarrior/story-next XXXXX
 
-# Verify all phases done, optionally run tests
+# Verify every phase done (4 for a full story, 1 for a light one), optionally run tests
 bash taskwarrior/story-complete XXXXX --run-tests   # exit 1 if not done, exit 2 if tests fail
 
 # Merge story branch into epic branch
@@ -159,13 +161,15 @@ bash taskwarrior/phase-stop <task-id>
 bash taskwarrior/phase-transition <task-id> <new-state>
 
 # Legal transitions:
-#   plan → plan-review
-#   plan-review → write (approved)
-#   plan-review → plan (rejected)
+#   plan → write
 #   write → review
 #   review → done (approved)
 #   review → write (rejected)
-#   blocked → plan/plan-review/write/review (recovery)
+#   blocked → plan/write/review (recovery)
+#
+# `plan` exists only for the arch and impl phases; req and test start at write.
+# `done` is terminal. Corrections to a completed phase are made by
+# escalation-recovery editing the artifact, never by reopening the task.
 ```
 
 ### Annotations
@@ -175,26 +179,40 @@ bash taskwarrior/phase-transition <task-id> <new-state>
 bash taskwarrior/phase-annotate <task-id> <prefix> <value>
 
 # Valid prefixes:
-#   Plan          - plan file path
-#   Plan-review   - "approved"
-#   Plan-feedback - feedback file path (plan rejected)
+#   Plan          - plan file path (arch and impl phases only)
 #   Artifact      - artifact file path
 #   Deleted       - deleted artifact path
 #   Test fix      - reason for test modification
+#   Verification  - implementation self-verification summary
 #   Feedback      - review feedback file path (review rejected)
 #   Review        - "approved"
 #   Escalation    - escalation file path
 #   Recovery      - recovery summary
 ```
 
-### Completion and Blocking
+### Gates, Completion and Blocking
 
 ```bash
-# Mark phase done (sets aistate:done, completes task)
+# Run the phase's executable gate from the project profile.
+# Exit 0 pass (or no gate configured), exit 2 fail.
+# The Coordinator runs this after "Review: approved" and before phase-done.
+bash taskwarrior/phase-gate <task-id>
+#   arch -> "Architecture gate"     (typecheck artifacts standalone)
+#   test -> "Test compile gate"     (compile tests with no implementation)
+#   impl -> "Run integration tests"
+#   req  -> no gate
+
+# Mark phase done (sets aistate:done, completes the task, and opens the
+# successor phase task, which story-init parked at aistate:blocked)
 bash taskwarrior/phase-done <task-id>
 
 # Block task with escalation
 bash taskwarrior/phase-block <task-id> <escalation-path>
+
+# Clear +blocked after a recovery resolved the cause. This is the counterpart
+# to phase-block; phase-transition does NOT clear the tag, and a task left
+# tagged never becomes READY again.
+bash taskwarrior/phase-resume <task-id> [note]
 ```
 
 ### Progress Telemetry (automatic)
@@ -276,25 +294,28 @@ bash taskwarrior/epic-merge E0001
 
 ```bash
 bash taskwarrior/story-next 00001
-# → JSON with task_id, phase, state, annotations
-bash taskwarrior/phase-start 5
+# → JSON with uuid, task_id, phase, state, annotations.
+#   Address tasks by uuid: Taskwarrior renumbers pending ids on completion.
+bash taskwarrior/phase-start $UUID
 # invoke subagent...
-bash taskwarrior/phase-stop 5
-# check outcome from annotations
+bash taskwarrior/phase-stop $UUID
+# check outcome from annotations; on "Review: approved":
+bash taskwarrior/phase-gate $UUID    # exit 2 → inline recovery, not phase-done
+bash taskwarrior/phase-done $UUID    # also opens the successor phase task
 ```
 
 ### Phase Agent: Complete Work
 
 ```bash
-# Plan agent:
-bash taskwarrior/phase-annotate 5 Plan plan/requirement-plans/00001-auth.md
-bash taskwarrior/phase-transition 5 plan-review
+# Plan agent (arch and impl phases only):
+bash taskwarrior/phase-annotate $UUID Plan plan/arch-plans/00001-auth.md
+bash taskwarrior/phase-transition $UUID write
 
-# Review agent (approve):
-bash taskwarrior/phase-annotate 5 Review approved
-bash taskwarrior/phase-transition 5 done
+# Review agent (approve -- zero blocking findings, advisories filed as a discovery):
+bash taskwarrior/phase-annotate $UUID Review approved
+bash taskwarrior/phase-transition $UUID done
 
-# Review agent (reject):
-bash taskwarrior/phase-annotate 5 Feedback plan/requirements-review/00001-feedback.md
-bash taskwarrior/phase-transition 5 write
+# Review agent (reject -- at least one blocking finding):
+bash taskwarrior/phase-annotate $UUID Feedback plan/requirements-review/00001-feedback.md
+bash taskwarrior/phase-transition $UUID write
 ```

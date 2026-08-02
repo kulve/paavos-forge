@@ -23,6 +23,27 @@ instead of leaving the list empty:
 - Articles:
   - None -- [reason]
 
+## Rigor
+
+[full | light]
+
+`full` runs all four phases: requirements, architecture, integration tests, implementation.
+`light` runs the implementation phase only -- write plus review, two dispatches against ten.
+
+A story qualifies as `light` only if **all three** of these hold. Any one false makes it `full`:
+
+1. No new or changed architecture artifact.
+2. No new integration test needed; existing tests already cover the behavior.
+3. No new product intent -- `## Product Intent Source` cites a discovery rather than a Paavo
+   Notes article, using the `None -- [reason]` form.
+
+These tests are objective on purpose. Loosened into judgement, `light` becomes the default
+and review disappears. Discovery-derived stories normally satisfy all three.
+
+If a `light` story's write agent finds the change is not actually small, it escalates rather
+than pushing on, and the story is reissued as `full`. Without that, `light` is a route for
+unreviewed architectural change.
+
 ## Goal
 
 [Plain English: WHAT this feature does and WHY a user needs it.

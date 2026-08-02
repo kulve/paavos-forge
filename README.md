@@ -12,17 +12,19 @@ You define your product goals in **Paavo Notes** (e.g. the vision and features f
 1. Organizes work into **epics** (independent feature areas) and **stories** (vertical slices within each epic)
 2. Dispatches each epic to its own **git worktree** for isolated parallel execution
 3. For each story, runs four phases in sequence: **requirements -> architecture -> integration tests -> implementation**
-4. Each phase goes through **plan -> plan-review -> write -> review** with specialized agents
-5. All state mutations go through **deterministic scripts** -- agents react to exit codes, never manipulate state directly
-6. A **merge gate** ensures atomic merges back to main when epics complete
-7. Failed reviews loop back (max 3 rounds); unresolvable issues halt and escalate
+4. Each phase goes through **write -> review -> gate** with specialized agents, preceded by a **plan** dispatch for architecture and implementation
+5. Each phase completes only when a real command from the project profile succeeds -- architecture typechecks, tests compile red, tests pass -- not on a text approval alone
+6. All state mutations go through **deterministic scripts** -- agents react to exit codes, never manipulate state directly
+7. A **merge gate** ensures atomic merges back to main when epics complete
+8. Reviews grade findings blocking or advisory: only blocking ones loop back, advisories become discoveries the PM turns into later stories
+9. When two artifacts contradict each other, the Coordinator repairs it inline instead of halting; only product decisions reach you
 
 ## What It Is Not
 
 - Not an AI model or runtime -- it's a set of agent prompts, workflow rules, scripts, and templates
 - Not tied to a single language -- language-agnostic; works with C++, Python, TypeScript, Rust, and others via a project profile
 - Not a CI/CD tool -- it orchestrates AI agents within an IDE (currently Cursor)
-- Not a replacement for human judgment -- the PM agent discusses goals with the user and stops when recovery needs a product or scope decision
+- Not a replacement for human judgment -- the PM discusses goals with the user and stops when a decision is irreversible, is about product intent, or exceeds the current milestone. Technical design is the agents' to decide
 
 ## Key Files
 
@@ -53,14 +55,14 @@ The framework has a layered agent hierarchy:
 
 - **Project Manager**: a skill that runs as the top-level chat, not a subagent. Owns the project roadmap, defines milestones from Paavo Notes goals, creates epics, generates stories, dispatches epics to worktrees for parallel execution, merges completed epics back to main
 - **Coordinator**: deterministic state machine that drives all stories in one epic through all four phases (operates within an epic's worktree)
-- **Phase Agents** (16 total): 4 phases x 4 states (plan/plan-review/write/review), each with narrow context
-- **Support Agents**: roadmap planner, deploy profile, story review, escalation analysis, escalation triage, escalation recovery, environment recovery
+- **Phase Agents** (10 total): architecture and implementation have plan, write, and review; requirements and integration tests have write and review, planning folded into the write agent. Each has narrow context
+- **Support Agents**: roadmap planner, deploy profile, story review, escalation analysis, escalation triage, escalation recovery (also the Coordinator's inline reconciler), environment recovery
 
 Product intent comes from **Paavo Notes** (MCP hard dependency). The framework caches a pinned milestone roadmap in `plan/project.md`. All state mutations go through deterministic scripts under `taskwarrior/`. Scripts enforce preconditions and mutual exclusion (merge gate, active-task guards). Context passes through Taskwarrior annotations. Agents never talk to each other directly.
 
 Coordinators run in the background so epics progress in parallel, and the scripts they call emit a heartbeat, so the PM supervises them with a single command (`taskwarrior/coordinator-status`) instead of guessing. Worktree isolation is enforced by construction: every script resolves its own tree from its own path and refuses to run against the wrong one, so a Coordinator cannot touch the main tree's database or branch.
 
-When something breaks, escalations are classified before anything is repaired: `taskwarrior/doctor` checks the framework's invariants, and the escalation triage agent routes mechanical failures to automated recovery while product and scope decisions still stop for the user.
+When something breaks, the Coordinator first dispatches the reconciler inline: most failures are two artifacts disagreeing, which is a technical problem with a technical answer. Only what the reconciler cannot settle reaches the PM, where `taskwarrior/doctor` checks the framework's invariants and the escalation triage agent routes mechanical failures to automated recovery while product decisions stop for the user.
 
 ### Execution Model
 

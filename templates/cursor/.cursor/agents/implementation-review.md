@@ -93,9 +93,26 @@ This is the most thorough review. Check ALL of the following:
 
 Approve if: the code works, implements the architecture, satisfies requirements, and is structurally sound. Do not nitpick formatting or style.
 
+## Classifying Findings
+
+Every finding is either **blocking** or **advisory**, and the classification is yours -- the Write agent does not get to reclassify your criticism.
+
+- **Blocking** -- the code is incorrect, unsafe, fails a requirement, diverges from the architecture, or is a stub standing in for real behavior. It goes in the feedback file, the Write agent must fix it, and it counts toward the rejection limit.
+- **Advisory** -- everything else, including structure, naming, and factoring you would have chosen differently in code that is correct and meets its requirements. It does **not** go in the feedback file.
+
+**A review with zero blocking findings is APPROVED, however many advisories it produced.** Review used to be binary, which meant one preference cost a full re-dispatch of the Write agent -- on code that already builds and passes its tests, the most expensive re-dispatch there is.
+
+Record advisories in **one** new file under `plan/discoveries/` using `plan/templates/discovery.md` -- one file for the whole review, not one per finding -- with Category `advisory` and a back-link to this story, phase, and review. The PM triages discoveries into stories at the start of each story batch, so nothing you record is lost. Then approve.
+
+Give one line of justification per classification. A finding you cannot justify as incorrect, unsafe, unmet, divergent, or a stub is advisory.
+
+### The out-of-scope demotion test
+
+A finding that falls outside the story's declared scope boundaries is advisory whatever its severity. Cite the specific `## In Scope` or `## Out of Scope` line it falls outside of. This is a check against a written contract rather than a judgement, which is why it is the one demotion the Write agent may also apply. Every other classification is yours alone.
+
 ## Grounding a Rejection
 
-Your rejection is binding: the Write agent must comply and has no channel to dispute it. It is also the most expensive rejection in the pipeline, because it forces changes to code that already builds and passes the frozen tests, and the cheapest way for a Write agent to satisfy a mistaken finding is to edit those tests. A blocking issue must therefore be **anchored** -- name the artifact element it contradicts, then state the contradiction. An issue you cannot anchor is not blocking.
+Blocking findings are binding; advisories never block. A blocking finding here is also the most expensive in the pipeline, because it forces changes to code that already builds and passes the contract tests, and the cheapest way for a Write agent to satisfy a mistaken finding is to edit those tests. A blocking issue must be **anchored** -- name the artifact element it contradicts, then state the contradiction. An issue you cannot anchor is not blocking.
 
 Valid anchors for this review:
 
@@ -104,15 +121,15 @@ Valid anchors for this review:
 - A screenshot you captured and looked at
 - A requirement ID linked to this story
 - A named interface element in an architecture artifact
-- A named test case in the frozen integration tests
+- A named test case in the integration tests
 - A rule or dependency edge in `ARCHITECTURE.md`
 - A Forbidden entry or review standard in the project profile
 
-**Observed, not inferred.** You are the only reviewer that executes anything, and your procedure already re-runs the tests, the scenarios, and the screenshots. If a blocking issue claims the code behaves incorrectly at runtime, you must have observed it: a failing test, a state delta that does not match the expected end-state, or a screenshot you viewed. A behavior claim derived only from reading code is blocking only when it also contradicts a named artifact -- an error case named in a requirement, a missing interface element, a DAG violation. Otherwise record it as a non-blocking observation.
+**Observed, not inferred.** You are the only reviewer that executes anything, and your procedure already re-runs the tests, the scenarios, and the screenshots. If a blocking issue claims the code behaves incorrectly at runtime, you must have observed it: a failing test, a state delta that does not match the expected end-state, or a screenshot you viewed. A behavior claim derived only from reading code is blocking only when it also contradicts a named artifact -- an error case named in a requirement, a missing interface element, a DAG violation. Otherwise record it as an advisory.
 
 The judgment criterion above -- production quality -- is anchored by naming the specific element and the concrete consequence, never by asserting a quality label. "Error handling is sloppy" is not anchored. "`load()` catches `IOError` and returns `None`, while requirement R-11 specifies a `LoadError` carrying the failing path" is.
 
-If you are already rejecting for anchored reasons, list unanchored concerns under a `## Non-Blocking Observations` heading in the feedback file. If every concern you hold is unanchored, approve: write no feedback file, and do not hold working code for a preference.
+An unanchored concern is advisory by definition: route it to the discovery file. If every concern you hold is unanchored, approve, write no feedback file, and do not hold working code for a preference.
 
 ## Anti-Patterns (NEVER DO)
 

@@ -1,5 +1,6 @@
 #!/bin/bash
-# Mark a phase task as done (set aistate:done, then complete it).
+# Mark a phase task as done (set aistate:done, then complete it) and open the
+# successor phase task, which was parked at aistate:blocked by story-init.
 # Usage: phase-done <task-id>
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/guard.sh"
@@ -12,8 +13,41 @@ fi
 
 TASK_ID="$1"
 
-task "$TASK_ID" modify aistate:done
-task "$TASK_ID" done
+# Resolve to a UUID before completing: Taskwarrior renumbers pending ids the
+# moment a task completes, so any id captured earlier points elsewhere after.
+TASK_UUID=$(task "$TASK_ID" export | python3 -c "import sys,json; d=json.load(sys.stdin); print(d[0]['uuid'])")
+
+task "$TASK_UUID" modify aistate:done
+task "$TASK_UUID" done
 # shellcheck disable=SC2046  # word splitting is intended: three key=value args
-ai_heartbeat phase-done $(ai_task_fields "$TASK_ID")
+ai_heartbeat phase-done $(ai_task_fields "$TASK_UUID")
 echo "OK: Task $TASK_ID marked done."
+
+# The successor is the pending task in the same story that depended on this one.
+# Without this step it stays aistate:blocked forever and the Coordinator stalls
+# at every phase boundary.
+SUCCESSOR=$(task status:pending aistate:blocked export 2>/dev/null | python3 -c "
+import sys, json
+uuid = '$TASK_UUID'
+tasks = json.load(sys.stdin)
+for t in tasks:
+    deps = t.get('depends', [])
+    if isinstance(deps, str):
+        deps = [d for d in deps.split(',') if d]
+    if uuid in deps:
+        print(t['uuid'], t.get('aiphase', ''))
+        break
+" 2>/dev/null || true)
+
+if [ -n "$SUCCESSOR" ]; then
+    SUCC_UUID=${SUCCESSOR%% *}
+    SUCC_PHASE=${SUCCESSOR##* }
+    case "$SUCC_PHASE" in
+        arch|impl) SUCC_STATE=plan ;;
+        *)         SUCC_STATE=write ;;
+    esac
+    task "$SUCC_UUID" modify "aistate:$SUCC_STATE"
+    # shellcheck disable=SC2046  # word splitting is intended: three key=value args
+    ai_heartbeat state $(ai_task_fields "$SUCC_UUID")
+    echo "OK: Successor phase ${SUCC_PHASE} opened at aistate:${SUCC_STATE}."
+fi

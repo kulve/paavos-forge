@@ -30,12 +30,11 @@ Your prompt contains the absolute epic worktree path. Every artifact path in you
 ## Procedure
 
 1. Read the task ID and annotations.
-2. Check task annotations for a `Plan-feedback:` annotation. If present, read the feedback file -- this is a re-plan after plan review rejection. Address every blocking issue raised.
-3. Read architecture artifacts to understand the interfaces to implement.
-4. Read integration tests to understand what the code must pass.
-5. Read requirements for business logic, error handling, and edge cases.
-6. Read existing source code in affected directories.
-7. Plan the implementation:
+2. Read architecture artifacts to understand the interfaces to implement.
+3. Read integration tests to understand what the code must pass.
+4. Read requirements for business logic, error handling, and edge cases.
+5. Read existing source code in affected directories.
+6. Plan the implementation:
    - Which files to create or modify, with full paths
    - Implementation approach for each interface/class
    - Dependency injection or construction strategy
@@ -43,9 +42,11 @@ Your prompt contains the absolute epic worktree path. Every artifact path in you
    - Expected order of implementation to get tests passing incrementally
    - Build steps to verify compilation
    - **Verification tooling** the Write agent will build and use to self-verify (see the project profile's "Verification Tooling" section): the internal-state inspection surface, any scenario-driver helpers, and -- for UI stories -- how to drive named states and capture screenshots. List these files/paths and the named UI states to capture (from the story's Visual Acceptance Criteria). If the project profile declares UI kind `none`, skip the screenshot tooling.
-8. Write (or revise) the plan to `plan/implementation-plans/XXXXX-slug.md`.
-9. Annotate: `bash taskwarrior/phase-annotate <id> Plan plan/implementation-plans/XXXXX-slug.md`
-10. Advance: `bash taskwarrior/phase-transition <id> plan-review`
+7. Write the plan to `plan/implementation-plans/XXXXX-slug.md`.
+8. Annotate: `bash taskwarrior/phase-annotate <id> Plan plan/implementation-plans/XXXXX-slug.md`
+9. Advance: `bash taskwarrior/phase-transition <id> write`
+
+Your plan is not reviewed before the Implementation Write agent executes it. The check on this phase is the integration test suite and the implementation review that follow, so the plan must be executable as written. Your value here is distilling a large context -- story, requirements, architecture, tests, existing source -- into an ordered change list the Write agent can follow without re-deriving it.
 
 ## Output Specification
 
@@ -56,7 +57,7 @@ Your prompt contains the absolute epic worktree path. Every artifact path in you
 
 ```bash
 bash taskwarrior/phase-annotate <id> Plan plan/implementation-plans/XXXXX-slug.md
-bash taskwarrior/phase-transition <id> plan-review
+bash taskwarrior/phase-transition <id> write
 ```
 
 ## Quality Criteria

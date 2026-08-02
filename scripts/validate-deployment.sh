@@ -66,14 +66,13 @@ echo "--- Project Profile ---"
 check_nonempty "ai-framework/project-profile.md"
 check_placeholder "ai-framework/project-profile.md"
 
-echo "--- Plan Templates (10 required) ---"
+echo "--- Plan Templates (9 required) ---"
 check_file "plan/templates/project.md"
 check_file "plan/templates/milestone.md"
 check_file "plan/templates/story.md"
 check_file "plan/templates/epic.md"
 check_file "plan/templates/requirement.md"
 check_file "plan/templates/phase-plan.md"
-check_file "plan/templates/plan-review-feedback.md"
 check_file "plan/templates/review-feedback.md"
 check_file "plan/templates/escalation.md"
 check_file "plan/templates/discovery.md"
@@ -140,7 +139,7 @@ for script in epic-fork epic-merge epic-status epic-mark-ready epic-gate-status 
 done
 
 echo "--- Taskwarrior Scripts (Story/Phase) ---"
-for script in story-init story-next story-complete story-merge phase-start phase-stop phase-transition phase-annotate phase-done phase-block; do
+for script in story-init story-next story-complete story-merge phase-start phase-stop phase-transition phase-annotate phase-gate phase-done phase-block phase-resume; do
     check_file "taskwarrior/$script"
     check_executable "taskwarrior/$script"
 done
@@ -162,25 +161,19 @@ check_gitignore_entry ".task/"
 check_gitignore_entry ".worktrees/"
 check_gitignore_entry ".taskrc"
 
-echo "--- Cursor Agents (25 required) ---"
+echo "--- Cursor Agents (19 required) ---"
 check_file ".cursor/agents/coordinator.md"
 check_file ".cursor/agents/fixer.md"
 check_file ".cursor/agents/roadmap-planner.md"
 check_file ".cursor/agents/story-review.md"
-check_file ".cursor/agents/requirements-plan.md"
-check_file ".cursor/agents/requirements-plan-review.md"
 check_file ".cursor/agents/requirements-write.md"
 check_file ".cursor/agents/requirements-review.md"
 check_file ".cursor/agents/architecture-plan.md"
-check_file ".cursor/agents/architecture-plan-review.md"
 check_file ".cursor/agents/architecture-write.md"
 check_file ".cursor/agents/architecture-review.md"
-check_file ".cursor/agents/integration-test-plan.md"
-check_file ".cursor/agents/integration-test-plan-review.md"
 check_file ".cursor/agents/integration-test-write.md"
 check_file ".cursor/agents/integration-test-review.md"
 check_file ".cursor/agents/implementation-plan.md"
-check_file ".cursor/agents/implementation-plan-review.md"
 check_file ".cursor/agents/implementation-write.md"
 check_file ".cursor/agents/implementation-review.md"
 check_file ".cursor/agents/escalation-analysis.md"
@@ -191,8 +184,8 @@ check_file ".cursor/agents/deploy-profile.md"
 
 if [ -d ".cursor/agents" ]; then
     AGENT_COUNT=$(find .cursor/agents -maxdepth 1 -type f -name '*.md' | wc -l | tr -d ' ')
-    if [ "$AGENT_COUNT" -ne 25 ]; then
-        echo "WARNING: Expected 25 agent prompt files, found $AGENT_COUNT"
+    if [ "$AGENT_COUNT" -ne 19 ]; then
+        echo "WARNING: Expected 19 agent prompt files, found $AGENT_COUNT"
         WARNINGS=$((WARNINGS + 1))
     fi
 fi
