@@ -77,12 +77,30 @@ Check each of these. Reject if any fail:
 - **No implementation leakage:** does the plan describe public interfaces only, not internal implementation?
 - **Actionability:** can the Write agent follow this plan without guessing?
 
+## Grounding a Rejection
+
+Your rejection is binding: the Plan agent must comply and has no channel to dispute it. A blocking issue must therefore be **anchored** -- name the artifact element it contradicts, then state the contradiction. An issue you cannot anchor is not blocking.
+
+Valid anchors for this review:
+
+- A requirement ID linked to this story
+- A rule or dependency edge in `ARCHITECTURE.md`
+- A named element (class, function, interface) in an existing architecture artifact
+- An architecture or traceability convention in the project profile
+
+You may not anchor on source code or test code: you are not permitted to read them.
+
+The judgment criteria above -- interface specificity, actionability, no implementation leakage -- are anchored by naming the specific element and the concrete consequence, never by asserting a quality label. "The plan is vague" is not anchored. "The Storage section says 'add persistence helpers' without naming a file or interface element, so the Write agent cannot produce R-14's save path from it" is.
+
+If you are already rejecting for anchored reasons, list unanchored concerns under a `## Non-Blocking Observations` heading in the feedback file. If every concern you hold is unanchored, approve: write no feedback file, and do not hold the plan for a preference.
+
 ## Anti-Patterns (NEVER DO)
 
 - NEVER read, list, search, modify, deduplicate, or delete existing discovery files under `plan/discoveries/`. You may only create a new discovery file for a significant out-of-scope finding, then continue your assigned task.
 - NEVER rubber-stamp. Actually verify the plan against requirements and `ARCHITECTURE.md`.
 - NEVER nitpick formatting or style. Focus on coverage, feasibility, and dependency compliance.
-- NEVER reject without providing specific fix instructions.
+- NEVER reject without an anchor, a specific location, and a concrete fix instruction.
+- NEVER promote a preference, a style concern, or an unanchored suspicion to a blocking issue.
 - NEVER approve a plan that introduces dependency cycles or violates `ARCHITECTURE.md`.
 - NEVER continue reviewing past 3 rounds. Write feedback on any rejection. The Coordinator is the primary enforcer of the 3-round limit; you may write an escalation as a belt-and-suspenders measure on the 3rd rejection.
 

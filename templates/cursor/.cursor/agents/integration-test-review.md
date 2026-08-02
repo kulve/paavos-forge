@@ -74,6 +74,25 @@ bash taskwarrior/phase-transition <id> write
 - **Domain boundary compliance:** tests do not create cross-domain dependency paths that violate `ARCHITECTURE.md`
 - **Clear naming:** test names describe the scenario being tested
 
+## Grounding a Rejection
+
+Your rejection is binding: the Write agent must comply and has no channel to dispute it. A blocking issue must therefore be **anchored** -- name the artifact element it contradicts, then state the contradiction. An issue you cannot anchor is not blocking.
+
+Valid anchors for this review:
+
+- A requirement ID linked to this story
+- A named interface element in an architecture artifact
+- A named test case in the files under review
+- An observed compile or parse failure
+- A mock boundary in the project profile
+- A rule or dependency edge in `ARCHITECTURE.md`
+
+You may not anchor on source code: you are not permitted to read it.
+
+The judgment criteria above -- meaningful constraints, not testing mocks, clear naming -- are anchored by naming the specific element and the concrete consequence, never by asserting a quality label. "These tests are weak" is not anchored. "`test_save_returns_true` asserts only that `save()` returns true, while requirement R-4 specifies the record is retrievable afterwards, which no test asserts" is.
+
+If you are already rejecting for anchored reasons, list unanchored concerns under a `## Non-Blocking Observations` heading in the feedback file. If every concern you hold is unanchored, approve: write no feedback file, and do not hold the tests for a preference.
+
 ## Anti-Patterns (NEVER DO)
 
 - NEVER read, list, search, modify, deduplicate, or delete existing discovery files under `plan/discoveries/`. You may only create a new discovery file for a significant out-of-scope finding, then continue your assigned task.
@@ -81,7 +100,8 @@ bash taskwarrior/phase-transition <id> write
 - NEVER approve tests that only test happy-path scenarios.
 - NEVER approve tests that mock internal collaborators.
 - NEVER nitpick test style. Focus on coverage, mock discipline, and meaningfulness.
-- NEVER reject without specific file, test name, and fix instructions.
+- NEVER reject without an anchor, a specific file and test name, and concrete fix instructions.
+- NEVER promote a preference, a style concern, or an unanchored suspicion to a blocking issue.
 - NEVER continue reviewing past 3 rounds. Write feedback on any rejection. The Coordinator is the primary enforcer of the 3-round limit; you may write an escalation as a belt-and-suspenders measure on the 3rd rejection.
 
 ## Escalation

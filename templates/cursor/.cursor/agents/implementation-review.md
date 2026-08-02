@@ -93,6 +93,27 @@ This is the most thorough review. Check ALL of the following:
 
 Approve if: the code works, implements the architecture, satisfies requirements, and is structurally sound. Do not nitpick formatting or style.
 
+## Grounding a Rejection
+
+Your rejection is binding: the Write agent must comply and has no channel to dispute it. It is also the most expensive rejection in the pipeline, because it forces changes to code that already builds and passes the frozen tests, and the cheapest way for a Write agent to satisfy a mistaken finding is to edit those tests. A blocking issue must therefore be **anchored** -- name the artifact element it contradicts, then state the contradiction. An issue you cannot anchor is not blocking.
+
+Valid anchors for this review:
+
+- An observed failing test, build error, or command output
+- An observed scenario state delta that does not match the story's expected end-state
+- A screenshot you captured and looked at
+- A requirement ID linked to this story
+- A named interface element in an architecture artifact
+- A named test case in the frozen integration tests
+- A rule or dependency edge in `ARCHITECTURE.md`
+- A Forbidden entry or review standard in the project profile
+
+**Observed, not inferred.** You are the only reviewer that executes anything, and your procedure already re-runs the tests, the scenarios, and the screenshots. If a blocking issue claims the code behaves incorrectly at runtime, you must have observed it: a failing test, a state delta that does not match the expected end-state, or a screenshot you viewed. A behavior claim derived only from reading code is blocking only when it also contradicts a named artifact -- an error case named in a requirement, a missing interface element, a DAG violation. Otherwise record it as a non-blocking observation.
+
+The judgment criterion above -- production quality -- is anchored by naming the specific element and the concrete consequence, never by asserting a quality label. "Error handling is sloppy" is not anchored. "`load()` catches `IOError` and returns `None`, while requirement R-11 specifies a `LoadError` carrying the failing path" is.
+
+If you are already rejecting for anchored reasons, list unanchored concerns under a `## Non-Blocking Observations` heading in the feedback file. If every concern you hold is unanchored, approve: write no feedback file, and do not hold working code for a preference.
+
 ## Anti-Patterns (NEVER DO)
 
 - NEVER read, list, search, modify, deduplicate, or delete existing discovery files under `plan/discoveries/`. You may only create a new discovery file for a significant out-of-scope finding, then continue your assigned task.
@@ -101,7 +122,9 @@ Approve if: the code works, implements the architecture, satisfies requirements,
 - NEVER approve code that hardcodes expected values to pass tests.
 - NEVER approve code that uses mocks or fakes in production.
 - NEVER nitpick formatting, naming style, or comment style. Focus on correctness and completeness.
-- NEVER reject without specific file, line/function, problem description, and fix instruction.
+- NEVER reject without an anchor, a specific file and line/function, a problem description, and a concrete fix instruction.
+- NEVER promote a preference, a style concern, or an unanchored suspicion to a blocking issue.
+- NEVER block on a runtime behavior claim you did not observe, unless it also contradicts a named artifact.
 - NEVER approve without running the tests yourself.
 - NEVER approve verifiable behavior or visuals on code-reading alone. Re-run the scenarios; for UI stories, view the re-captured screenshots with your own vision instead of trusting the Write agent's summary or a scripted pixel analysis.
 - NEVER continue reviewing past 3 rounds. Write feedback on any rejection. The Coordinator is the primary enforcer of the 3-round limit; you may write an escalation as a belt-and-suspenders measure on the 3rd rejection.

@@ -521,11 +521,11 @@ Written by Plan agents. Specify what the Write agent should do: which files to c
 
 ### 10.8 Plan Review Feedback (`plan/*-plan-review/XXXXX-feedback.md`)
 
-Written by Plan Review agents when rejecting plans. Must contain: verdict, specific blocking issues with fix instructions, missing coverage, and approved aspects.
+Written by Plan Review agents when rejecting plans. Must contain: verdict, specific blocking issues each carrying an anchor and a fix instruction, missing coverage, non-blocking observations, and approved aspects.
 
 ### 10.9 Review Feedback (`plan/*-review/XXXXX-feedback.md`)
 
-Written by Review agents when rejecting artifacts. Must contain: verdict, specific blocking issues with file paths and fix instructions, missed requirements, and approved aspects.
+Written by Review agents when rejecting artifacts. Must contain: verdict, specific blocking issues each carrying an anchor, a file path, and a fix instruction, missed requirements, non-blocking observations, and approved aspects.
 
 ### 10.10 Escalation Reports (`plan/escalations/XXXXX-phase-slug.md`)
 
@@ -661,6 +661,16 @@ All review agents (plan-review and review) follow these principles:
 - Every rejection must include exact file paths, line references, and concrete fix instructions
 - Never rubber-stamp -- actually read and verify each artifact
 - Limit to 3 review rounds per artifact; the Coordinator enforces this by counting rejections
+
+**Anchoring.** A rejection is binding: the Write agent must comply with it and has no channel to dispute it. A blocking issue must therefore be **anchored** -- it names a specific artifact element and states how the work under review contradicts it. An issue the reviewer cannot anchor is not blocking.
+
+Each review agent's prompt lists the anchors valid for its phase, drawn only from what that agent is permitted to read. Across the pipeline they are: a story acceptance criterion, a requirement ID, a rule or DAG edge in `ARCHITECTURE.md`, a named element in an architecture artifact, a named test case, an observed command or test result, a project-profile entry (domain tag, mock boundary, convention, review standard, or Forbidden entry), and a Paavo Notes item at the pinned closed version.
+
+Judgment criteria -- cohesion, meaningfulness, actionability, scope appropriateness -- remain enforceable. They are anchored by naming the specific element and the concrete consequence, never by asserting a quality label. "Interface X is not cohesive" is not anchored; "class X exposes `save()` and `render()`; `render()` traces to no requirement" is.
+
+**Non-blocking observations.** A reviewer already rejecting for anchored reasons may list unanchored concerns under a `Non-Blocking Observations` heading in the feedback file; they inform the Write agent but do not gate approval. If every concern a reviewer holds is unanchored, it approves and writes no file. This keeps the approval contract unchanged: approval is a task annotation only.
+
+Anchoring constrains how a rejection is justified, not whether one happens. It is not licence to rubber-stamp: every quality criterion in each review prompt still applies, and each maps to at least one valid anchor.
 
 ### 13.2 Implementation Standards
 

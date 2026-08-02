@@ -80,12 +80,31 @@ Check each of these. Reject if any fail:
 - **Domain correctness:** requirements are filed under domains that exist in `ARCHITECTURE.md`; requirements do not implicitly require cross-domain dependencies that violate the DAG
 - **Modifies Stories compliance:** if the story has a Modifies Stories section, verify no zombie requirements remain (requirements that contradict the new story's intent without being updated or deleted)
 
+## Grounding a Rejection
+
+Your rejection is binding: the Write agent must comply and has no channel to dispute it. A blocking issue must therefore be **anchored** -- name the artifact element it contradicts, then state the contradiction. An issue you cannot anchor is not blocking.
+
+Valid anchors for this review:
+
+- A story acceptance criterion (quote it)
+- A requirement ID, either under review or already in `plan/requirements/`
+- A domain or dependency edge in `ARCHITECTURE.md`
+- A domain tag in the project profile
+- A Paavo Notes item at the pinned closed version
+
+You may not anchor on source code, test code, or architecture artifacts: you are not permitted to read them.
+
+The judgment criteria above -- completeness and edge-case coverage -- are anchored by naming the specific element and the concrete consequence, never by asserting a quality label. "Edge case coverage is thin" is not anchored. "Acceptance criterion 3 rejects an empty name, and no requirement states the expected error behavior for it" is.
+
+If you are already rejecting for anchored reasons, list unanchored concerns under a `## Non-Blocking Observations` heading in the feedback file. If every concern you hold is unanchored, approve: write no feedback file, and do not hold the requirements for a preference.
+
 ## Anti-Patterns (NEVER DO)
 
 - NEVER read, list, search, modify, deduplicate, or delete existing discovery files under `plan/discoveries/`. You may only create a new discovery file for a significant out-of-scope finding, then continue your assigned task.
 - NEVER rubber-stamp. Actually read and verify every requirement file.
 - NEVER nitpick formatting or naming style. Focus on correctness, completeness, and consistency.
-- NEVER reject without providing specific fix instructions.
+- NEVER reject without an anchor, a specific location, and a concrete fix instruction.
+- NEVER promote a preference, a style concern, or an unanchored suspicion to a blocking issue.
 - NEVER approve requirements that miss acceptance criteria from the story.
 - NEVER continue reviewing past 3 rounds. Write feedback on any rejection. The Coordinator is the primary enforcer of the 3-round limit; you may write an escalation as a belt-and-suspenders measure on the 3rd rejection.
 

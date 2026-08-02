@@ -501,6 +501,8 @@ Do not try to count tokens per agent. Agents cannot measure their own usage, and
 
 Read those signals as follows. If you downgrade a bucket and a phase's rejection rate falls toward zero, that is the reviewer rubber-stamping, not the writer improving -- the two look identical in the spend report and opposite in the artifact quality. If rejections spike or escalations cluster in one phase, that bucket is underpowered for this project. Tuning is a measurement, not a guess.
 
+Attribute a falling rejection rate to the model only if the model is what changed. Review agents must anchor every blocking issue to a named artifact element (LOGIC.md Section 13.1), which by design removes unanchored preferences from the blocking set. A project adopting that rule for the first time should see a one-time drop in rejections with no loss of real findings, and rejections that do land should carry an `Anchor:` field. Take your baseline after that change, not across it.
+
 One caveat on attribution: your PM chat runs on the model selected in the Cursor UI, not on the `deep` bucket's frontmatter. If that happens to be a bucket model, its spend is indistinguishable from that bucket's. Select something outside your bucket set for the PM chat to keep the report clean.
 
 ## Updating the Framework
@@ -550,6 +552,7 @@ After updating templates, re-run `bash taskwarrior/setup.sh --main` to pick up a
 | All subagents run on one cheap model regardless of config | Legacy request-based plan without Max Mode forces Cursor's own model for subagents | Switch to a usage-based plan, or accept that Step 6 has no effect |
 | Visual acceptance criteria always pass | `builder` bucket model cannot see images | Assign a vision-capable model to `builder` whenever the profile's UI kind is not `none` |
 | Reviews stopped rejecting anything after a model change | `critic` or `checker` bucket is too weak and is rubber-stamping | Raise that bucket; see Cost and Quality Telemetry |
+| Rejections dropped but no model changed | Expected once, after adopting the anchoring rule in LOGIC.md Section 13.1 | Check that the rejections you do get carry an `Anchor:` field; re-baseline rather than raising a bucket |
 | `set-agent-models.sh` exits "agent prompts with no bucket assignment" | An agent prompt was added without a bucket | Add it to `BUCKET_MAP` in the script, or take the upstream version of the script |
 | Coordinator stuck | State machine confusion or stale active state | Run `taskwarrior/coordinator-status` (or `/ai-status`) to inspect liveness; use manual cleanup only after confirming no agents are active |
 | Coordinator halts with "no subagent dispatch" | Launched at the wrong nesting depth, almost always because the PM was delegated instead of loaded as a skill | Start a fresh top-level chat, invoke `/project-manager`, and confirm no `.cursor/agents/project-manager.md` exists |
