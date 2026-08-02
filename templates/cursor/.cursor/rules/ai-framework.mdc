@@ -24,7 +24,7 @@ These rules apply to ALL agents working in this project. They are non-negotiable
 
 ## Subagent Model Selection
 
-- Every agent's model is pinned in its own prompt frontmatter, assigned by bucket at deploy time via `ai-framework/set-agent-models.sh`.
+- Every agent's model is pinned in its own prompt frontmatter, assigned by bucket at deploy time via `ai-framework/set-agent-models.sh`. The PM is the exception: it is a skill, so it runs on whatever model the top-level chat is set to.
 - **Never pass a `model` parameter when invoking a subagent.** That argument overrides the frontmatter and silently replaces a deliberate capability assignment with the parent's model.
 - Do not edit `model:` lines by hand. Re-run the script so a whole bucket stays consistent.
 
@@ -38,6 +38,16 @@ The framework uses a four-level hierarchy:
 - **Story**: a vertical feature slice executed serially within its epic
 
 Epics run in parallel (separate worktrees). Stories within an epic run serially (same worktree).
+
+## Nesting Budget
+
+The runtime allows two levels of subagents below the top-level chat, and a subagent launched by another subagent gets no dispatch tool at all. The framework uses the whole budget:
+
+- **Level 0** -- the PM, via the `/project-manager` skill loaded into the top-level chat. Dispatches.
+- **Level 1** -- Coordinator (background), `roadmap-planner`, `story-review`, and the escalation agents. Only the Coordinator dispatches.
+- **Level 2** -- phase agents dispatched by a Coordinator. Leaves; they must never dispatch.
+
+Consequences: the PM is never invoked with the Task tool, no phase agent may gain a dispatch step, and a Coordinator that finds it has no dispatch tool must abort before mutating any state and report to the PM. Stopping the top-level chat stops every subagent under it, so the PM chat stays open while Coordinators run.
 
 ## Paavo Notes MCP (Hard Dependency)
 
@@ -131,11 +141,15 @@ Scripts enforce preconditions, validate transitions, and exit non-zero on violat
 
 ## Entry Point Enforcement
 
-This framework only works when the `project-manager` agent drives the pipeline. If you are NOT the `project-manager`, `coordinator`, `fixer`, `escalation-triage`, `escalation-recovery`, `environment-recovery`, `roadmap-planner`, or a named phase agent, you are a **general agent**:
+This framework only works when the Project Manager drives the pipeline. The PM is a **skill**, not a subagent: a top-level chat that has loaded the `project-manager` skill *is* the PM and must follow that skill's instructions in full.
+
+If you have not loaded that skill, and you are not the `coordinator`, `fixer`, `escalation-triage`, `escalation-recovery`, `environment-recovery`, `roadmap-planner`, or a named phase agent, you are a **general agent**:
 
 - You must NOT write code, requirements, architecture artifacts, tests, or framework artifacts.
 - You must NOT invoke the Coordinator or phase agents yourself.
-- If the user asks to implement a feature or "run the Coordinator," tell them to open a new chat with the **`project-manager`** agent.
+- If the user asks to implement a feature or "run the Coordinator," tell them to start a new chat and invoke **`/project-manager`** there.
+
+Never delegate to the PM with the Task tool, and never re-create `.cursor/agents/project-manager.md`. The PM must occupy the top-level chat so that the Coordinator it launches still has a nesting level left for phase agents.
 
 The `roadmap-planner` agent may write `plan/project.md` only when the PM invokes it.
 

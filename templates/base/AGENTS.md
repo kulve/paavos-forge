@@ -4,11 +4,13 @@ This file tells AI agents how this project uses the AI execution framework.
 
 ## Starting Development (READ THIS FIRST)
 
-To add new features or implement changes, always start a **`project-manager`** agent chat. Never ask a general agent to implement, write code, or "run the Coordinator."
+To add new features or implement changes, always start a new chat and invoke the **`/project-manager`** skill. Never ask a general agent to implement, write code, or "run the Coordinator."
+
+The PM is a skill rather than a subagent so that it occupies the top-level chat. Cursor allows only two levels of subagents below the top-level chat, and the pipeline needs both: the PM launches a Coordinator, and the Coordinator dispatches phase agents. Delegating to the PM instead would push Coordinators down a level, where they cannot dispatch anything.
 
 The framework only produces requirements, architecture, tested code, and full traceability when the PM drives the pipeline. Each agent runs in its own constrained context with a narrow role -- this is what makes the pipeline reliable.
 
-**If you are a general agent** and the user asks you to implement a feature, write code, create requirements, or execute the framework pipeline: **do not do it**. Instead, tell the user to open a new chat with the `project-manager` agent and describe the goal there.
+**If you are a general agent** and the user asks you to implement a feature, write code, create requirements, or execute the framework pipeline: **do not do it**. Instead, tell the user to start a new chat, invoke `/project-manager`, and describe the goal there.
 
 ## Framework
 
@@ -45,7 +47,7 @@ Product intent lives in Paavo Notes (MCP). The framework caches a pinned executi
 
 Agents follow a strict hierarchy:
 
-- **Project Manager** (`project-manager`): owns `plan/project.md`, defines milestones from the roadmap, creates epics, generates stories, dispatches epics for parallel execution, merges back to main, orchestrates escalation recovery
+- **Project Manager** (`/project-manager` skill, runs as the top-level chat): owns `plan/project.md`, defines milestones from the roadmap, creates epics, generates stories, dispatches epics for parallel execution, merges back to main, orchestrates escalation recovery
 - **Roadmap Planner** (`roadmap-planner`): PM-invoked; synthesizes `plan/project.md` from Paavo Notes
 - **Coordinator** (`coordinator`): drives all stories in an epic through phases, manages Taskwarrior and git within its worktree (never accesses Paavo Notes)
 - **Phase Agents**: specialized agents for each phase (requirements, architecture, tests, implementation) and state (plan, plan-review, write, review)
@@ -70,7 +72,7 @@ See `taskwarrior/recipes.md` for full documentation.
 
 ## Subagent Models
 
-Each agent's model is pinned in its own `.cursor/agents/*.md` frontmatter, assigned by bucket via `ai-framework/set-agent-models.sh` (see `DEPLOY.md` Step 6). Run it with `--list` to see the current assignment.
+Each agent's model is pinned in its own `.cursor/agents/*.md` frontmatter, assigned by bucket via `ai-framework/set-agent-models.sh` (see `DEPLOY.md` Step 6). Run it with `--list` to see the current assignment. The PM has no bucket: it is a skill, so it runs on whatever model you select for the top-level chat.
 
 **Never pass a `model` parameter when invoking a subagent.** That argument overrides the frontmatter and silently replaces a deliberate capability assignment with the parent's model. Do not hand-edit `model:` lines either; re-run the script so a whole bucket stays consistent.
 
@@ -105,6 +107,7 @@ All Taskwarrior read-only commands must use `taskwarrior/tw`, never bare `task`.
 17. Coordinators run in the background. Supervise them with `taskwarrior/coordinator-status`, never by reading agent transcripts.
 18. Escalations are classified by `escalation-triage` before recovery: environment failures go to `environment-recovery`, artifact failures to `escalation-recovery`, and product or scope decisions to the user.
 19. One automatic recovery attempt per root-cause fingerprint. A repeat fingerprint goes to the user.
+20. The nesting budget is two levels of subagents: PM at the top-level chat, Coordinator below it, phase agents below that. Never delegate to the PM, and never give a phase agent a dispatch step.
 
 ## Artifact Locations
 
@@ -137,4 +140,4 @@ Only specifically designated phase agents may write to implementation directorie
 
 The `escalation-recovery` agent may modify artifacts for bounded corrections after a clean Coordinator halt. The `environment-recovery` agent may not modify artifacts at all: it repairs framework state through `taskwarrior/doctor --fix` and appends to the escalation file. The `escalation-triage` agent writes nothing. The `fixer` agent has limited write access to source and test directories for bug fixes only.
 
-Any agent receiving a request to implement a feature or "run the Coordinator" must **NOT** do the work directly. Instead: tell the user to start a `project-manager` agent chat.
+Any agent receiving a request to implement a feature or "run the Coordinator" must **NOT** do the work directly. Instead: tell the user to start a new chat and invoke `/project-manager`.

@@ -82,7 +82,7 @@ If in doubt, err on the side of caution and ask the user whether to proceed or u
 
 ## When to Redirect to the PM Pipeline
 
-Tell the user to start a `project-manager` chat instead when:
+Tell the user to start a new chat and invoke the `/project-manager` skill instead when:
 
 - The bug is actually a missing feature
 - The fix requires architectural changes

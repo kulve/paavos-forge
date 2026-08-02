@@ -17,7 +17,6 @@ BUCKETS="deep critic builder checker mechanical"
 # bucket:agent -- the canonical assignment. Adding an agent prompt without adding
 # it here is an error, which is how a new upstream agent gets noticed.
 BUCKET_MAP="
-deep:project-manager
 deep:roadmap-planner
 deep:architecture-plan
 deep:architecture-write
@@ -69,6 +68,10 @@ Buckets:
   checker     Bounded structural checks against a written plan. Must differ in family
               from builder.
   mechanical  Procedure following: the Coordinator state machine and environment repair.
+
+The Project Manager has no bucket. It is a skill, not a subagent, so it runs on
+whatever model the top-level chat is set to. Pick that model yourself when you
+start a `/project-manager` chat.
 
 Model syntax is a Cursor model ID with optional bracket parameters, for example
 "claude-opus-5[effort=high]" or "grok-4.5[effort=low]". Use "inherit" to fall back
@@ -206,7 +209,7 @@ echo ""
 if [ "$DRY_RUN" -eq 1 ]; then
     echo "Dry run: $CHANGED agent prompt(s) would change. Nothing written."
 elif [ "$CHANGED" -eq 0 ]; then
-    echo "All 26 agent prompts already match the requested buckets."
+    echo "All 25 agent prompts already match the requested buckets."
 else
     echo "Updated $CHANGED agent prompt(s). Commit .cursor/agents/ so epic worktrees inherit the change."
 fi

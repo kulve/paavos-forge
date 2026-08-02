@@ -86,7 +86,7 @@ Framework-enforced write gates (do not remove):
 - Never write to the architecture artifacts directory except when operating as the `architecture-write` agent with an active Taskwarrior task at `aiphase:arch aistate:write`.
 - Never write to the integration tests directory except when operating as the `integration-test-write` agent with an active Taskwarrior task at `aiphase:test aistate:write`.
 - Never write to `plan/requirements/` except when operating as the `requirements-write` agent with an active Taskwarrior task at `aiphase:req aistate:write`.
-- A general agent must never write to any of the above directories. If asked to implement or write code, redirect the user to the `project-manager` agent.
+- A general agent must never write to any of the above directories. If asked to implement or write code, tell the user to start a new chat and invoke the `/project-manager` skill.
 
 Project-specific forbidden items:
 - [e.g. "Never modify files in `vendor/` or `third_party/`"]

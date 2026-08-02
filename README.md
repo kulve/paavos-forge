@@ -45,13 +45,13 @@ See [DEPLOY.md](DEPLOY.md) for the full deployment guide. The short version:
 4. Run `bash taskwarrior/setup.sh --main` to configure PM-level Taskwarrior state
 5. Fill in `ai-framework/project-profile.md` with your project's details, including the Paavo Notes project name and MCP endpoint
 6. Register the Paavo Notes MCP in Cursor and confirm it's reachable (your product goals must already live there in a closed version)
-7. Start a chat with the `project-manager` agent -- on first run it reads your Paavo Notes goals and synthesizes `plan/project.md`
+7. Start a new chat and invoke the `/project-manager` skill -- on first run it reads your Paavo Notes goals and synthesizes `plan/project.md`
 
 ## Architecture
 
 The framework has a layered agent hierarchy:
 
-- **Project Manager**: owns the project roadmap, defines milestones from Paavo Notes goals, creates epics, generates stories, dispatches epics to worktrees for parallel execution, merges completed epics back to main
+- **Project Manager**: a skill that runs as the top-level chat, not a subagent. Owns the project roadmap, defines milestones from Paavo Notes goals, creates epics, generates stories, dispatches epics to worktrees for parallel execution, merges completed epics back to main
 - **Coordinator**: deterministic state machine that drives all stories in one epic through all four phases (operates within an epic's worktree)
 - **Phase Agents** (16 total): 4 phases x 4 states (plan/plan-review/write/review), each with narrow context
 - **Support Agents**: roadmap planner, deploy profile, story review, escalation analysis, escalation triage, escalation recovery, environment recovery

@@ -72,9 +72,10 @@ cp -r "$FRAMEWORK/templates/cursor/.cursor" "$PROJECT/"
 ```
 
 This creates:
-- `.cursor/agents/` -- 26 agent prompt files (PM, Coordinator, 16 phase agents, Roadmap Planner, Deploy Profile, Story Review, Escalation Analysis, Escalation Triage, Escalation Recovery, Environment Recovery, and Fixer)
+- `.cursor/agents/` -- 25 agent prompt files (Coordinator, 16 phase agents, Roadmap Planner, Deploy Profile, Story Review, Escalation Analysis, Escalation Triage, Escalation Recovery, Environment Recovery, and Fixer)
+- `.cursor/skills/project-manager/SKILL.md` -- the PM, invoked as `/project-manager` in a top-level chat
 - `.cursor/rules/ai-framework.mdc` -- always-on framework rules
-- `.cursor/commands/` -- `ai-status` and `ai-next` slash commands
+- `.cursor/skills/` -- the `project-manager` and `ai-status` skills, invoked as `/project-manager` and `/ai-status`
 
 ## Step 3: Initialize Git
 
@@ -111,12 +112,13 @@ bash taskwarrior/setup.sh --main
 
 > **Note:** The `--worktree` flag exists but you do not need to run it manually. It is called automatically by `epic-fork` when creating a new epic worktree.
 
-Verify the UDAs exist:
+Verify the main-tree UDAs exist:
 ```bash
-taskwarrior/tw _udas | grep -E 'aiphase|aistate|aistory|aiepic'
+taskwarrior/tw _udas | grep -E 'aiepic|epicstate|airole'
+taskwarrior/tw aiepics
 ```
 
-You should see `aiphase`, `aistate`, `aistory`, and `aiepic` listed.
+You should see `aiepic`, `epicstate`, and `airole` listed. The phase UDAs (`aiphase`, `aistate`, `aistory`) are worktree-scoped and are **not** registered here -- `epic-fork` creates them by running `setup.sh --worktree` in each new epic worktree. Grepping the main tree for `aiphase` returns nothing, and that is correct.
 
 > **Important:** All agents use `taskwarrior/tw`, never bare `task`. The wrapper ensures every Taskwarrior command reads from the project `.taskrc` and writes to `.task/`, not your global `~/.task/`.
 
@@ -270,7 +272,7 @@ Note: adapting the framework to a language requires editing only `ai-framework/p
 
 The framework ships every agent prompt with `model: inherit`, which means each agent runs on whatever model happens to be selected in the chat that started the PM. That makes pipeline quality a side effect of an unrelated UI choice, and it drifts whenever you switch models. Pin the models deliberately before your first run.
 
-Model choice trades off two independent axes. **World knowledge** decides which library, algorithm, or architecture is the right one -- it matters enormously where designs are generated and barely at all where a written plan is being executed. **Reasoning effort** buys long-horizon consistency and self-checking, which matters wherever an agent runs a long tool loop, even when the thinking has already been done upstream. Configuring 26 agents individually is unmanageable, so the framework groups them into five buckets.
+Model choice trades off two independent axes. **World knowledge** decides which library, algorithm, or architecture is the right one -- it matters enormously where designs are generated and barely at all where a written plan is being executed. **Reasoning effort** buys long-horizon consistency and self-checking, which matters wherever an agent runs a long tool loop, even when the thinking has already been done upstream. Configuring 25 agents individually is unmanageable, so the framework groups them into five buckets. The PM is not among them: it is a skill, so it runs on whatever model you select for the top-level chat.
 
 ### The buckets
 
@@ -393,12 +395,12 @@ Or verify manually:
 - [ ] `taskwarrior/recipes.md` exists
 - [ ] `taskwarrior/` contains 27 orchestration scripts (epic, story, phase, lock management, diagnostics, telemetry)
 - [ ] `bash taskwarrior/doctor` exits 0
-- [ ] `.cursor/agents/` contains 26 agent files (including `roadmap-planner.md`, `escalation-triage.md`, and `environment-recovery.md`)
+- [ ] `.cursor/agents/` contains 25 agent files (including `roadmap-planner.md`, `escalation-triage.md`, and `environment-recovery.md`) and **no** `project-manager.md`
 - [ ] `ai-framework/set-agent-models.sh` exists and is executable
 - [ ] Every agent has a model assigned and none still says `inherit`: `bash ai-framework/set-agent-models.sh --list`
 - [ ] `.cursor/rules/ai-framework.mdc` exists
-- [ ] `.cursor/commands/` contains `ai-status.md` and `ai-next.md`
-- [ ] Taskwarrior UDAs are configured: `taskwarrior/tw _udas | grep aiphase`
+- [ ] `.cursor/skills/` contains `project-manager/SKILL.md` and `ai-status/SKILL.md`
+- [ ] Main-tree Taskwarrior UDAs are configured: `taskwarrior/tw _udas | grep aiepic` (the phase UDAs are worktree-scoped and appear only after `epic-fork`)
 - [ ] Project profile is filled in completely (including parallel limit and Paavo Notes MCP section)
 - [ ] Paavo Notes MCP is registered in Cursor and reachable
 
@@ -439,7 +441,7 @@ Project (mandatory: plan/project.md) → Milestone → Epic (parallel) → Stori
 ### Starting the Workflow
 
 1. Open your project in Cursor with the Paavo Notes MCP registered and running.
-2. Start a new chat and select the **`project-manager`** agent (not a general agent).
+2. Start a new chat and invoke the **`/project-manager`** skill. The skill loads into the chat you are already in, so from that point on you are talking to the PM directly, with no intermediary agent relaying messages. You do not need to invoke it again in the same thread.
 3. Confirm the Paavo Notes project name in the profile. The PM verifies MCP reachability (hard-stop if down).
 4. If `plan/project.md` is missing, the PM invokes **`roadmap-planner`** to synthesize a milestone roadmap from Paavo Notes (human-in-loop). Refine and accept the roadmap.
 5. The PM creates the current In Progress milestone from the roadmap, then defines one or more **epics** in `plan/epics/`.
@@ -448,9 +450,11 @@ Project (mandatory: plan/project.md) → Milestone → Epic (parallel) → Stori
 8. Multiple epics can run in parallel (up to your configured parallel limit), each in its own worktree with its own Coordinator.
 9. When an epic completes all stories, it is merged back to main via `epic-merge`. After a milestone completes, the PM updates roadmap statuses and may rewrite TODO milestones or migrate to a newer Paavo Notes version.
 
-Use `/ai-status` to check project/roadmap progress and all active epics at any time.
+Use `/ai-status` to check project/roadmap progress and all active epics at any time. Run it in its own chat, without the PM skill loaded: it is a read-only report and deliberately sits outside the pipeline.
 
-> **Critical:** Always use the `project-manager` agent to start work. Never ask a general/default agent to "implement the plan," "run the Coordinator," or write code. A general agent will bypass the framework pipeline and write code directly, skipping requirements, architecture, test-first development, and review -- losing all the traceability and quality gates the framework provides. The always-on rule in `.cursor/rules/ai-framework.mdc` will remind a general agent to redirect you, but using the correct entry point from the start is the most reliable approach.
+> **Critical:** Always start work by invoking `/project-manager` in a fresh chat. Never ask a general/default agent to "implement the plan," "run the Coordinator," or write code, and never delegate to the PM as a subagent. A general agent will bypass the framework pipeline and write code directly, skipping requirements, architecture, test-first development, and review -- losing all the traceability and quality gates the framework provides. Delegating to the PM breaks the pipeline differently: it consumes a nesting level, and the Coordinator the PM launches then has none left for phase agents. The always-on rule in `.cursor/rules/ai-framework.mdc` will remind a general agent to redirect you, but using the correct entry point from the start is the most reliable approach.
+>
+> **Use a fresh chat.** The PM skill runs in your normal chat context, so anything discussed earlier in that thread stays visible to it. The PM is forbidden from reading source code, tests, and artifacts below the story level, which is easier to honour when the thread starts clean.
 >
 > **For bug fixes:** you can use the `fixer` agent directly instead of the full PM pipeline. The fixer can modify source code and tests to fix bugs, but cannot add features, change interfaces, or create framework artifacts. Start a chat with the `fixer` agent and describe the bug.
 
@@ -458,10 +462,10 @@ Use `/ai-status` to check project/roadmap progress and all active epics at any t
 
 If you create plan-level todos (e.g. in a Cursor plan file) to track your project execution, phrase them as **human actions**, not framework-internal steps:
 
-- **Good:** "Start `project-manager` agent chat for epic-01 (authentication)"
+- **Good:** "Start a `/project-manager` chat for epic-01 (authentication)"
 - **Bad:** "Run Coordinator for stories 00001-00003"
 
-The "good" phrasing makes explicit that *you* open a chat with the PM agent. The "bad" phrasing is ambiguous -- a general agent may interpret "run Coordinator" as "produce the output that the Coordinator would produce" and bypass the pipeline entirely.
+The "good" phrasing makes explicit that *you* open a chat and load the PM skill. The "bad" phrasing is ambiguous -- a general agent may interpret "run Coordinator" as "produce the output that the Coordinator would produce" and bypass the pipeline entirely.
 
 ## Cost and Quality Telemetry
 
@@ -521,7 +525,8 @@ After updating templates, re-run `bash taskwarrior/setup.sh --main` to pick up a
 | Visual acceptance criteria always pass | `builder` bucket model cannot see images | Assign a vision-capable model to `builder` whenever the profile's UI kind is not `none` |
 | Reviews stopped rejecting anything after a model change | `critic` or `checker` bucket is too weak and is rubber-stamping | Raise that bucket; see Cost and Quality Telemetry |
 | `set-agent-models.sh` exits "agent prompts with no bucket assignment" | An agent prompt was added without a bucket | Add it to `BUCKET_MAP` in the script, or take the upstream version of the script |
-| Coordinator stuck | State machine confusion or stale active state | Run `/ai-next` to inspect state; use manual cleanup only after confirming no agents are active |
+| Coordinator stuck | State machine confusion or stale active state | Run `taskwarrior/coordinator-status` (or `/ai-status`) to inspect liveness; use manual cleanup only after confirming no agents are active |
+| Coordinator halts with "no subagent dispatch" | Launched at the wrong nesting depth, almost always because the PM was delegated instead of loaded as a skill | Start a fresh top-level chat, invoke `/project-manager`, and confirm no `.cursor/agents/project-manager.md` exists |
 | Escalation recovery stops | Needs product/scope/interface decision or active agent state is unsafe | Check `plan/escalations/` for the recovery report and give the PM direction |
 | Escalation loop | Recurring failures after recovery | Check `plan/escalations/` for reports describing root cause and recovery |
 | `epic-fork` fails | Branch or worktree already exists | Check `git worktree list`; remove stale worktrees with `git worktree remove <path>` |

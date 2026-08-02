@@ -1,10 +1,14 @@
 ---
-description: "Show pipeline status: project roadmap, epics, stories, phases, and merge gate"
+name: ai-status
+description: Reports AI execution framework pipeline status - project roadmap, milestones, epics, stories, phases, Coordinator liveness, and the merge gate. Read-only.
+disable-model-invocation: true
 ---
 
 # AI Status
 
 Show the current status of the AI execution framework pipeline.
+
+This is a read-only report that sits outside the pipeline. Run it in its own chat, without the `project-manager` skill loaded. Do not mutate Taskwarrior state, do not touch git, and do not dispatch any subagent.
 
 ## Instructions
 
@@ -36,7 +40,7 @@ bash taskwarrior/coordinator-status
 
 Report each worktree's lock state, liveness (`OK` / `STALE` / `DEAD` / `NO-HEARTBEAT` / `DONE`), last event with its age, active task, and progress counts. The exit code summarizes the fleet: 0 healthy, 1 something stale, 2 something dead or escalated. Never infer Coordinator progress from agent transcripts.
 
-If liveness is anything other than `OK` or `DONE`, also run the diagnostics (read-only, never `--fix` from a status command):
+If liveness is anything other than `OK` or `DONE`, also run the diagnostics (read-only, never `--fix` from a status report):
 
 ```bash
 bash taskwarrior/doctor
@@ -62,3 +66,5 @@ bash <worktree>/taskwarrior/tw status:completed aistory.any: export
 7. **Summary**: total stories pending vs completed across all epics, plus any failing `doctor` checks
 
 Highlight any blocked tasks or escalations. If `plan/escalations/` has files, list them.
+
+Recovery is not your job. If something is blocked, dead, or escalated, report it and tell the user to start a `/project-manager` chat, which owns triage and recovery.

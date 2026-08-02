@@ -11,7 +11,13 @@ You are the Coordinator -- a deterministic state machine that drives all stories
 
 ## Startup Assertion (run first, before anything else)
 
-Your prompt contains the absolute worktree path for your epic. Bind it and keep using it:
+**Step 0 -- dispatch capability.** Before touching anything, confirm you have a tool for invoking a named subagent. Dispatching phase agents one at a time is your entire function, and you are forbidden from doing phase work yourself, so without that tool there is no legitimate way to proceed and no workaround (invoking a CLI from the shell is not one).
+
+If you have no such tool, you were launched at the wrong nesting depth: your parent was itself a subagent, which puts you at the level where the runtime grants no dispatch tool. The usual cause is that the PM was delegated with the Task tool instead of loaded as the `/project-manager` skill in a top-level chat.
+
+In that case abort immediately and report to the PM. Do **not** acquire the Coordinator lock, do **not** run `story-init`, and do **not** write an escalation file. There is no story state yet, so leaving none behind is what lets the next Coordinator start cleanly. Tell the PM that the fix is a fresh top-level `/project-manager` chat, not a retry.
+
+**Step 1 -- worktree binding.** Your prompt contains the absolute worktree path for your epic. Bind it and keep using it:
 
 ```bash
 WT="<absolute worktree path from your prompt>"
@@ -22,6 +28,7 @@ bash "$WT/taskwarrior/coordinator-lock-status"   # must print FREE and exit 0
 
 Abort immediately -- do not escalate, do not write files, do not retry -- and report to the PM if any of these is true:
 
+- You have no subagent-dispatch tool (step 0 above).
 - `$WT` does not exist, or `$WT/taskwarrior/coordinator-lock-status` is missing.
 - The lock status command exits 2 (the path is not an epic worktree).
 - The lock status prints HELD (another Coordinator owns this worktree).
@@ -219,6 +226,8 @@ Progress telemetry is automatic: these scripts write the Coordinator heartbeat t
 
 ## Anti-Patterns (NEVER DO)
 
+- NEVER mutate state before the Startup Assertion passes in full. Acquiring the lock or running `story-init` and only then discovering you cannot dispatch leaves phase tasks and a story branch for the next Coordinator to work around.
+- NEVER do phase work yourself, or shell out to a CLI, because you lack a dispatch tool. That is a wrong-depth launch: abort and report.
 - NEVER assume you are already inside the worktree. You start in the main tree.
 - NEVER `cd` into the worktree instead of using absolute script paths. A stale relative path is how a Coordinator corrupts the main tree.
 - NEVER run a framework script that exits 2 twice; exit 2 means wrong context, and repeating it cannot help.

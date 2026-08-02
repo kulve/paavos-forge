@@ -28,6 +28,8 @@ The framework is language-agnostic. All language, build system, directory layout
 
 The top-level orchestrator. Talks to the user, owns `plan/project.md`, derives milestones from the project roadmap, creates epics, generates stories in rolling batches, and dispatches epics to worktrees for parallel execution. The PM never touches code. Operates in the main project tree. The PM may read Paavo Notes (via MCP) for project goals and may post open questions; it does not invent product intent.
 
+The PM is delivered as a **skill** (`.cursor/skills/project-manager/SKILL.md`), invoked as `/project-manager`, and runs as the top-level chat itself rather than as a subagent. This is a hard requirement of the nesting budget in Section 11.5, not a packaging preference: a delegated PM pushes Coordinators one level down, where they can no longer dispatch phase agents. There must be no `project-manager` agent prompt; both validators fail if one exists.
+
 ### 2.2 Coordinator
 
 A deterministic state machine that drives all stories within a single epic through all four phases. The Coordinator is not creative -- it reads Taskwarrior state via scripts, decides which subagent to invoke next, and halts on escalations. It never reads code or artifact content directly. It never accesses Paavo Notes. It invokes exactly one subagent at a time. Operates within an epic's worktree.
@@ -243,7 +245,7 @@ The PM operates in the main project tree. It owns the project roadmap, defines m
 
 The Coordinator drives all stories within a single epic through all four phases. It operates on one epic worktree, addressing it by absolute path.
 
-0. **Startup assertion**: bind `WT` to the absolute worktree path from the prompt and confirm `bash "$WT/taskwarrior/coordinator-lock-status"` prints FREE and exits 0. Abort and report to the PM (do not escalate, there is no story state yet) if the path is missing, the script exits 2, or the lock is HELD. Every subsequent script call uses `bash "$WT/taskwarrior/<script>"`; the Coordinator never `cd`s and never uses a relative script path.
+0. **Startup assertion**: first confirm a subagent-dispatch tool is available; without it the Coordinator was launched at the wrong nesting depth (Section 11.5) and cannot do its only job. Then bind `WT` to the absolute worktree path from the prompt and confirm `bash "$WT/taskwarrior/coordinator-lock-status"` prints FREE and exits 0. Abort and report to the PM (do not escalate, there is no story state yet) if dispatch is unavailable, the path is missing, the script exits 2, or the lock is HELD. Abort before any state mutation: no lock acquisition, no `story-init`, no escalation file. Every subsequent script call uses `bash "$WT/taskwarrior/<script>"`; the Coordinator never `cd`s and never uses a relative script path.
 
 1. Read the epic file to get the ordered story list.
 
@@ -257,12 +259,12 @@ The Coordinator drives all stories within a single epic through all four phases.
 
 4. Initialize story tasks:
    ```
-   bash taskwarrior/story-init XXXXX slug
+   bash "$WT/taskwarrior/story-init" XXXXX slug
    ```
 
 5. **Story loop start**: Query next actionable task:
    ```
-   bash taskwarrior/story-next XXXXX
+   bash "$WT/taskwarrior/story-next" XXXXX
    ```
 
 6. If output is "NONE" and all tasks complete, go to step 14.
@@ -291,7 +293,7 @@ The Coordinator drives all stories within a single epic through all four phases.
 
 10. Start the phase task:
     ```
-    bash taskwarrior/phase-start <task-id>
+    bash "$WT/taskwarrior/phase-start" <task-id>
     ```
     If exit 1 (another task active): stop and investigate.
 
@@ -299,13 +301,13 @@ The Coordinator drives all stories within a single epic through all four phases.
 
 12. Stop the phase task:
     ```
-    bash taskwarrior/phase-stop <task-id>
+    bash "$WT/taskwarrior/phase-stop" <task-id>
     ```
 
 13. Process outcome. Track a reject counter per phase (plan-review rejections and review rejections counted separately):
     - If plan-review approved (annotation says `Plan-review: approved`): state is already `write`, continue loop; reset plan-review reject counter
     - If plan-review rejected (annotation says `Plan-feedback:`): state is already `plan`, continue loop; increment plan-review reject counter; if counter reaches 3, go to step 15
-    - If review approved (annotation says `Review: approved`): call `bash taskwarrior/phase-done <task-id>`, commit phase artifacts: `git commit -am "phase(PHASE): XXXXX"`; reset review reject counter
+    - If review approved (annotation says `Review: approved`): call `bash "$WT/taskwarrior/phase-done" <task-id>`, commit phase artifacts: `git commit -am "phase(PHASE): XXXXX"`; reset review reject counter
     - If review rejected (feedback file annotated): state is already `write`; increment review reject counter; if counter reaches 3, go to step 15; otherwise continue loop
     - If escalation annotated: go to step 15
 
@@ -313,21 +315,21 @@ The Coordinator drives all stories within a single epic through all four phases.
 
 14. **Story complete**: Verify and merge within worktree:
     ```
-    bash taskwarrior/story-complete XXXXX --run-tests
-    bash taskwarrior/story-merge XXXXX slug
+    bash "$WT/taskwarrior/story-complete" XXXXX --run-tests
+    bash "$WT/taskwarrior/story-merge" XXXXX slug
     ```
     If tests fail: write an escalation for the implementation phase, block the task, and go to step 15.
     Otherwise: proceed to the next story in the epic (go to step 4 with next story).
 
 15. **Escalation halt** (reject limit reached or subagent wrote escalation):
     - If reject limit: write `plan/escalations/XXXXX-<phase>-reject-loop.md` using the escalation template and annotate the task
-    - Block the task: `bash taskwarrior/phase-block <task-id> <escalation-path>`
-    - Release the Coordinator lock: `bash taskwarrior/coordinator-lock-release`
+    - Block the task: `bash "$WT/taskwarrior/phase-block" <task-id> <escalation-path>`
+    - Release the Coordinator lock: `bash "$WT/taskwarrior/coordinator-lock-release"`
     - Return control to the PM with the escalation file path. Do not roll back git. Do not reopen upstream phases. Do not continue the loop.
 
 16. **All stories done**: Release Coordinator lock:
     ```
-    bash taskwarrior/coordinator-lock-release
+    bash "$WT/taskwarrior/coordinator-lock-release"
     ```
     Signal completion (the PM detects this via `epic-status` or checks the worktree state).
 
@@ -560,7 +562,29 @@ Update Taskwarrior via scripts when done.
 
 The subagent reads its own agent definition file for role instructions, then reads the files listed in the prompt for task-specific context.
 
-**Never pass a `model` parameter when invoking a subagent.** Each agent's model is pinned in its own prompt frontmatter, assigned by bucket at deploy time. A `model` argument supplied by the invoking agent overrides that frontmatter, which silently replaces a deliberate cost-and-capability assignment with whatever the parent happened to be running. This applies to every invocation in the framework: the Coordinator dispatching phase agents, and the PM launching Coordinators, `roadmap-planner`, `story-review`, and the escalation agents.
+**Never pass a `model` parameter when invoking a subagent.** Each agent's model is pinned in its own prompt frontmatter, assigned by bucket at deploy time. A `model` argument supplied by the invoking agent overrides that frontmatter, which silently replaces a deliberate cost-and-capability assignment with whatever the parent happened to be running. This applies to every invocation in the framework: the Coordinator dispatching phase agents, and the PM launching Coordinators, `roadmap-planner`, `story-review`, and the escalation agents. The PM itself is a skill and has no frontmatter model; it runs on whatever model the top-level chat is set to.
+
+### 11.5 Nesting Budget (hard constraint)
+
+The runtime allows **two levels of subagents** below the top-level chat. The main agent and its direct children may dispatch; a subagent launched by another subagent receives no dispatch tool at all. The framework consumes that budget exactly, with no slack:
+
+| Level | Who | May dispatch |
+|-------|-----|--------------|
+| 0 | PM, via the `project-manager` skill loaded into the top-level chat | yes |
+| 1 | Coordinator (background), `roadmap-planner`, `story-review`, `escalation-triage`, `escalation-recovery`, `environment-recovery` | Coordinator only |
+| 2 | Phase agents dispatched by a Coordinator | no |
+
+Three rules follow, and all three are enforced rather than merely documented:
+
+1. **The PM must occupy level 0.** It is a skill, not an agent prompt, so invoking `/project-manager` loads it into the current chat instead of delegating to a subagent. Delegating the PM instead shifts every Coordinator to level 2, where it cannot dispatch phase agents and the pipeline cannot run at all. Both validators fail if a `project-manager` agent prompt exists.
+
+2. **Only the Coordinator dispatches at level 1.** `coordinator.md` is the sole agent prompt permitted to contain subagent-dispatch instructions. `validate-template-repo.sh` asserts that `run_in_background` appears in that file and nowhere else under `.cursor/agents/`.
+
+3. **Phase agents are leaves.** They must never dispatch. There is no level left for a subagent of a phase agent, and one would fail with no dispatch tool rather than with a useful error.
+
+A Coordinator that finds itself without a dispatch tool was launched at the wrong depth. That is a startup failure, not an escalation: it aborts before acquiring the lock and reports to the PM (Section 5, step 0).
+
+Stopping the top-level chat stops every subagent beneath it, so the PM chat must stay open while background Coordinators are running.
 
 ---
 

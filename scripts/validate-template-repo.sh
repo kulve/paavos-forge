@@ -167,25 +167,45 @@ if [ ! -d "templates/cursor/.cursor/agents" ]; then
     fail "Missing Cursor agent prompt directory"
 else
     AGENT_COUNT=$(find templates/cursor/.cursor/agents -maxdepth 1 -type f -name '*.md' | wc -l | tr -d ' ')
-    if [ "$AGENT_COUNT" -ne 26 ]; then
-        fail "Expected 26 Cursor agent prompt files, found $AGENT_COUNT"
+    if [ "$AGENT_COUNT" -ne 25 ]; then
+        fail "Expected 25 Cursor agent prompt files, found $AGENT_COUNT"
     fi
     for agent in escalation-recovery escalation-triage environment-recovery roadmap-planner; do
         if [ ! -f "templates/cursor/.cursor/agents/${agent}.md" ]; then
             fail "Missing agent prompt: ${agent}.md"
         fi
     done
+    if [ -f "templates/cursor/.cursor/agents/project-manager.md" ]; then
+        fail "project-manager must be a skill, not an agent prompt: an agent file makes /project-manager delegate, which puts Coordinators at a nesting depth where they cannot dispatch phase agents"
+    fi
 fi
 
-echo "--- Cursor rules and commands ---"
+echo "--- Nesting budget: only the Coordinator dispatches ---"
+# The runtime allows two levels of subagents. The PM skill holds level 0 and the
+# Coordinator level 1, so phase agents at level 2 are leaves and must never
+# dispatch. `run_in_background` is the marker for dispatch instructions.
+if [ -d "templates/cursor/.cursor/agents" ]; then
+    DISPATCHERS=$(grep -l 'run_in_background' templates/cursor/.cursor/agents/*.md 2>/dev/null | xargs -r -n1 basename | sort | tr '\n' ' ')
+    DISPATCHERS="${DISPATCHERS% }"
+    if [ "$DISPATCHERS" != "coordinator.md" ]; then
+        fail "Only coordinator.md may contain subagent-dispatch instructions; found: ${DISPATCHERS:-none}. A phase agent that dispatches sits at nesting level 2, where the runtime grants no dispatch tool (LOGIC.md 11.5)."
+    fi
+fi
+
+echo "--- Cursor rules and skills ---"
 if [ ! -f "templates/cursor/.cursor/rules/ai-framework.mdc" ]; then
     fail "Missing Cursor rule: templates/cursor/.cursor/rules/ai-framework.mdc"
 fi
-if [ ! -f "templates/cursor/.cursor/commands/ai-status.md" ]; then
-    fail "Missing slash command: templates/cursor/.cursor/commands/ai-status.md"
-fi
-if [ ! -f "templates/cursor/.cursor/commands/ai-next.md" ]; then
-    fail "Missing slash command: templates/cursor/.cursor/commands/ai-next.md"
+for skill in project-manager ai-status; do
+    SKILL_FILE="templates/cursor/.cursor/skills/${skill}/SKILL.md"
+    if [ ! -f "$SKILL_FILE" ]; then
+        fail "Missing skill: $SKILL_FILE"
+    elif ! grep -q '^disable-model-invocation: true$' "$SKILL_FILE"; then
+        fail "$SKILL_FILE must set 'disable-model-invocation: true' so it only loads on explicit /${skill}"
+    fi
+done
+if [ -d "templates/cursor/.cursor/commands" ]; then
+    fail "templates/cursor/.cursor/commands/ still exists; slash commands are skills now"
 fi
 
 echo "--- .gitignore entries ---"

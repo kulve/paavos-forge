@@ -162,8 +162,7 @@ check_gitignore_entry ".task/"
 check_gitignore_entry ".worktrees/"
 check_gitignore_entry ".taskrc"
 
-echo "--- Cursor Agents (26 required) ---"
-check_file ".cursor/agents/project-manager.md"
+echo "--- Cursor Agents (25 required) ---"
 check_file ".cursor/agents/coordinator.md"
 check_file ".cursor/agents/fixer.md"
 check_file ".cursor/agents/roadmap-planner.md"
@@ -192,10 +191,17 @@ check_file ".cursor/agents/deploy-profile.md"
 
 if [ -d ".cursor/agents" ]; then
     AGENT_COUNT=$(find .cursor/agents -maxdepth 1 -type f -name '*.md' | wc -l | tr -d ' ')
-    if [ "$AGENT_COUNT" -ne 26 ]; then
-        echo "WARNING: Expected 26 agent prompt files, found $AGENT_COUNT"
+    if [ "$AGENT_COUNT" -ne 25 ]; then
+        echo "WARNING: Expected 25 agent prompt files, found $AGENT_COUNT"
         WARNINGS=$((WARNINGS + 1))
     fi
+fi
+
+if [ -f ".cursor/agents/project-manager.md" ]; then
+    echo "ERROR: .cursor/agents/project-manager.md exists; the PM is a skill, not a subagent"
+    echo "       An agent file makes /project-manager delegate, which puts Coordinators at a"
+    echo "       nesting depth where they cannot dispatch phase agents. Delete it."
+    ERRORS=$((ERRORS + 1))
 fi
 
 echo "--- Agent Models ---"
@@ -220,10 +226,10 @@ if [ -d ".cursor/agents" ]; then
     fi
 fi
 
-echo "--- Cursor Rules and Commands ---"
+echo "--- Cursor Rules and Skills ---"
 check_file ".cursor/rules/ai-framework.mdc"
-check_file ".cursor/commands/ai-status.md"
-check_file ".cursor/commands/ai-next.md"
+check_file ".cursor/skills/project-manager/SKILL.md"
+check_file ".cursor/skills/ai-status/SKILL.md"
 
 echo "--- Taskwarrior UDAs (main tree) ---"
 if [ -x "taskwarrior/tw" ]; then

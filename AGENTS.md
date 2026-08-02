@@ -120,10 +120,11 @@ templates/base/                            # Copied to downstream project root
   taskwarrior/coordinator-lock-*           # Coordinator lock scripts (3)
 
 templates/cursor/.cursor/                  # Copied to downstream .cursor/
-  agents/*.md                              # 26 agent prompts (incl. roadmap-planner, deploy-profile,
-                                           #   escalation-triage, environment-recovery)
+  agents/*.md                              # 25 agent prompts (incl. roadmap-planner, deploy-profile,
+                                           #   escalation-triage, environment-recovery). No PM here.
   rules/ai-framework.mdc                   # Always-on rules
-  commands/*.md                            # Slash commands
+  skills/project-manager/SKILL.md          # The PM; runs as the top-level chat, not a subagent
+  skills/ai-status/SKILL.md                # Read-only pipeline status report
 
 scripts/
   validate-template-repo.sh                # Validates template-repo layout
@@ -164,3 +165,21 @@ Agent prompts follow a standard structure (see LOGIC.md section 11). When editin
 8. Keep `model: inherit` in the frontmatter. Downstream deployments assign the real model by bucket; a concrete slug shipped upstream would override every deployed project's choice on merge.
 
 **Adding or removing an agent prompt** also requires updating `BUCKET_MAP` in `templates/base/ai-framework/set-agent-models.sh` and the agent counts in both validators. `validate-template-repo.sh` fails if the two sets disagree, so a forgotten bucket assignment cannot ship.
+
+**The Project Manager is not an agent prompt.** It lives at `templates/cursor/.cursor/skills/project-manager/SKILL.md` and has no bucket, because a skill loads into the top-level chat and therefore runs on that chat's model. Never move it back under `agents/`: see the nesting budget below.
+
+## Nesting Budget (do not regress this)
+
+Cursor allows two levels of subagents below the top-level chat. A subagent launched by another subagent receives no dispatch tool at all. The framework consumes the entire budget:
+
+| Level | Who | May dispatch |
+|-------|-----|--------------|
+| 0 | PM, via the `project-manager` skill in the top-level chat | yes |
+| 1 | Coordinator, `roadmap-planner`, `story-review`, escalation agents | Coordinator only |
+| 2 | Phase agents dispatched by a Coordinator | no |
+
+Consequences for anything you edit here:
+
+- The PM stays a skill. Shipping a `project-manager` agent prompt makes `/project-manager` delegate, which moves every Coordinator to level 2 and silently disables the whole phase pipeline. Both validators fail if that file reappears.
+- The Coordinator is the only agent prompt permitted to contain subagent-dispatch instructions. `validate-template-repo.sh` enforces this by asserting that `run_in_background` appears in `coordinator.md` and nowhere else under `templates/cursor/.cursor/agents/`.
+- Do not add a dispatch step to any phase agent. There is no level left for it.
