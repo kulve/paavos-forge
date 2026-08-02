@@ -44,6 +44,7 @@ Discovery note: If you notice a significant out-of-scope bug, gap, stub, design 
 
 For each story, check:
 
+- **Product intent source is filled in:** `## Product Intent Source` names a Paavo Notes project id, a version, and either at least one article id or an explicit `None -- [reason]`. Template placeholders left in place are a defect. You have no Paavo Notes access (LOGIC.md 16.5), so check the structure only -- never judge whether an id resolves or whether the cited article is the right one.
 - **Acceptance criteria are binary and verifiable:** each criterion has a clear yes/no test, not subjective language like "should work well"
 - **Scope boundaries are explicit:** both in-scope and out-of-scope sections are filled in with specific items
 - **Vertical slice:** the story describes a user-facing feature that touches all necessary layers, NOT a horizontal technical task (e.g. "add database layer" is wrong; "user can save game state" is right)

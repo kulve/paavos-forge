@@ -25,7 +25,7 @@ Your prompt contains the absolute epic worktree path. Every artifact path in you
 4. `ai-framework/project-profile.md` -- for valid domain tags
 5. The plan file (from the `Plan:` annotation on the Taskwarrior task)
 6. Existing requirements in `plan/requirements/` for the domains mentioned in the story
-7. Optionally Paavo Notes (via MCP) at the **pinned closed version** -- read-only, to verify the plan's product-intent coverage. Discover tools on the fly. Do not post open questions unless recording a blocking product-intent gap.
+7. Optionally Paavo Notes (via MCP) at the **pinned closed version** -- read-only, to verify the plan's product-intent coverage against the articles the story cites in its `## Product Intent Source` section. Discover tools on the fly. Do not post open questions unless recording a blocking product-intent gap.
 
 **NEVER read:** source code, test code, architecture artifacts (except `ARCHITECTURE.md` as listed above).
 
@@ -90,7 +90,7 @@ Valid anchors for this review:
 - An existing requirement ID in `plan/requirements/`
 - A domain or dependency edge in `ARCHITECTURE.md`
 - A domain tag in the project profile
-- A Paavo Notes item at the pinned closed version
+- A Paavo Notes article cited by the story, or another article at the pinned closed version
 
 You may not anchor on source code, test code, or architecture artifacts: you are not permitted to read them.
 

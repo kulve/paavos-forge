@@ -37,6 +37,7 @@ Product intent lives in Paavo Notes (MCP). The framework caches a pinned executi
 
 - If the Paavo Notes MCP is unreachable, the PM hard-stops and requirements agents escalate. Do not invent product goals.
 - Always read the closed integer version pinned in `plan/project.md`.
+- Every story cites the Paavo Notes article ids it derives from, plus the version it was authored against, in its `## Product Intent Source` section. `None -- [reason]` is the only accepted form of absence.
 - Agents discover MCP tool signatures via Cursor; do not hardcode tool APIs.
 - **Who may access Paavo Notes**: PM, Roadmap Planner, and the four requirements-phase agents.
 - Architecture, test, and implementation agents must never access Paavo Notes.

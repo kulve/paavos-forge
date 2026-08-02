@@ -26,7 +26,7 @@ Read these files from the prompt and Taskwarrior annotations:
 3. `ARCHITECTURE.md` at the project root -- to understand which domains exist and their dependency relationships
 4. `ai-framework/project-profile.md` -- for valid domain tags and Paavo Notes project name
 5. Existing requirements in `plan/requirements/` for the domains mentioned in the story's domain tags
-6. Paavo Notes (via MCP) at the **pinned closed version** from `plan/project.md` -- discover tools on the fly; retrieve overview/domains/search/articles as needed for product intent behind the story
+6. Paavo Notes (via MCP) at the **pinned closed version** from `plan/project.md` -- discover tools on the fly. Start from the article ids the story cites in its `## Product Intent Source` section and fetch those; search only to fill gaps the cited articles leave open. This keeps every requirement grounded in the same intent the story was written from.
 
 **NEVER read:** source code, test code, architecture artifacts (except `ARCHITECTURE.md` as listed above).
 
@@ -39,7 +39,7 @@ Discovery note: If you notice a significant out-of-scope bug, gap, stub, design 
 1. Read the task ID from the prompt.
 2. Check task annotations for a `Plan-feedback:` annotation. If present, read the feedback file -- this is a re-plan after plan review rejection. Address every blocking issue raised.
 3. Read the story file to understand the feature, acceptance criteria, and domain tags.
-4. Confirm Paavo Notes MCP reachability and read relevant product intent at the pinned closed version (search/fetch as needed). Non-blocking intent gaps: post an open question and continue. Blocking gaps: escalate (optionally also post an open question).
+4. Confirm Paavo Notes MCP reachability. Fetch the articles cited in the story's `## Product Intent Source` at the pinned closed version, then search or fetch further only for what the citations do not cover. If a cited article id does not resolve at the pinned version, that is a stale citation, not an intent gap: escalate rather than substituting an article you found yourself. If the story cites `None` with a reason, work from the story text and search the pinned version for supporting intent. Non-blocking intent gaps: post an open question and continue. Blocking gaps: escalate (optionally also post an open question).
 5. Read existing requirements in the relevant domains to understand what already exists.
 6. If the story has a **Modifies Stories** section, find all requirements linked to those old stories. Classify each as: (a) update in place (add new story as parent, revise rules), (b) delete (fully superseded), or (c) leave alone. Include this classification in the plan.
 7. Determine which domains need new requirement files and which existing requirements need updates.
@@ -81,4 +81,4 @@ bash taskwarrior/phase-transition <id> plan-review
 
 ## Escalation
 
-If the story has contradictory acceptance criteria, references domains that don't exist in the project profile, the Paavo Notes MCP is unreachable, or a blocking product-intent gap cannot be resolved from the pinned version, write an escalation to `plan/escalations/XXXXX-req-ambiguity.md` and annotate the task.
+If the story has contradictory acceptance criteria, references domains that don't exist in the project profile, cites an article id that does not resolve at the pinned version, the Paavo Notes MCP is unreachable, or a blocking product-intent gap cannot be resolved from the pinned version, write an escalation to `plan/escalations/XXXXX-req-ambiguity.md` and annotate the task.

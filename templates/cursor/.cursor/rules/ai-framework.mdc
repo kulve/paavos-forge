@@ -54,6 +54,7 @@ Consequences: the PM is never invoked with the Task tool, no phase agent may gai
 - Product intent lives in Paavo Notes. The framework caches a pinned execution roadmap in `plan/project.md`.
 - The Paavo Notes MCP is required for all framework work. If unreachable, the PM hard-stops and requirements agents escalate. Do not invent product goals.
 - Always read a single **closed integer version** pinned in `plan/project.md`. Never query the open/live version for execution.
+- Every story cites its source article ids and the version it was authored against in `## Product Intent Source`. Article ids are stable across versions; titles are not. `None -- [reason]` is the only accepted form of absence. Requirements agents start from the cited articles and escalate an id that does not resolve at the pinned version.
 - Agents discover MCP tool names/signatures via Cursor MCP tool listing. Do not hardcode tool APIs.
 - **Who may access Paavo Notes**: PM, Roadmap Planner, and the four requirements-phase agents only.
 - **Who must not**: Coordinator, architecture / integration-test / implementation agents, story-review, escalation agents, fixer, and general agents.

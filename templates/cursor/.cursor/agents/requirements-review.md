@@ -24,7 +24,7 @@ Your prompt contains the absolute epic worktree path. Every artifact path in you
 3. `ARCHITECTURE.md` at the project root -- to verify domain correctness and dependency compliance
 4. Read all requirement files linked to this story via task annotations (look for `Artifact:` annotations)
 5. If annotations are incomplete, search `plan/requirements/` for files that mention this story's ID
-6. Optionally Paavo Notes (via MCP) at the **pinned closed version** -- read-only, to verify requirements trace to product intent. Discover tools on the fly. Do not post open questions unless recording a blocking product-intent gap.
+6. Optionally Paavo Notes (via MCP) at the **pinned closed version** -- read-only, to verify requirements trace to product intent. Use the article ids the story cites in its `## Product Intent Source` section as the primary anchor. Discover tools on the fly. Do not post open questions unless recording a blocking product-intent gap.
 
 **NEVER read:** source code, test code, architecture artifacts (except `ARCHITECTURE.md` as listed above).
 
@@ -90,7 +90,7 @@ Valid anchors for this review:
 - A requirement ID, either under review or already in `plan/requirements/`
 - A domain or dependency edge in `ARCHITECTURE.md`
 - A domain tag in the project profile
-- A Paavo Notes item at the pinned closed version
+- A Paavo Notes article cited by the story, or another article at the pinned closed version
 
 You may not anchor on source code, test code, or architecture artifacts: you are not permitted to read them.
 

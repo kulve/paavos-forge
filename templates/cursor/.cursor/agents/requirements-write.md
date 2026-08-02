@@ -27,7 +27,7 @@ Read these files from Taskwarrior annotations:
 4. `ARCHITECTURE.md` at the project root -- to understand domain structure and dependency rules
 5. The story file (path provided in prompt)
 6. Existing requirements in affected domains (to avoid contradiction)
-7. Paavo Notes (via MCP) at the **pinned closed version** -- discover tools on the fly; drill into product-intent details relevant to the story
+7. Paavo Notes (via MCP) at the **pinned closed version** -- discover tools on the fly. Fetch the article ids the story cites in its `## Product Intent Source` section first, then drill into further product-intent detail only where the citations leave a gap. A cited id that does not resolve at the pinned version is a stale citation: escalate instead of substituting another article.
 
 **NEVER read:** source code, test code, architecture artifacts (except `ARCHITECTURE.md` as listed above).
 

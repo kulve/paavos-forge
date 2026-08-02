@@ -192,7 +192,7 @@ The PM operates in the main project tree. It owns the project roadmap, defines m
 
 3. **Epic definition**: PM writes `plan/epics/EXXXX-slug.md` containing goal, boundaries, ordered story list, done criteria, and epic dependencies. Epics are coherent feature areas that can execute independently.
 
-4. **Story generation**: PM reads the epic, existing stories, and codebase README, then writes the next 2-3 stories to `plan/stories/XXXXX-slug.md`. Stories are vertical feature slices, not horizontal technical layers. When new behavior conflicts with or replaces behavior from an earlier story, the new story must include a **Modifies Stories** section.
+4. **Story generation**: PM reads the epic, existing stories, and codebase README, then writes the next 2-3 stories to `plan/stories/XXXXX-slug.md`. Stories are vertical feature slices, not horizontal technical layers. Every story records its **Product Intent Source**: the Paavo Notes project id, the pinned closed version it was authored against, and the article ids it derives from (Section 16.4). When new behavior conflicts with or replaces behavior from an earlier story, the new story must include a **Modifies Stories** section.
 
 5. **Story review**: PM invokes the story-review subagent for the batch. PM addresses feedback by updating story files directly.
 
@@ -489,7 +489,9 @@ Coherent feature areas decomposed into ordered stories. Contain goal, boundaries
 
 ### 10.3 Stories (`plan/stories/XXXXX-slug.md`)
 
-Problem-space documents describing vertical feature slices. Must include: epic reference, goal (what and why), scope boundaries, trigger conditions, binary acceptance criteria, domain tags, dependencies, and non-goals. Stories describe user-facing behavior, not technical tasks.
+Problem-space documents describing vertical feature slices. Must include: epic reference, product intent source, goal (what and why), scope boundaries, trigger conditions, binary acceptance criteria, domain tags, dependencies, and non-goals. Stories describe user-facing behavior, not technical tasks.
+
+Mandatory **Product Intent Source** section: the story's citation of the Paavo Notes articles it derives from. It records the Paavo Notes project id, the closed version the story was authored against, and one line per source article (id, title at that version, domain id). Article ids are stable across versions while titles are not, so the id is the identity and the title is only a human label. The version is recorded per story even though `plan/project.md` pins it: project.md is re-pinned over time, while a completed story is a historical record of the intent it was written against. When no single article backs the story -- intent synthesized across a whole domain, framework scaffolding, and similar cases -- the section states `None -- [reason]` so the absence is a deliberate, reviewable claim rather than an omission. See Section 16.4.
 
 Optional **Modifies Stories** section: when a new story changes or deprecates behavior from earlier stories, list the old story file paths and a brief reason.
 
@@ -757,16 +759,26 @@ Agents that may access Paavo Notes pursue these outcomes, choosing appropriate M
 1. Discover/resolve the project by the name/id from the profile.
 2. Confirm or select a closed (published/frozen) version; pin it in `plan/project.md` when creating or migrating the roadmap.
 3. Read the project overview and domain structure; search for relevant topics; fetch specific articles as needed.
-4. For version migration: use per-step change/diff tools (one step per version bump for multi-version jumps), then fetch article bodies for changed items as needed.
+4. For version migration: use per-step change/diff tools (one step per version bump for multi-version jumps), then fetch article bodies for changed items as needed. The changed article ids from each step are then matched against the story citations in `plan/stories/` (Section 16.4) to obtain the exact set of stories the new version affects; that set scopes the migration milestone(s).
 
-### 16.4 Who may access Paavo Notes
+### 16.4 Story-level intent citations
+
+Every story cites the product intent it derives from as `(project_id, version, article_id)` triples in its **Product Intent Source** section (Section 10.3). This closes the traceability chain: requirements back-link to stories, and stories back-link to Paavo Notes articles.
+
+- Article ids are stable across versions; titles are mutable. Cite the id as the identity and carry the title only as a human label.
+- A citation is verifiable: fetching a cited id at the pinned version either returns the article or reports that it does not exist at that version. A cited id that does not resolve is a stale citation, not a product-intent gap, and requirements agents escalate it as such.
+- Citations are the input to version-migration impact analysis (Section 16.3 item 4).
+- Only the PM writes citations, because only the PM writes stories. Agents downstream of the story read them.
+- `None -- [reason]` is the only acceptable form of absence. An unfilled template placeholder is a defect that story review must reject.
+
+### 16.5 Who may access Paavo Notes
 
 - **Allowed**: PM, Roadmap Planner, and the four requirements-phase agents (plan, plan-review, write, review).
 - **Forbidden**: Coordinator, architecture / integration-test / implementation agents, story-review, escalation-analysis, escalation-triage, escalation-recovery, environment-recovery, fixer, and general agents.
 
 Requirements-plan and requirements-write may post open questions. Review agents may read the pinned version to verify traceability but should not post open questions unless needed to record a blocking product-intent gap.
 
-### 16.5 Open questions (append-only)
+### 16.6 Open questions (append-only)
 
 Open questions are metadata attached to a frozen Paavo Notes version (clarifications / deferred product decisions), not mutations of KB content.
 

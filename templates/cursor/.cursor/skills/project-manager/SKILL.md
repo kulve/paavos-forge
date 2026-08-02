@@ -106,6 +106,7 @@ If `plan/project.md` already exists, skip steps 2-3 and continue from the In-Pro
    - Small enough for one Coordinator story-loop iteration
    - Ordered within the epic (later stories may depend on earlier ones)
 9. Write each story to `plan/stories/XXXXX-slug.md` using `plan/templates/story.md`. Assign sequential 5-digit IDs. The `## Epic` field must reference the epic file.
+   Fill `## Product Intent Source` for every story: the Paavo Notes project id and pinned closed version from `plan/project.md`, plus one line per source article with the article id, its title at that version, and its domain id. Retrieve the ids from Paavo Notes at the pinned version -- never write an id from memory or guess one. Use `None -- [reason]` only when no single article backs the story (intent synthesized across a whole domain, framework scaffolding); never leave the template placeholder unfilled.
 10. Update the epic file's "Stories (ordered)" section with the new story list.
 11. Git commit: `git add plan/stories/ plan/epics/ && git commit -m "stories: XXXXX-XXXXX for epic EXXXX"`
 
@@ -182,7 +183,7 @@ If `plan/project.md` already exists, skip steps 2-3 and continue from the In-Pro
     - Perform Discovery Triage
     - If the product Definition of Done is met: declare the product complete to the user
     - Otherwise: advance the next TODO roadmap entry to In Progress, or rewrite/reorder remaining TODO milestones (optionally invoke `roadmap-planner`) with user direction
-    - **Version migration**: if the user wants a newer closed Paavo Notes version, re-pin `plan/project.md`, scope the delta with MCP per-step change/diff tools (one call per version step), insert migration milestone(s), update the Version Migration Log, and discuss with the user before continuing
+    - **Version migration**: if the user wants a newer closed Paavo Notes version, re-pin `plan/project.md`, scope the delta with MCP per-step change/diff tools (one call per version step), then search `plan/stories/` for the changed article ids to find exactly which existing stories the new version affects. That impacted set scopes the migration milestone(s). Update the Version Migration Log and discuss with the user before continuing
     - Commit: `git add plan/project.md plan/milestones/ && git commit -m "plan: milestone XX done; roadmap update"`
 
 ### Discovery Triage
@@ -272,6 +273,7 @@ bash taskwarrior/pm-lock-release
 
 - `plan/project.md` exists and pins a closed Paavo Notes version before any milestone work
 - Every milestone is traceable to a roadmap entry
+- Every story cites its Paavo Notes source articles by id, with the version it was authored against, or states `None` with a reason
 - Every story has binary, verifiable acceptance criteria
 - Every story has explicit scope boundaries (in-scope AND out-of-scope)
 - Stories are vertical slices, not horizontal layers
@@ -284,6 +286,7 @@ bash taskwarrior/pm-lock-release
 - NEVER invent product goals; derive them from Paavo Notes via the roadmap.
 - NEVER define a milestone that is not traceable to `plan/project.md`.
 - NEVER proceed with framework work if the Paavo Notes MCP is unreachable.
+- NEVER leave a story's `## Product Intent Source` as an unfilled template placeholder, and NEVER cite an article id that does not resolve at the pinned version.
 - NEVER generate all stories for an epic upfront. Use rolling batches of 2-3.
 - NEVER read source code, test code, or architecture artifacts. Stories describe user-facing behavior.
 - NEVER skip the Coordinator and try to implement code directly.

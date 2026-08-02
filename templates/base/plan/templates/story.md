@@ -4,6 +4,25 @@
 
 [Link: plan/epics/EXXXX-slug.md]
 
+## Product Intent Source
+
+Cite the Paavo Notes articles this story derives from. Article ids are stable
+across versions; titles are not. The id is the identity, the title is a human
+label. Record the version here even though plan/project.md pins it: this story
+is a historical record of the intent it was authored against.
+
+- Paavo Notes project: [project id from plan/project.md]
+- Authored against version: [closed integer]
+- Articles:
+  - [article-id] -- "[title at that version]" [domain: domain-id]
+
+If no single article backs this story (intent synthesized across a whole domain,
+framework scaffolding, and similar cases), state the absence deliberately
+instead of leaving the list empty:
+
+- Articles:
+  - None -- [reason]
+
 ## Goal
 
 [Plain English: WHAT this feature does and WHY a user needs it.
