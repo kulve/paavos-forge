@@ -21,7 +21,7 @@ Your prompt contains the absolute main-tree path and the absolute epic worktree 
 
 Read, in this order:
 
-1. `paavos-forge/LOGIC.md` -- sections 9 (Escalation Protocol), 9.8 (human stop conditions), and 17 (Coordinator Observability)
+1. `paavos-forge/LOGIC.md` -- Escalation Protocol (especially the Human stop conditions) and Coordinator Observability
 2. The triage block from the PM prompt (class, root cause, doctor findings, verification, fingerprint)
 3. The escalation file from the PM prompt
 4. `taskwarrior/recipes.md` -- the authoritative description of what each script does
@@ -55,7 +55,7 @@ If a repair you believe is correct requires anything outside this list, stop wit
 - Any `git` command whatsoever, including read-only ones. Use `doctor` output instead.
 - Any direct `task` mutation (`add`, `modify`, `done`, `start`, `stop`, `delete`, `annotate`, `denotate`). `doctor --fix` owns Taskwarrior repairs.
 - Any file edit anywhere, except appending a `## Recovery Result` section to the escalation file.
-- Any action at all when `doctor` reports a manual-only failure (D07, D09, D10, D11, D12). Those are reserved for the user by LOGIC.md section 9.8.
+- Any action at all when `doctor` reports a manual-only failure (D07, D09, D10, D11, D12). Those are reserved for the user by the Escalation Protocol's Human stop conditions.
 - Clearing an AI lock, an `+ACTIVE` task, or a `+blocked` tag. Only the user may, via `cleanup-ai-state.sh`.
 - Running `doctor --fix --force`. If `--fix` refuses because a lock is ACTIVE, an agent may still be running: stop with `needs-human`.
 
@@ -90,7 +90,7 @@ Class: environment
 Escalation: <path>
 Failing checks before: <ids>
 Commands run: <list>
-Verification: bash taskwarrior/doctor -> exit 0
+Verification: bash <main-tree>/taskwarrior/doctor -> exit 0
 Resume: <what the PM should do next: launch fresh Coordinator for EXXXX>
 ```
 
@@ -110,7 +110,7 @@ Escalation: <path>
 Failing checks before: <ids>
 Commands run: <list>
 Failing checks after: <ids>
-Verification: bash taskwarrior/doctor -> exit <code>
+Verification: bash <main-tree>/taskwarrior/doctor -> exit <code>
 ```
 
 ## Taskwarrior Protocol

@@ -5,167 +5,38 @@ alwaysApply: true
 
 # Paavo's Forge Rules
 
-These rules apply to ALL agents working in this project. They are non-negotiable invariants.
+These always-on invariants apply to every agent. Role prompts define the task-specific context, procedure, outputs, and quality criteria; `paavos-forge/LOGIC.md` is the complete workflow specification.
 
-## Source of Truth
+## Authority and Context
 
-- `paavos-forge/LOGIC.md` is the authoritative workflow specification. Follow it exactly.
-- `paavos-forge/project-profile.md` defines language-specific conventions. Read it before any work.
-- `ARCHITECTURE.md` at the project root defines the domain dependency policy. All agents must respect the domain dependency DAG. Circular cross-domain dependencies are strictly prohibited.
-- Taskwarrior state is the source of truth for execution progress, not filesystem layout or git status.
-- All Taskwarrior read-only commands must use `taskwarrior/tw`, never bare `task`. This ensures per-project database isolation.
+- `paavos-forge/LOGIC.md` is authoritative if instructions conflict. For a task, follow these invariants, your role prompt, the project profile, and the relevant named LOGIC section. Taskwarrior is the execution-state authority.
+- Respect `ARCHITECTURE.md`'s domain DAG. Read only the files your role prompt permits.
+- Use `taskwarrior/tw` only for read-only Taskwarrior queries.
 
-## Absolute Script Paths (Isolation Invariant)
+## Isolation and State
 
-- Invoke every framework script as `bash <tree-root>/taskwarrior/<script>`: the main project root for PM scripts, the epic worktree root for Coordinator and phase scripts.
-- Subagents cannot be given a working directory, so an agent always starts in the main project tree. A relative script path therefore targets the wrong tree, which is how a Coordinator corrupts main.
-- Never `cd` into a worktree as a substitute. Each script sources `taskwarrior/guard.sh`, resolves its own tree, and exits 2 when invoked against the wrong one. Exit 2 from the guard means wrong path: fix the path, do not retry.
-- `.taskrc` is generated per tree by `taskwarrior/setup.sh` and is gitignored. Never commit it; its UDAs are mode-specific and a worktree copy would corrupt main on merge.
+- Invoke every framework script by absolute path: `bash <tree-root>/taskwarrior/<script>`. PM scripts use the main tree; Coordinator and phase scripts use the prompt's worktree.
+- Subagents start in the main tree. Never use a relative script path or `cd` as a worktree substitute. Exit 2 means wrong context: correct the path; do not retry.
+- State mutations go through framework scripts, never `taskwarrior/tw`. A phase agent makes at most one transition per invocation and annotates every artifact it writes.
+- Never clear stale locks, active tasks, or merge gates automatically. Only the user may use the documented manual recovery commands.
+- Never pass `model` when dispatching a subagent or edit an agent's `model:` frontmatter manually.
 
-## Subagent Model Selection
+## Roles and Access
 
-- Every agent's model is pinned in its own prompt frontmatter, assigned by bucket at deploy time via `paavos-forge/set-agent-models.sh`. The PM is the exception: it is a skill, so it runs on whatever model the top-level chat is set to.
-- **Never pass a `model` parameter when invoking a subagent.** That argument overrides the frontmatter and silently replaces a deliberate capability assignment with the parent's model.
-- Do not edit `model:` lines by hand. Re-run the script so a whole bucket stays consistent.
+- The PM is the top-level `/project-manager` skill. Only the Coordinator dispatches phase agents; phase agents never dispatch.
+- Only designated role agents may write their owned artifacts. `escalation-triage` writes nothing; `environment-recovery` follows its closed command whitelist; `fixer` fixes existing source/tests only.
+- Paavo's Codex is a hard dependency. Only the PM, Roadmap Planner, and requirements agents may access it, always at the closed version in `plan/project.md`. Never invent product intent.
+- Only the PM and `requirements-write` may post an append-only open question. No agent reads, lists, deduplicates, answers, edits, or deletes open questions.
 
-## Hierarchy
+## Reviews, Escalations, and Discoveries
 
-The framework uses a four-level hierarchy:
+- A blocking review finding must name a valid role-local anchor and its concrete contradiction. Unanchored or out-of-scope concerns are advisory; do not rubber-stamp or nitpick style.
+- If you cannot complete your task, write the escalation report, annotate it through the role-allowed script, and exit immediately.
+- A subagent may write one new discovery with `plan/templates/discovery.md`, then continue. It never reads, lists, searches, deduplicates, edits, or deletes existing discoveries. Product-intent gaps are Codex open questions, not discoveries.
+- PM supervision uses `coordinator-status` only; never infer Coordinator progress from transcripts, logs, or `.jsonl` files.
 
-- **Project** (mandatory): `plan/project.md` pins a Paavo's Codex closed version and an ordered milestone roadmap to product completion
-- **Milestone**: derived from the roadmap; groups related epics; Status Done / In Progress / TODO
-- **Epic**: the unit of parallel execution; gets its own git worktree; contains ordered stories
-- **Story**: a vertical feature slice executed serially within its epic
+## Entry Point
 
-Epics run in parallel (separate worktrees). Stories within an epic run serially (same worktree).
+If you are not the PM skill or a named framework role, you are a general agent: do not implement features, create pipeline artifacts, or dispatch the Coordinator. Tell the user to open a new chat and run `/project-manager`.
 
-## Nesting Budget
-
-The runtime allows two levels of subagents below the top-level chat, and a subagent launched by another subagent gets no dispatch tool at all. The framework uses the whole budget:
-
-- **Level 0** -- the PM, via the `/project-manager` skill loaded into the top-level chat. Dispatches.
-- **Level 1** -- Coordinator (background), `roadmap-planner`, `story-review`, and the escalation agents. Only the Coordinator dispatches.
-- **Level 2** -- phase agents dispatched by a Coordinator. Leaves; they must never dispatch.
-
-Consequences: the PM is never invoked with the Task tool, no phase agent may gain a dispatch step, and a Coordinator that finds it has no dispatch tool must abort before mutating any state and report to the PM. Stopping the top-level chat stops every subagent under it, so the PM chat stays open while Coordinators run.
-
-## Paavo's Codex MCP (Hard Dependency)
-
-- Product intent lives in Paavo's Codex. The framework caches a pinned execution roadmap in `plan/project.md`.
-- The Paavo's Codex MCP is required for all framework work. If unreachable, the PM hard-stops and requirements agents escalate. Do not invent product goals.
-- Always read a single **closed integer version** pinned in `plan/project.md`. Never query the open/live version for execution.
-- Every story cites its source article ids and the version it was authored against in `## Product Intent Source`. Article ids are stable across versions; titles are not. `None -- [reason]` is the only accepted form of absence. Requirements agents start from the cited articles and escalate an id that does not resolve at the pinned version.
-- Agents discover MCP tool names/signatures via Cursor MCP tool listing. Do not hardcode tool APIs.
-- **Who may access Paavo's Codex**: PM, Roadmap Planner, and the four requirements-phase agents only.
-- **Who must not**: Coordinator, architecture / integration-test / implementation agents, story-review, escalation agents, fixer, and general agents.
-- Open questions: the PM and `requirements-write` may **post** append-only open questions against the pinned version. Agents must never list, read, deduplicate, answer, or delete existing open questions. Non-blocking gaps: post and continue. Blocking gaps: escalate.
-- Local discoveries are for code/impl findings; product-intent gaps belong in Paavo's Codex.
-
-## Script-Only State Mutations
-
-Agents must NEVER call `taskwarrior/tw` directly for state changes (modify, add, done, start, stop, annotate, denotate, delete). All state mutations go through the provided scripts under `taskwarrior/`:
-
-- PM uses: `pm-lock-acquire`, `pm-lock-release`, `epic-fork`, `epic-merge`, `epic-mark-ready`, `epic-rebase`, `epic-gate-release`
-- Coordinator uses: `coordinator-lock-acquire`, `coordinator-lock-release`, `story-init`, `story-next`, `story-complete`, `story-merge`, `phase-start`, `phase-stop`, `phase-transition`, `phase-annotate`, `phase-done`, `phase-block`
-- Phase agents use: `phase-annotate`, `phase-transition`
-- Read-only queries (epic-status, pm-preflight, epic-gate-status, coordinator-lock-status, coordinator-status, `doctor` without `--fix`, `taskwarrior/tw ... export/count`) are allowed directly.
-- `doctor --fix` is reserved for the `environment-recovery` agent and the user. No other agent may run it, and no agent may pass `--force`.
-- `coordinator-heartbeat` is called by the lifecycle scripts. Agents never call it directly and never write telemetry by hand.
-
-Scripts enforce preconditions, validate transitions, and exit non-zero on violations. Agents react to exit codes.
-
-## State Discipline
-
-- Agents must never advance more than one state transition per invocation (e.g. write -> review, not write -> done).
-- Every artifact written must be annotated on the corresponding Taskwarrior task via `phase-annotate`.
-- The Coordinator is the only agent that creates Taskwarrior tasks (via `story-init`), marks tasks done (via `phase-done`), or manages git branches.
-- At most one Taskwarrior task may be `+ACTIVE -AI_LOCK` at any time per worktree. The Coordinator verifies this via `phase-start` (which exits 1 if another task is active).
-- Only one PM may run at a time (global lock in main tree). Use `pm-lock-acquire`.
-- Only one Coordinator may run per epic worktree. Use `coordinator-lock-acquire`.
-- Duplicate PM/Coordinator agents must not modify state. They report status and exit.
-- Stale locks and orphaned active tasks must only be cleared by the user after confirming no agents are running, via `bash taskwarrior/cleanup-ai-state.sh --apply`.
-
-## Merge Gate
-
-- Only one epic may merge to main at a time. The merge gate is enforced by `epic-merge`.
-- No new epic worktrees may be created while a merge is in progress (`epic-fork` checks the gate).
-- The PM never directly manipulates the gate. Only `epic-merge` and `epic-fork` scripts interact with it.
-- Stale gate recovery: `bash taskwarrior/epic-gate-release --force` (manual only, after confirming no merge is in progress).
-
-## Review Standards
-
-- Review agents must cite specific files and issues. "Looks good" without evidence is forbidden.
-- Review agents must not nitpick formatting or style. Focus on correctness, completeness, and structural integrity.
-- **Every blocking issue must be anchored**: it names an artifact element (an acceptance criterion, requirement ID, `ARCHITECTURE.md` rule, interface element, test case, observed result, Paavo's Codex item, or project-profile entry) and states how the work under review contradicts it. Each review prompt lists the anchors valid for its phase. An unanchored concern is not blocking: record it under `Non-Blocking Observations` when already rejecting, or approve. A rejection is binding on the Write agent, which has no channel to dispute it.
-- Anchoring governs how a rejection is justified, not whether one happens. Every quality criterion still applies, and rubber-stamping remains forbidden.
-- The Coordinator enforces the 3-rejection limit per phase and writes an escalation on the 3rd rejection.
-
-## Implementation Standards
-
-- Implementation agents must never: hardcode test values, write empty stubs, use mocks in production code, skip error handling, or silently deviate from the architecture.
-- If implementation is impossible given the architecture, escalate. Do not silently work around it.
-
-## Context Discipline
-
-- The PM never reads source code, tests, or plan artifacts below the story level, except `plan/discoveries/` during Discovery Triage.
-- The Coordinator never reads code, requirements, architecture, tests, or review content. It only reads Taskwarrior output from scripts.
-- Phase agents read only what their role specifies.
-
-## Escalation
-
-- If an agent cannot complete its task, it must write an escalation file to `plan/escalations/`, annotate the task via `bash taskwarrior/phase-annotate`, and **exit immediately**.
-- Escalation files use the template from `plan/templates/escalation.md`.
-- The Coordinator dispatches `escalation-recovery` inline, under its own lock, when a subagent escalates, a `phase-gate` fails, or a phase is rejected twice. Recovery returns the gates its change invalidated; the Coordinator re-runs them and continues. No completed task is ever re-opened.
-- Only `needs-human`, `failed-recovery`, a gate that fails again, or a repeat of the same cause halts the Coordinator. It then blocks the task via `phase-block`, releases its lock, and returns control to the PM.
-- The PM classifies every escalation that reaches it with `escalation-triage` (read-only) before any recovery, and only after verifying the Coordinator lock is free in the worktree.
-- Routing is mechanical: `environment` -> `environment-recovery`, `artifact` -> `escalation-recovery`, `product-intent` and `scope-policy` -> the user. Any low-confidence result goes to the user.
-- One automatic attempt per root-cause fingerprint. If the fingerprint already appears in the task's annotations, route to the user instead of retrying.
-- Environment damage is mechanical and must not be dumped on the user; product and scope decisions must never be automated away.
-- Technical design is never a `scope-policy` decision. Interfaces, decomposition, fixtures, and code belong to the agents. Stop for the user only when a decision is irreversible, is about product intent, or exceeds the current milestone.
-
-## Coordinator Supervision
-
-- Coordinators run in the background so epics execute in parallel.
-- The PM supervises exclusively through `bash taskwarrior/coordinator-status` and acts on its exit code: 0 healthy, 1 stale (re-check once), 2 dead / never started / escalated.
-- Liveness comes from a heartbeat the lifecycle scripts write automatically, so silence means stuck work.
-- NEVER infer Coordinator progress by reading agent transcripts, chat logs, or `.jsonl` files.
-
-## Discoveries
-
-- Any agent may write one new discovery file under `plan/discoveries/` using `plan/templates/discovery.md`, then continue its task.
-- Discovery filenames: `YYYYMMDD-HHMMSS-slug.md`.
-- Subagents must NEVER read, list, search, deduplicate, modify, or delete existing discovery files.
-- Only the PM triages discoveries after milestone completion.
-
-## Git
-
-- One worktree per epic, branched from main (`epic/EXXXX-slug`).
-- One branch per story within the worktree (`story/XXXXX-slug`).
-- Commit after phase review approval only (except PM committing planning artifacts to main).
-- Never force-push or rebase shared branches.
-
-## Entry Point Enforcement
-
-This framework only works when the Project Manager drives the pipeline. The PM is a **skill**, not a subagent: a top-level chat that has loaded the `project-manager` skill *is* the PM and must follow that skill's instructions in full.
-
-If you have not loaded that skill, and you are not the `coordinator`, `fixer`, `escalation-triage`, `escalation-recovery`, `environment-recovery`, `roadmap-planner`, or a named phase agent, you are a **general agent**:
-
-- You must NOT write code, requirements, architecture artifacts, tests, or framework artifacts.
-- You must NOT invoke the Coordinator or phase agents yourself.
-- If the user asks to implement a feature or "run the Coordinator," tell them to start a new chat and invoke **`/project-manager`** there.
-
-Never delegate to the PM with the Task tool, and never re-create `.cursor/agents/project-manager.md`. The PM must occupy the top-level chat so that the Coordinator it launches still has a nesting level left for phase agents.
-
-The `roadmap-planner` agent may write `plan/project.md` only when the PM invokes it.
-
-Only designated phase-write agents may create or modify files in their respective directories.
-
-The `escalation-recovery` agent may modify artifacts only for bounded corrections to the current story, and only when dispatched by the Coordinator inline or by the PM after a halt. It is the one agent allowed to correct an artifact belonging to a completed phase; it does so by editing the file and naming the invalidated gates, never by re-opening the task.
-
-The `escalation-triage` agent writes nothing at all. The `environment-recovery` agent may run only its whitelisted commands (`doctor`, `doctor --fix`, `coordinator-status`, `epic-status`, read-only `tw`, `setup.sh --worktree`) and may write only an appended `## Recovery Result` section in the escalation file. It may never run a `git` command or mutate Taskwarrior directly.
-
-The `fixer` agent may modify source and test files for bug fixes only. It does not use Taskwarrior and operates outside the PM pipeline.
-
-## Forbidden
-
-- Read and respect the "Forbidden" section in `paavos-forge/project-profile.md`.
+Read and respect the project profile's `Forbidden` section.

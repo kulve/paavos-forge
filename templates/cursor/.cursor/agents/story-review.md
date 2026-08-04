@@ -23,7 +23,6 @@ Either approve the story batch or provide specific feedback on each story that n
 
 **NEVER read:** source code, test code, requirements, or architecture artifacts.
 
-Discovery note: If you notice a significant out-of-scope bug, gap, stub, design flaw, or risk, write one new file under `plan/discoveries/` using `plan/templates/discovery.md`, then continue your assigned task. Never read, list, search, modify, deduplicate, or delete existing discovery files.
 
 ## Procedure
 

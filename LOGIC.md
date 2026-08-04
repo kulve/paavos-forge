@@ -6,83 +6,34 @@ This document is the single source of truth for Paavo's Forge. All agent prompts
 
 ## 1. Core Philosophy
 
-This framework enables AI agents to autonomously implement large projects from high-level goals. It relies on:
+Paavo's Forge turns pinned product intent into tested changes through a project roadmap, isolated parallel epics, serial stories, narrow agent contexts, Taskwarrior state, and script-enforced gates. Integration tests precede implementation. Only one PM and one Coordinator per worktree may run at once.
 
-- **Line-of-sight Project layer**: a mandatory project roadmap (`plan/project.md`) pins product goals from Paavo's Codex and orders milestones from now to product completion
-- **External product intent**: Paavo's Codex owns product goals (versioned knowledge base); the framework caches a pinned execution roadmap locally and never invents product intent
-- **Strict isolation of concerns**: each agent has a narrow role and limited context
-- **Explicit state management**: Taskwarrior owns execution state, not filesystem layout
-- **Parallel epic execution**: independent epics run in isolated git worktrees; stories within an epic execute serially
-- **Script-enforced gates**: all state mutations go through deterministic scripts; agents react to exit codes, never manipulate Taskwarrior directly
-- **Shift-left testing**: integration tests are written before implementation to constrain AI behavior
-- **Single active subagent per worktree**: at most one Taskwarrior task may be `+ACTIVE` at any time within a given worktree; the Coordinator enforces this via scripts
-- **Top-level singleton locks**: only one PM may run at any time (global); only one Coordinator may run per worktree
-
-The framework is language-agnostic. All language, build system, directory layout, and architecture-artifact conventions come from the project profile, so the same workflow supports C++, Python, TypeScript, Rust, and other languages without changes to the core spec or agent prompts. Paavo's Codex is a hard dependency for product intent (see Section 16).
+The workflow is language-agnostic: language, layout, build, test, and architecture-artifact conventions live in the project profile. Paavo's Codex is the hard product-intent dependency (Section 16).
 
 ---
 
 ## 2. Roles
 
-### 2.1 Project Manager (PM)
+| Role | Owns / may read | Must not do |
+|------|-----------------|-------------|
+| PM (`/project-manager` skill) | Roadmap, milestones, epics, stories, Paavo's Codex; main tree | Read or edit code, tests, requirements, or architecture artifacts |
+| Coordinator | One epic's Taskwarrior state and dispatch; worktree | Read artifact content or Paavo's Codex |
+| Requirements agents | Problem-space requirements and pinned Paavo's Codex | Read source, tests, or architecture artifacts |
+| Architecture agents | Interfaces, requirements, DAG | Read source or tests |
+| Test agents | Integration tests, requirements, interfaces | Read implementation source |
+| Implementation agents | Source, tests, interfaces, requirements | Access Paavo's Codex |
+| Roadmap Planner / Story Review | Roadmap or story quality | Enter the Coordinator phase pipeline |
+| Escalation Triage / Environment Recovery | Classification or framework repair | Respectively write artifacts / run outside the closed whitelist |
+| Escalation Recovery | Bounded cross-phase correction | Change intent, task state, or unbounded scope |
+| Fixer | Existing source and tests outside the pipeline | Add features, interfaces, requirements, or Taskwarrior state |
 
-The top-level orchestrator. Talks to the user, owns `plan/project.md`, derives milestones from the project roadmap, creates epics, generates stories in rolling batches, and dispatches epics to worktrees for parallel execution. The PM never touches code. Operates in the main project tree. The PM may read Paavo's Codex (via MCP) for project goals and may post open questions; it does not invent product intent.
+Architecture and implementation have plan, write, and review agents; requirements and tests have write and review agents. There are no plan-review agents. Paavo's Codex access and recovery details are defined in Sections 9 and 16.
 
-The PM is delivered as a **skill** (`.cursor/skills/project-manager/SKILL.md`), invoked as `/project-manager`, and runs as the top-level chat itself rather than as a subagent. This is a hard requirement of the nesting budget in Section 11.5, not a packaging preference: a delegated PM pushes Coordinators one level down, where they can no longer dispatch phase agents. There must be no `project-manager` agent prompt; both validators fail if one exists.
+### 2.1 Locks
 
-### 2.2 Coordinator
-
-A deterministic state machine that drives all stories within a single epic through all four phases. The Coordinator is not creative -- it reads Taskwarrior state via scripts, decides which subagent to invoke next, and halts on escalations. It never reads code or artifact content directly. It never accesses Paavo's Codex. It invokes exactly one subagent at a time. Operates within an epic's worktree.
-
-### 2.3 Phase Agents
-
-Ten specialized agents that produce and verify artifacts. Each has a narrow context window and strict input/output contracts.
-
-The four phases are deliberately not symmetric. Architecture and implementation each get three agents (plan, write, review); requirements and integration tests get two (write, review), with planning folded into the write agent as its first step. A phase earns a separate plan dispatch when the planning decision is genuinely distinct from the writing: architecture decides requirement-to-interface mapping and dependency direction, and implementation distils the largest input context in the pipeline into an ordered change list. Requirements decomposition largely restates a story that already carries acceptance criteria and scope, and test scenario selection is bounded by the compile gate, so neither justifies a dispatch of its own.
-
-There are no plan-review agents. A plan is an intention, so there is nothing factual to check it against; the check on a plan is the executable gate and the review that follow the write.
-
-**Paavo's Codex access**: only the two requirements-phase agents may read Paavo's Codex (and requirements-write may post open questions). Architecture, integration-test, and implementation agents must never access Paavo's Codex.
-
-### 2.4 Support Agents
-
-Story Review, Escalation Analysis, Escalation Triage, Escalation Recovery, Environment Recovery, and Roadmap Planner agents that assist the PM and Coordinator with quality assurance, failure diagnosis, escalation classification, bounded automatic recovery, framework state repair, and project roadmap synthesis.
-
-### 2.4.1 Roadmap Planner
-
-A PM-invoked support agent that synthesizes or revises `plan/project.md` from Paavo's Codex product goals. It runs at project init and at post-milestone re-evaluation (when the PM asks for a roadmap rewrite). It proposes an end-to-end milestone roadmap with rolling detail (near milestones detailed, far milestones brief), discusses refinements with the user/PM, then writes the project file pinning a Paavo's Codex project id and closed version. It is not part of the Coordinator's dispatch table.
-
-### 2.4.2 Escalation Triage
-
-A PM-invoked, strictly read-only support agent that classifies every escalation before any recovery is attempted. It may read the escalation report, the blocked task export, the story file, and run read-only diagnostics (`doctor` without `--fix`, `coordinator-status`, read-only `tw` queries). It writes nothing. It returns a fixed block naming the class (`environment`, `artifact`, `product-intent`, `scope-policy`), a confidence, the blast radius, the proposed handler, the verification commands, and a fingerprint. It exists so that mechanical failures are not sent to the user and product decisions are not automated away. It is not part of the Coordinator's dispatch table.
-
-### 2.4.3 Environment Recovery
-
-A PM-invoked support agent that repairs framework runtime state after an `environment`-class triage result. It operates through a closed command whitelist built around `doctor --fix` and `setup.sh --worktree`, and is forbidden from running any `git` command, any direct Taskwarrior mutation, and any edit outside appending to the escalation file. It must stop with `needs-human` whenever `doctor` reports a manual-only failure or an AI lock is ACTIVE. Claiming `resolved` requires a recorded clean `doctor` run (exit 0). It is not part of the Coordinator's dispatch table.
-
-### 2.5 Escalation Recovery
-
-The pipeline's reconciler. The Coordinator dispatches it inline, in the foreground and under its own lock, whenever a subagent escalates, a `phase-gate` fails, or a phase is rejected twice (Section 9.0). It reads the failure and the minimum relevant story artifacts, applies the smallest correction that makes the story internally consistent -- in whichever phase's artifact is wrong, including a completed one -- and returns the list of gates its change invalidated. It never moves a task. The PM may also invoke it directly for the `artifact` class after a halt.
-
-It is the one agent besides the Coordinator that the Coordinator dispatches, and the only one at level 2 permitted to edit artifacts outside the current phase. It must stop for human input only if recovery requires changing story intent or acceptance criteria, product intent absent from the pinned Paavo's Codex version, a new external dependency, creating or deleting a story, or resolving suspicious runtime state. Technical design -- interfaces, decomposition, fixtures, code -- is its own to decide.
-
-### 2.6 Fixer
-
-A lightweight bug-fix agent that operates entirely outside the PM pipeline. The user invokes it directly to fix bugs in existing code. It may modify source files and tests, but must not add features, change public interfaces, create framework artifacts, or use Taskwarrior. It is not part of the Coordinator's dispatch table. If a fix exceeds its scope (architectural changes, new interfaces, new requirements), it redirects the user to the PM.
-
-### 2.7 Singleton Locks
-
-**PM lock** (global, main tree): only one PM may run at any time. The PM lock is a `+AI_LOCK airole:pm` task in the main tree's Taskwarrior, managed via `pm-lock-acquire` and `pm-lock-release` scripts.
-
-**Coordinator lock** (per-worktree): only one Coordinator may run per epic worktree. The Coordinator lock is a `+AI_LOCK airole:coordinator` task in the worktree's Taskwarrior, managed via `coordinator-lock-acquire` and `coordinator-lock-release` scripts.
-
-**Duplicate agent startup rule**: when a PM or Coordinator agent starts, it first checks its lock via the status script. If the lock is already active, the duplicate agent must run only read-only queries to report what is currently running, then exit without modifying state.
-
-**Stale lock recovery**: agents must never auto-clear stale locks. If the user confirms no Cursor agents or subagents are still running for the workspace, the user may run the manual cleanup script:
-```
-bash taskwarrior/cleanup-ai-state.sh
-bash taskwarrior/cleanup-ai-state.sh --apply
-```
+- The main tree has one `+AI_LOCK airole:pm`, managed by `pm-lock-acquire` / `pm-lock-release`.
+- Each epic worktree has one `+AI_LOCK airole:coordinator`, managed by `coordinator-lock-*`.
+- A duplicate PM or Coordinator reports read-only status and exits. Agents never clear stale locks; only the user may run `cleanup-ai-state.sh`.
 
 ---
 
@@ -98,7 +49,7 @@ Project (mandatory: plan/project.md — pins Paavo's Codex version + milestone r
             └── Phase tasks (req → arch → test → impl)
 ```
 
-The Project layer is mandatory. Milestones are no longer optional standalone starting points: every milestone must be traceable to an entry in `plan/project.md`. A milestone may still group multiple epics for release planning.
+The Project layer is mandatory; every milestone traces to `plan/project.md`.
 
 ### 3.2 Epic States (tracked in main tree Taskwarrior)
 
@@ -128,11 +79,7 @@ A story qualifies as `light` only if **all three** of these hold; any one false 
 2. No new integration test needed; existing tests already cover the behavior.
 3. No new product intent -- `## Product Intent Source` cites a discovery rather than a Paavo's Codex article, using the `None -- [reason]` form.
 
-The tests are deliberately objective. Loosened into a judgement about size, `light` becomes the default and review disappears. Discovery-derived stories (Section 15) normally satisfy all three and default to `light`.
-
-Dropping `light`'s review as well was considered and rejected. Review is the cheaper half of the pair, the tests and the gate already prove correctness, and the review is the only remaining check that catches "this passes but it is the wrong abstraction" -- the extensibility property the pipeline exists to protect.
-
-**Escape hatch, load-bearing:** if a light story's write agent finds the change is not actually small, it escalates rather than pushing on, and the reconciler or PM reissues the story as `full`. Without it, `light` is a route for unreviewed architectural change.
+The tests are objective so `light` cannot become a size judgment. A light-story write agent that finds a wider change escalates; the reconciler or PM reissues it as `full`.
 
 #### Phase tasks
 
@@ -405,74 +352,18 @@ The integration test phase is red-gated: the tests must compile **and** the name
 
 ## 7. Merge Gate Protocol
 
-The merge gate ensures atomic operations on `main`. It prevents concurrent merges and prevents forks during a merge.
-
-1. **Gate implementation**: a permanent `+MERGE_GATE` task in the main tree's Taskwarrior, created by `setup.sh --main`. It is started/stopped to hold/release the gate.
-
-2. **Acquire**: `epic-merge` starts the gate task before performing the squash-merge.
-
-3. **Release**: `epic-merge` stops the gate task after the merge completes (or on failure).
-
-4. **Fork guard**: `epic-fork` checks if the gate is active; if so, it exits 1 (retry later).
-
-5. **Stale gate recovery**: if a merge is interrupted (LLM context dies mid-merge), the gate remains held. The user inspects via `epic-gate-status` and force-releases via `epic-gate-release --force` after confirming no merge is in progress.
-
-6. **Invariants enforced by scripts**:
-   - At most one merge to main at any time
-   - No new worktrees forked while a merge is in progress
-   - The PM never directly manipulates the gate -- only `epic-merge` and `epic-fork` scripts do
+`setup.sh --main` creates the permanent `+MERGE_GATE` task. `epic-merge` acquires and releases it around a squash merge; `epic-fork` exits 1 while it is held. Thus only one merge runs and no worktree forks during a merge. The PM never manipulates the gate directly. A user may inspect it with `epic-gate-status` and, only after confirming no merge runs, release a stale gate with `epic-gate-release --force`.
 
 ---
 
 ## 8. Epic Lifecycle
 
-### 8.1 Definition
+1. PM writes and commits `plan/epics/EXXXX-slug.md` and its stories, then runs `epic-fork EXXXX slug`. The script creates `.worktrees/epic-EXXXX-slug/`, initializes its Taskwarrior database, and marks the epic active.
+2. PM launches a Coordinator for that worktree; it processes stories serially.
+3. When the Coordinator finishes, PM runs `epic-mark-ready EXXXX`, then `epic-merge EXXXX`. The merge script gates, squash-merges, removes the worktree, and marks the epic merged.
+4. Exit 2 from `epic-merge` marks a conflict. PM may run `epic-rebase EXXXX` or route manual resolution; successful rebase restores `merge-ready`.
 
-PM writes `plan/epics/EXXXX-slug.md` using the epic template. The file contains the goal, boundaries, ordered story list, done criteria, and inter-epic dependencies.
-
-### 8.2 Dispatch
-
-PM commits the epic file and stories to `main`, then forks:
-```
-bash taskwarrior/epic-fork EXXXX slug
-```
-This creates the worktree at `.worktrees/epic-EXXXX-slug/`, initializes a fresh Taskwarrior database, and registers the epic as `active` in the main tree.
-
-### 8.3 Execution
-
-PM launches a Coordinator subagent pointed at the worktree. The Coordinator processes all stories in the epic serially.
-
-### 8.4 Completion
-
-When the Coordinator finishes all stories and releases its lock, the PM marks the epic merge-ready:
-```
-bash taskwarrior/epic-mark-ready EXXXX
-```
-
-### 8.5 Merge
-
-PM merges the epic to main:
-```
-bash taskwarrior/epic-merge EXXXX
-```
-The script acquires the merge gate, performs a squash-merge, removes the worktree, and updates epic state to `merged`.
-
-### 8.6 Conflict Resolution
-
-If `epic-merge` fails with a conflict (exit 2), the epic enters `conflict` state. The PM may:
-- Run `bash taskwarrior/epic-rebase EXXXX` to rebase on latest main
-- Report the conflict to the user for manual resolution
-
-After successful rebase, the epic returns to `merge-ready` and merge can be retried.
-
-### 8.7 Parallel Limits
-
-The number of concurrent epics is not hard-limited by the framework but is bounded by practical considerations:
-- Each worktree duplicates the working tree (disk space)
-- Each Coordinator needs its own agent context (token budget)
-- More parallel epics means more potential merge conflicts
-
-The project profile may specify a recommended concurrency limit.
+Parallelism is bounded by disk, agent context, and merge-conflict risk; the project profile may recommend a limit.
 
 ---
 
@@ -521,7 +412,7 @@ Only `needs-human`, `failed-recovery`, a gate that fails again after a fix, or a
    ```
    bash <worktree>/taskwarrior/phase-annotate <id> Recovery "attempt <n> class=<class> fp=<fingerprint>"
    ```
-   This makes the "resolving the same root cause repeatedly" stop condition in 9.8 mechanical rather than a judgment call.
+   This makes the repeated-root-cause stop condition mechanical rather than a judgment call.
 
 5. **Bounded recovery**: the PM invokes the handler from step 4 in the foreground, passing the absolute worktree path, the escalation path, the blocked task's **uuid**, the story path, and the triage block. Subagents receive no working directory, so every path must be absolute or explicitly relative to the given worktree. Both recovery agents return one of:
    - `resolved`: `escalation-recovery` includes the list of gates its change invalidated; `environment-recovery` includes a recorded clean `doctor` run (exit 0)

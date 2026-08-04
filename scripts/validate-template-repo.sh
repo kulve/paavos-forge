@@ -145,6 +145,11 @@ if grep -rq 'working_directory. set to' templates/cursor/.cursor/agents/; then
     fail "An agent prompt instructs setting a subagent working_directory; that parameter does not exist"
 fi
 
+echo "--- Worktree agent prompts must use absolute script paths ---"
+if grep -rq 'bash taskwarrior/' templates/cursor/.cursor/agents/; then
+    fail "An agent prompt uses a relative framework script path; subagents must use the prompt's absolute main-tree or worktree path"
+fi
+
 echo "--- Agent model buckets ---"
 BUCKET_SCRIPT="templates/base/paavos-forge/set-agent-models.sh"
 if [ ! -f "$BUCKET_SCRIPT" ]; then
