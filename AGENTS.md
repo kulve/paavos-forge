@@ -1,6 +1,6 @@
 # AI Agents: Paavo's Forge Maintenance Guide
 
-This file is for AI agents maintaining the Paavo's Forge template repository itself. If you are an agent working in a downstream project that deployed this framework, read your project's `AGENTS.md` and `ai-framework/LOGIC.md` instead.
+This file is for AI agents maintaining the Paavo's Forge template repository itself. If you are an agent working in a downstream project that deployed this framework, read your project's `AGENTS.md` and `paavos-forge/LOGIC.md` instead.
 
 ## Repository Purpose
 
@@ -12,10 +12,10 @@ This repository is a generic, deployable template. It does not build or run anyt
 |------|----------------------|----------------------------------|
 | `AGENTS.md` (root) | Instructions for agents maintaining this framework repo | Not present -- use the deployed copy instead |
 | `templates/base/AGENTS.md` | Template for downstream project agent instructions | Copied to project root as `AGENTS.md` |
-| `LOGIC.md` (root) | Canonical workflow specification -- edit here only | Copied to `ai-framework/LOGIC.md` at deploy time |
-| `ai-framework/LOGIC.md` | Not present at repo root | Deployed workflow spec used by all project agents |
-| `templates/base/ai-framework/project-profile.md` | Blank template | Copied and filled in by the deploying user |
-| `templates/base/ai-framework/set-agent-models.sh` | Canonical agent-to-bucket mapping | Copied to `ai-framework/`; the user picks the model per bucket |
+| `LOGIC.md` (root) | Canonical workflow specification -- edit here only | Copied to `paavos-forge/LOGIC.md` at deploy time |
+| `paavos-forge/LOGIC.md` | Not present at repo root | Deployed workflow spec used by all project agents |
+| `templates/base/paavos-forge/project-profile.md` | Blank template | Copied and filled in by the deploying user |
+| `templates/base/paavos-forge/set-agent-models.sh` | Canonical agent-to-bucket mapping | Copied to `paavos-forge/`; the user picks the model per bucket |
 | `.cursor/agents/*.md` frontmatter `model:` | Always `inherit` | Set per bucket at deploy time by `set-agent-models.sh` |
 | `DEPLOY.md` | Human deployment procedure for new projects | Not copied -- lives only in this repo |
 | `README.md` | Human overview of the framework template | Each project has its own README |
@@ -39,7 +39,7 @@ Instead, use placeholders or required arguments (e.g. `<project-slug>`, `$HOME/.
 Root `LOGIC.md` is the single source of truth for the workflow specification. Do not maintain a second editable copy under `templates/base/`. If you need to change how the framework works (phases, states, Taskwarrior protocol, git policy, escalation protocol), change root `LOGIC.md` first, then update all files that reference those rules:
 
 - All agent prompts in `templates/cursor/.cursor/agents/`
-- The Cursor rule in `templates/cursor/.cursor/rules/ai-framework.mdc`
+- The Cursor rule in `templates/cursor/.cursor/rules/paavos-forge.mdc`
 - The Taskwarrior recipes in `templates/base/taskwarrior/recipes.md`
 - The deployment guide `DEPLOY.md`
 
@@ -50,7 +50,7 @@ After editing `LOGIC.md`, run `bash scripts/validate-template-repo.sh` to confir
 This template must work for C++, Python, TypeScript, and other languages. When making changes:
 
 - Keep workflow rules language-agnostic in core files
-- Language-specific details belong in the project profile (`templates/base/ai-framework/project-profile.md`)
+- Language-specific details belong in the project profile (`templates/base/paavos-forge/project-profile.md`)
 - Use "architecture artifacts" instead of "headers" in generic contexts
 - Test your changes mentally against at least C++ and Python use cases
 
@@ -98,9 +98,9 @@ templates/base/                            # Copied to downstream project root
   AGENTS.md                                # Becomes downstream project AGENTS.md
   ARCHITECTURE.md                          # Domain dependency policy skeleton
   .gitignore                               # Ignores .task/, .taskrc, .worktrees/, build/
-  ai-framework/project-profile.md          # Filled by deploying user
-  ai-framework/README.md                   # Notes that LOGIC.md is copied at deploy time
-  ai-framework/set-agent-models.sh         # Canonical agent->bucket map; writes model: lines
+  paavos-forge/project-profile.md          # Filled by deploying user
+  paavos-forge/README.md                   # Notes that LOGIC.md is copied at deploy time
+  paavos-forge/set-agent-models.sh         # Canonical agent->bucket map; writes model: lines
   plan/templates/*.md                      # 9 artifact templates (incl. project.md, epic.md)
   plan/epics/.gitkeep                      # Epic artifacts directory
   taskwarrior/setup.sh                     # Generates .taskrc + UDA setup (--main / --worktree)
@@ -122,7 +122,7 @@ templates/base/                            # Copied to downstream project root
 templates/cursor/.cursor/                  # Copied to downstream .cursor/
   agents/*.md                              # 19 agent prompts (incl. roadmap-planner, deploy-profile,
                                            #   escalation-triage, environment-recovery). No PM here.
-  rules/ai-framework.mdc                   # Always-on rules
+  rules/paavos-forge.mdc                   # Always-on rules
   skills/project-manager/SKILL.md          # The PM; runs as the top-level chat, not a subagent
   skills/ai-status/SKILL.md                # Read-only pipeline status report
 
@@ -142,7 +142,7 @@ scripts/
 
 The script lives in `scripts/` rather than `templates/base/` so deployed C++ or Python projects do not inherit a Node dependency.
 
-Four places encode model-string knowledge: DEPLOY.md Step 6, `templates/cursor/.cursor/agents/deploy-profile.md`, the lint rules in `templates/base/ai-framework/set-agent-models.sh`, and the frontmatter checks in `scripts/validate-deployment.sh`. Change one and check the rest. Re-run the listing rather than editing any of them from memory.
+Four places encode model-string knowledge: DEPLOY.md Step 6, `templates/cursor/.cursor/agents/deploy-profile.md`, the lint rules in `templates/base/paavos-forge/set-agent-models.sh`, and the frontmatter checks in `scripts/validate-deployment.sh`. Change one and check the rest. Re-run the listing rather than editing any of them from memory.
 
 ## Isolation Invariants (do not regress these)
 
@@ -176,7 +176,7 @@ Agent prompts follow a standard structure (see LOGIC.md section 11). When editin
 7. Verify script names match `recipes.md` and actual script files
 8. Keep `model: inherit` in the frontmatter. Downstream deployments assign the real model by bucket; a concrete slug shipped upstream would override every deployed project's choice on merge.
 
-**Adding or removing an agent prompt** also requires updating `BUCKET_MAP` in `templates/base/ai-framework/set-agent-models.sh` and the agent counts in both validators. `validate-template-repo.sh` fails if the two sets disagree, so a forgotten bucket assignment cannot ship.
+**Adding or removing an agent prompt** also requires updating `BUCKET_MAP` in `templates/base/paavos-forge/set-agent-models.sh` and the agent counts in both validators. `validate-template-repo.sh` fails if the two sets disagree, so a forgotten bucket assignment cannot ship.
 
 **The Project Manager is not an agent prompt.** It lives at `templates/cursor/.cursor/skills/project-manager/SKILL.md` and has no bucket, because a skill loads into the top-level chat and therefore runs on that chat's model. Never move it back under `agents/`: see the nesting budget below.
 

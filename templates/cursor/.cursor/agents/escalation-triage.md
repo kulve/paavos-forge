@@ -21,8 +21,8 @@ Your prompt contains the absolute epic worktree path. Bind it as `WT` and invoke
 
 Read, in this order:
 
-1. `ai-framework/LOGIC.md` -- sections 9 (Escalation Protocol) and 17 (Coordinator Observability)
-2. `ai-framework/project-profile.md` -- to know which commands and directories are legitimate
+1. `paavos-forge/LOGIC.md` -- sections 9 (Escalation Protocol) and 17 (Coordinator Observability)
+2. `paavos-forge/project-profile.md` -- to know which commands and directories are legitimate
 3. The escalation file from the PM prompt
 4. The blocked task export: `bash "$WT/taskwarrior/tw" <id> export` (including all annotations)
 5. The story file from the PM prompt

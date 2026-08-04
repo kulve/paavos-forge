@@ -1,5 +1,5 @@
 {
-  "name": "ai-framework-model-catalog",
+  "name": "paavos-forge-model-catalog",
   "version": "1.0.0",
   "private": true,
   "description": "Lists the Cursor model IDs and parameters available to an account, for DEPLOY.md Step 6",

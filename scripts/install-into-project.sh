@@ -17,7 +17,7 @@ usage() {
 Usage:
   bash scripts/install-into-project.sh --framework <forge-root> --project <target-root> [--force]
 
-Copy templates/base/, LOGIC.md -> ai-framework/LOGIC.md, and templates/cursor/.cursor/
+Copy templates/base/, LOGIC.md -> paavos-forge/LOGIC.md, and templates/cursor/.cursor/
 into the target project. Does not run Taskwarrior setup or assign agent models.
 
 Always abort if any parent path component exists as a file or symlink (ancestors
@@ -152,7 +152,7 @@ collect_conflicts_from_tree() {
 }
 
 collect_conflicts_from_tree "$FRAMEWORK/templates/base" ""
-check_dest_path "ai-framework/LOGIC.md"
+check_dest_path "paavos-forge/LOGIC.md"
 collect_conflicts_from_tree "$FRAMEWORK/templates/cursor/.cursor" ".cursor/"
 
 if [ "${#ancestor_conflicts[@]}" -gt 0 ]; then
@@ -174,8 +174,8 @@ if [ "$FORCE" -eq 0 ] && [ "${#leaf_conflicts[@]}" -gt 0 ]; then
 fi
 
 cp -a "$FRAMEWORK/templates/base/." "$PROJECT/"
-mkdir -p "$PROJECT/ai-framework"
-cp -a "$FRAMEWORK/LOGIC.md" "$PROJECT/ai-framework/LOGIC.md"
+mkdir -p "$PROJECT/paavos-forge"
+cp -a "$FRAMEWORK/LOGIC.md" "$PROJECT/paavos-forge/LOGIC.md"
 cp -a "$FRAMEWORK/templates/cursor/.cursor" "$PROJECT/"
 
 echo "Installed Paavo's Forge into $PROJECT"
@@ -183,8 +183,8 @@ echo
 echo "Next steps (see DEPLOY.md):"
 echo "  1. Ensure git is initialized (Step 3)"
 echo "  2. bash taskwarrior/setup.sh --main (Step 4)"
-echo "  3. Fill ai-framework/project-profile.md (Step 5)"
-echo "  4. Assign agent models with ai-framework/set-agent-models.sh (Step 6)"
+echo "  3. Fill paavos-forge/project-profile.md (Step 5)"
+echo "  4. Assign agent models with paavos-forge/set-agent-models.sh (Step 6)"
 echo "  5. Validate, commit, then start /project-manager (Steps 7-11)"
 echo
 echo "Keep the framework STAGE/checkout until Steps 6 and 9 finish (list-models, validate-deployment)."

@@ -24,7 +24,7 @@ Your prompt contains the absolute epic worktree path. Every artifact path in you
 3. Uncommitted test files (from task annotations or check `git status`)
 4. Architecture artifacts for this story (from annotations)
 5. Requirements for this story (from annotations or `plan/requirements/`)
-6. `ai-framework/project-profile.md` -- for mock boundaries
+6. `paavos-forge/project-profile.md` -- for mock boundaries
 
 **NEVER read:** implementation source code.
 

@@ -27,7 +27,7 @@ Build and test commands from the project profile run against the worktree, not t
 4. Architecture artifacts for this story (from annotations) -- the interfaces the code should implement
 5. Requirements for this story (from annotations or `plan/requirements/`)
 6. Integration tests for this story (from annotations) -- verify tests pass for the right reasons
-7. `ai-framework/project-profile.md` -- for review standards and forbidden patterns
+7. `paavos-forge/project-profile.md` -- for review standards and forbidden patterns
 
 ## Procedure
 

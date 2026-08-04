@@ -18,7 +18,7 @@ Either approve the story batch or provide specific feedback on each story that n
 1. The story file paths listed in the prompt
 2. The parent epic file (from the stories' `## Epic` field)
 3. The current milestone file (from `plan/milestones/`) if referenced by the epic
-4. `ai-framework/project-profile.md` -- for valid domain tags and project context
+4. `paavos-forge/project-profile.md` -- for valid domain tags and project context
 5. Existing stories in `plan/stories/` -- to check for overlap
 
 **NEVER read:** source code, test code, requirements, or architecture artifacts.

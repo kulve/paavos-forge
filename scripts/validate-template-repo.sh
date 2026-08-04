@@ -21,17 +21,17 @@ elif [ ! -s "LOGIC.md" ]; then
 fi
 
 echo "--- No duplicate LOGIC.md in templates/base ---"
-if [ -f "templates/base/ai-framework/LOGIC.md" ]; then
-    fail "templates/base/ai-framework/LOGIC.md must not exist; copy root LOGIC.md at deploy time instead"
+if [ -f "templates/base/paavos-forge/LOGIC.md" ]; then
+    fail "templates/base/paavos-forge/LOGIC.md must not exist; copy root LOGIC.md at deploy time instead"
 fi
 
 echo "--- Deploy guidance present ---"
-if [ ! -f "templates/base/ai-framework/README.md" ]; then
-    fail "Missing templates/base/ai-framework/README.md (deploy-time LOGIC.md guidance)"
+if [ ! -f "templates/base/paavos-forge/README.md" ]; then
+    fail "Missing templates/base/paavos-forge/README.md (deploy-time LOGIC.md guidance)"
 fi
 
-if [ ! -f "templates/base/ai-framework/project-profile.md" ]; then
-    fail "Missing templates/base/ai-framework/project-profile.md"
+if [ ! -f "templates/base/paavos-forge/project-profile.md" ]; then
+    fail "Missing templates/base/paavos-forge/project-profile.md"
 fi
 
 if [ ! -f "templates/base/AGENTS.md" ]; then
@@ -42,8 +42,8 @@ if [ ! -f "DEPLOY.md" ]; then
     fail "Missing DEPLOY.md"
 fi
 
-if ! grep -q 'ai-framework/LOGIC.md' DEPLOY.md; then
-    fail "DEPLOY.md must document copying LOGIC.md to ai-framework/LOGIC.md"
+if ! grep -q 'paavos-forge/LOGIC.md' DEPLOY.md; then
+    fail "DEPLOY.md must document copying LOGIC.md to paavos-forge/LOGIC.md"
 fi
 
 if [ ! -f "scripts/install-into-project.sh" ]; then
@@ -71,7 +71,7 @@ for tmpl in project milestone story epic requirement phase-plan review-feedback 
     fi
 done
 
-if ! grep -qF "Paavo's Codex" templates/base/ai-framework/project-profile.md; then
+if ! grep -qF "Paavo's Codex" templates/base/paavos-forge/project-profile.md; then
     fail "project-profile.md must include a Paavo's Codex MCP section"
 fi
 
@@ -146,7 +146,7 @@ if grep -rq 'working_directory. set to' templates/cursor/.cursor/agents/; then
 fi
 
 echo "--- Agent model buckets ---"
-BUCKET_SCRIPT="templates/base/ai-framework/set-agent-models.sh"
+BUCKET_SCRIPT="templates/base/paavos-forge/set-agent-models.sh"
 if [ ! -f "$BUCKET_SCRIPT" ]; then
     fail "Missing $BUCKET_SCRIPT (agent-to-bucket mapping and model assignment)"
 elif [ ! -x "$BUCKET_SCRIPT" ]; then
@@ -212,8 +212,8 @@ if [ -d "templates/cursor/.cursor/agents" ]; then
 fi
 
 echo "--- Cursor rules and skills ---"
-if [ ! -f "templates/cursor/.cursor/rules/ai-framework.mdc" ]; then
-    fail "Missing Cursor rule: templates/cursor/.cursor/rules/ai-framework.mdc"
+if [ ! -f "templates/cursor/.cursor/rules/paavos-forge.mdc" ]; then
+    fail "Missing Cursor rule: templates/cursor/.cursor/rules/paavos-forge.mdc"
 fi
 for skill in project-manager ai-status; do
     SKILL_FILE="templates/cursor/.cursor/skills/${skill}/SKILL.md"

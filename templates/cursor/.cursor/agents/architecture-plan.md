@@ -24,7 +24,7 @@ Read these files:
 1. The story file (path provided in prompt)
 2. All requirement files for this story (paths from task annotations or grep for story ID in `plan/requirements/`)
 3. `ARCHITECTURE.md` at the project root -- the domain dependency policy registry
-4. `ai-framework/project-profile.md` -- for architecture conventions, artifact type, and directory layout
+4. `paavos-forge/project-profile.md` -- for architecture conventions, artifact type, and directory layout
 5. Existing architecture artifacts in the directories specified by the project profile
 
 **NEVER read:** implementation source files, test code, review feedback from other phases.

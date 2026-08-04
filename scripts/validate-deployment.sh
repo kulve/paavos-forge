@@ -59,12 +59,12 @@ echo ""
 echo "--- Core Files ---"
 check_file "AGENTS.md"
 check_file "ARCHITECTURE.md"
-check_file "ai-framework/LOGIC.md"
-check_file "ai-framework/project-profile.md"
+check_file "paavos-forge/LOGIC.md"
+check_file "paavos-forge/project-profile.md"
 
 echo "--- Project Profile ---"
-check_nonempty "ai-framework/project-profile.md"
-check_placeholder "ai-framework/project-profile.md"
+check_nonempty "paavos-forge/project-profile.md"
+check_placeholder "paavos-forge/project-profile.md"
 
 echo "--- Plan Templates (9 required) ---"
 check_file "plan/templates/project.md"
@@ -77,8 +77,8 @@ check_file "plan/templates/review-feedback.md"
 check_file "plan/templates/escalation.md"
 check_file "plan/templates/discovery.md"
 
-if ! grep -qF "Paavo's Codex" ai-framework/project-profile.md 2>/dev/null; then
-    echo "ERROR: ai-framework/project-profile.md must include a Paavo's Codex MCP section"
+if ! grep -qF "Paavo's Codex" paavos-forge/project-profile.md 2>/dev/null; then
+    echo "ERROR: paavos-forge/project-profile.md must include a Paavo's Codex MCP section"
     ERRORS=$((ERRORS + 1))
 fi
 
@@ -198,8 +198,8 @@ if [ -f ".cursor/agents/project-manager.md" ]; then
 fi
 
 echo "--- Agent Models ---"
-check_file "ai-framework/set-agent-models.sh"
-check_executable "ai-framework/set-agent-models.sh"
+check_file "paavos-forge/set-agent-models.sh"
+check_executable "paavos-forge/set-agent-models.sh"
 if [ -d ".cursor/agents" ]; then
     INHERIT_COUNT=0
     for agent_path in .cursor/agents/*.md; do
@@ -240,13 +240,13 @@ if [ -d ".cursor/agents" ]; then
     done
     if [ "$INHERIT_COUNT" -gt 0 ]; then
         echo "WARNING: $INHERIT_COUNT agent(s) still on 'model: inherit'; they will run on whatever model the chat happens to use"
-        echo "         Assign models by bucket: bash ai-framework/set-agent-models.sh --list  (see DEPLOY.md Step 6)"
+        echo "         Assign models by bucket: bash paavos-forge/set-agent-models.sh --list  (see DEPLOY.md Step 6)"
         WARNINGS=$((WARNINGS + 1))
     fi
 fi
 
 echo "--- Cursor Rules and Skills ---"
-check_file ".cursor/rules/ai-framework.mdc"
+check_file ".cursor/rules/paavos-forge.mdc"
 check_file ".cursor/skills/project-manager/SKILL.md"
 check_file ".cursor/skills/ai-status/SKILL.md"
 
@@ -283,7 +283,7 @@ if [ ! -d ".git" ]; then
     WARNINGS=$((WARNINGS + 1))
 else
     # Epic worktrees are created from main, so the framework must be committed there.
-    for required in taskwarrior ai-framework plan/templates AGENTS.md; do
+    for required in taskwarrior paavos-forge plan/templates AGENTS.md; do
         if [ -z "$(git ls-tree --name-only main -- "$required" 2>/dev/null)" ]; then
             echo "WARNING: '$required' is not committed to main. epic-fork will refuse until it is."
             WARNINGS=$((WARNINGS + 1))

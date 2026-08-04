@@ -20,7 +20,7 @@ Read the files specified in the prompt:
 1. The escalation file (path from prompt)
 2. The failed artifact that triggered the escalation
 3. Upstream artifacts (requirements, architecture, tests) that may contain the root cause
-4. `ai-framework/project-profile.md` for project context
+4. `paavos-forge/project-profile.md` for project context
 
 ## Procedure
 

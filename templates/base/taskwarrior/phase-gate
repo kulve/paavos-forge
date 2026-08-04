@@ -38,7 +38,7 @@ case "$PHASE" in
         exit 2 ;;
 esac
 
-PROFILE="${AI_ROOT}/ai-framework/project-profile.md"
+PROFILE="${AI_ROOT}/paavos-forge/project-profile.md"
 if [ ! -f "$PROFILE" ]; then
     echo "WARNING: No project profile at $PROFILE; skipping the $GATE_LABEL."
     exit 0

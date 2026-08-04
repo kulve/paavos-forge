@@ -24,7 +24,7 @@ Your prompt contains the absolute epic worktree path. Every artifact path in you
 3. Architecture artifacts for this story (from annotations) -- these define WHAT to implement
 4. Integration tests for this story (from annotations) -- these define the acceptance bar
 5. Requirements for this story (from annotations or `plan/requirements/`)
-6. `ai-framework/project-profile.md` -- for source directory, build system, test commands
+6. `paavos-forge/project-profile.md` -- for source directory, build system, test commands
 7. Existing source code in affected modules (to understand current state)
 
 ## Procedure

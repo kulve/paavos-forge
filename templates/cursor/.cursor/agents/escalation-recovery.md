@@ -39,8 +39,8 @@ Your prompt contains the absolute epic worktree path. Bind it as `WT`, invoke ev
 
 Read these files and task records in this order:
 
-1. `ai-framework/LOGIC.md` -- sections on roles, PM loop, escalation protocol, artifact definitions, and quality standards
-2. `ai-framework/project-profile.md` -- language, directories, build/test commands, forbidden areas
+1. `paavos-forge/LOGIC.md` -- sections on roles, PM loop, escalation protocol, artifact definitions, and quality standards
+2. `paavos-forge/project-profile.md` -- language, directories, build/test commands, forbidden areas
 3. `ARCHITECTURE.md` at the project root, if it exists
 4. The escalation file path from your prompt, if there is one. A gate failure or a review-rejection loop has no escalation file; the failure description is in your prompt instead.
 5. The Taskwarrior task export for the phase task, using the **uuid** from your prompt: `bash "$WT/taskwarrior/tw" <uuid> export`

@@ -23,7 +23,7 @@ Your prompt contains the absolute epic worktree path. Every artifact path in you
 2. `ARCHITECTURE.md` at the project root -- for domain dependency rules
 4. Architecture artifacts for this story (from annotations)
 5. Requirements for this story (from annotations or `plan/requirements/`)
-6. `ai-framework/project-profile.md` -- for test directory, test framework, and mock boundaries
+6. `paavos-forge/project-profile.md` -- for test directory, test framework, and mock boundaries
 7. Existing test infrastructure (test helpers, fixtures, base classes)
 
 **NEVER read:** implementation source code (it doesn't exist yet during this phase).

@@ -27,7 +27,7 @@ Build and test commands from the project profile run against the worktree, not t
 4. Architecture artifacts for this story (from annotations) -- the interfaces you must implement
 5. Integration tests for this story (from annotations) -- the tests your code must pass
 6. Requirements for this story (from annotations or `plan/requirements/`)
-7. `ai-framework/project-profile.md` -- for source directory, build commands, test commands
+7. `paavos-forge/project-profile.md` -- for source directory, build commands, test commands
 8. Existing source code in affected directories
 
 ## Procedure

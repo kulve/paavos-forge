@@ -15,8 +15,8 @@ Produce a high-quality `plan/project.md` that: pins a Paavo's Codex project id a
 
 ## Context Loading
 
-1. `ai-framework/LOGIC.md` -- especially Sections 4, 10.0, and 16
-2. `ai-framework/project-profile.md` -- Paavo's Codex project name/id and MCP section
+1. `paavos-forge/LOGIC.md` -- especially Sections 4, 10.0, and 16
+2. `paavos-forge/project-profile.md` -- Paavo's Codex project name/id and MCP section
 3. Existing `plan/project.md` if present (for re-evaluation / rewrite of TODO milestones)
 4. Existing `plan/milestones/` -- Status of Done milestones must be preserved
 5. Paavo's Codex via MCP -- discover tools on the fly; do not assume fixed tool names

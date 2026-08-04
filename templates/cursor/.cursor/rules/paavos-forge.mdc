@@ -9,8 +9,8 @@ These rules apply to ALL agents working in this project. They are non-negotiable
 
 ## Source of Truth
 
-- `ai-framework/LOGIC.md` is the authoritative workflow specification. Follow it exactly.
-- `ai-framework/project-profile.md` defines language-specific conventions. Read it before any work.
+- `paavos-forge/LOGIC.md` is the authoritative workflow specification. Follow it exactly.
+- `paavos-forge/project-profile.md` defines language-specific conventions. Read it before any work.
 - `ARCHITECTURE.md` at the project root defines the domain dependency policy. All agents must respect the domain dependency DAG. Circular cross-domain dependencies are strictly prohibited.
 - Taskwarrior state is the source of truth for execution progress, not filesystem layout or git status.
 - All Taskwarrior read-only commands must use `taskwarrior/tw`, never bare `task`. This ensures per-project database isolation.
@@ -24,7 +24,7 @@ These rules apply to ALL agents working in this project. They are non-negotiable
 
 ## Subagent Model Selection
 
-- Every agent's model is pinned in its own prompt frontmatter, assigned by bucket at deploy time via `ai-framework/set-agent-models.sh`. The PM is the exception: it is a skill, so it runs on whatever model the top-level chat is set to.
+- Every agent's model is pinned in its own prompt frontmatter, assigned by bucket at deploy time via `paavos-forge/set-agent-models.sh`. The PM is the exception: it is a skill, so it runs on whatever model the top-level chat is set to.
 - **Never pass a `model` parameter when invoking a subagent.** That argument overrides the frontmatter and silently replaces a deliberate capability assignment with the parent's model.
 - Do not edit `model:` lines by hand. Re-run the script so a whole bucket stays consistent.
 
@@ -168,4 +168,4 @@ The `fixer` agent may modify source and test files for bug fixes only. It does n
 
 ## Forbidden
 
-- Read and respect the "Forbidden" section in `ai-framework/project-profile.md`.
+- Read and respect the "Forbidden" section in `paavos-forge/project-profile.md`.

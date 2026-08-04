@@ -376,7 +376,7 @@ bash "$WT/taskwarrior/phase-gate" <uuid>
 
 The Coordinator runs it after `Review: approved` and before `phase-done`. Exit 0 completes the phase; exit 2 routes to the reconciler in Section 9 exactly as an escalation does, with the gate output as the failure description.
 
-Gate per phase, resolved from `ai-framework/project-profile.md`:
+Gate per phase, resolved from `paavos-forge/project-profile.md`:
 
 | Phase | Profile line | What it proves |
 |-------|--------------|----------------|

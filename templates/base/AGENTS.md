@@ -14,11 +14,11 @@ The framework only produces requirements, architecture, tested code, and full tr
 
 ## Framework
 
-This project uses Paavo's Forge. The canonical workflow specification is in `ai-framework/LOGIC.md`. Read it before doing any work.
+This project uses Paavo's Forge. The canonical workflow specification is in `paavos-forge/LOGIC.md`. Read it before doing any work.
 
 ## Project Profile
 
-Project-specific conventions (language, directories, test commands, architecture type, mock boundaries, review standards, forbidden areas) are defined in `ai-framework/project-profile.md`. Read it before every task.
+Project-specific conventions (language, directories, test commands, architecture type, mock boundaries, review standards, forbidden areas) are defined in `paavos-forge/project-profile.md`. Read it before every task.
 
 ## Execution Model
 
@@ -55,7 +55,7 @@ Agents follow a strict hierarchy:
 - **Support Agents**: story review, escalation analysis, escalation triage, escalation recovery (also the Coordinator's inline reconciler), environment recovery
 - **Fixer** (`fixer`): fixes bugs in existing code outside the PM pipeline; invoked directly by the user
 
-See `ai-framework/LOGIC.md` for the full role descriptions and workflow rules.
+See `paavos-forge/LOGIC.md` for the full role descriptions and workflow rules.
 
 ## Script Protocol
 
@@ -73,7 +73,7 @@ See `taskwarrior/recipes.md` for full documentation.
 
 ## Subagent Models
 
-Each agent's model is pinned in its own `.cursor/agents/*.md` frontmatter, assigned by bucket via `ai-framework/set-agent-models.sh` (see `DEPLOY.md` Step 6). Run it with `--list` to see the current assignment. The PM has no bucket: it is a skill, so it runs on whatever model you select for the top-level chat -- Sonnet when creating or revising plans and stories, Luna only for supervision-only sessions.
+Each agent's model is pinned in its own `.cursor/agents/*.md` frontmatter, assigned by bucket via `paavos-forge/set-agent-models.sh` (see `DEPLOY.md` Step 6). Run it with `--list` to see the current assignment. The PM has no bucket: it is a skill, so it runs on whatever model you select for the top-level chat -- Sonnet when creating or revising plans and stories, Luna only for supervision-only sessions.
 
 **Never pass a `model` parameter when invoking a subagent.** That argument overrides the frontmatter and silently replaces a deliberate capability assignment with the parent's model. Do not hand-edit `model:` lines either; re-run the script so a whole bucket stays consistent.
 

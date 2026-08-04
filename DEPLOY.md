@@ -23,10 +23,10 @@ The framework ships from three locations in the Forge repository:
 | Source | Deployed to | Purpose |
 |--------|-------------|---------|
 | `templates/base/` | Project root | Scaffolding: `AGENTS.md`, Taskwarrior, plan templates, project profile |
-| `LOGIC.md` (repo root) | `ai-framework/LOGIC.md` | Canonical workflow specification (copied as-is) |
+| `LOGIC.md` (repo root) | `paavos-forge/LOGIC.md` | Canonical workflow specification (copied as-is) |
 | `templates/cursor/.cursor/` | `.cursor/` | Cursor agents, rules, and commands |
 
-`templates/base/AGENTS.md` becomes your project's root `AGENTS.md`. Customize it after deployment if you need project-specific AI guidance (extra rules, domain context, or stricter review standards). The workflow specification itself lives in `ai-framework/LOGIC.md` and should not be edited unless you are intentionally forking the framework.
+`templates/base/AGENTS.md` becomes your project's root `AGENTS.md`. Customize it after deployment if you need project-specific AI guidance (extra rules, domain context, or stricter review standards). The workflow specification itself lives in `paavos-forge/LOGIC.md` and should not be edited unless you are intentionally forking the framework.
 
 There is no `.taskrc` to copy. It is generated per tree by `taskwarrior/setup.sh` from `taskwarrior/taskrc.template` and is gitignored, because its UDAs differ between the main tree and epic worktrees.
 
@@ -68,7 +68,7 @@ PROJECT="$(pwd)"              # target project root
 
 ## Step 2: Install Templates into the Project
 
-Inspect the install script, then run it. It copies `templates/base/`, `LOGIC.md` → `ai-framework/LOGIC.md`, and `templates/cursor/.cursor/`. It does **not** run Taskwarrior setup or assign models.
+Inspect the install script, then run it. It copies `templates/base/`, `LOGIC.md` → `paavos-forge/LOGIC.md`, and `templates/cursor/.cursor/`. It does **not** run Taskwarrior setup or assign models.
 
 ```bash
 # Inspect before running (Read tool in Cursor, or a pager)
@@ -86,15 +86,15 @@ After a successful install, the project contains:
 - `AGENTS.md` -- from `templates/base/AGENTS.md`; project-level AI instructions
 - `ARCHITECTURE.md` -- domain dependency policy registry (populated by agents as domains are introduced)
 - `.gitignore` -- ignores `.task/`, `.taskrc`, `build/`, and `.worktrees/`
-- `ai-framework/LOGIC.md` -- workflow specification (copied from framework repo root)
-- `ai-framework/project-profile.md` -- to be filled in (Step 5)
-- `ai-framework/set-agent-models.sh` -- assigns a model to every agent prompt by bucket (Step 6)
+- `paavos-forge/LOGIC.md` -- workflow specification (copied from framework repo root)
+- `paavos-forge/project-profile.md` -- to be filled in (Step 5)
+- `paavos-forge/set-agent-models.sh` -- assigns a model to every agent prompt by bucket (Step 6)
 - `plan/templates/` -- 9 artifact templates used by agents (project, milestone, epic, story, requirement, phase-plan, review-feedback, escalation, discovery)
 - `plan/epics/.gitkeep` -- directory for epic definition files
 - `taskwarrior/` -- setup, wrappers, recipes, and orchestration scripts (Step 4)
 - `.cursor/agents/` -- 19 agent prompt files (Coordinator, 10 phase agents, Roadmap Planner, Deploy Profile, Story Review, Escalation Analysis, Escalation Triage, Escalation Recovery, Environment Recovery, and Fixer)
 - `.cursor/skills/` -- the `project-manager` and `ai-status` skills, invoked as `/project-manager` and `/ai-status`
-- `.cursor/rules/ai-framework.mdc` -- always-on framework rules
+- `.cursor/rules/paavos-forge.mdc` -- always-on framework rules
 
 ## Step 3: Initialize Git
 
@@ -179,7 +179,7 @@ All scripts are invoked by **absolute path** (`bash <tree-root>/taskwarrior/<scr
 
 ## Step 5: Fill in the Project Profile
 
-Open `ai-framework/project-profile.md` and answer every question. This is the most important customization step -- it tells all agents how your project works.
+Open `paavos-forge/project-profile.md` and answer every question. This is the most important customization step -- it tells all agents how your project works.
 
 You can fill this in by hand, or open a chat with the `deploy-profile` agent, which interviews you with the questions below and writes the profile for you (it edits only `project-profile.md`).
 
@@ -285,7 +285,7 @@ Paavo's Codex is a hard dependency. Fill this section before the first PM run.
 - Parallel limit: 2
 ```
 
-Note: adapting the framework to a language requires editing only `ai-framework/project-profile.md` (plus your `README.md` and build skeleton). Do not edit the agent prompts under `.cursor/agents/` per language -- they read the profile at runtime, and keeping them untouched lets you merge upstream framework updates cleanly.
+Note: adapting the framework to a language requires editing only `paavos-forge/project-profile.md` (plus your `README.md` and build skeleton). Do not edit the agent prompts under `.cursor/agents/` per language -- they read the profile at runtime, and keeping them untouched lets you merge upstream framework updates cleanly.
 
 ## Step 6: Choose Models for Agent Buckets
 
@@ -307,7 +307,7 @@ Model choice trades off two independent axes. **World knowledge** decides which 
 To see which agent is in which bucket and what each currently resolves to:
 
 ```bash
-bash ai-framework/set-agent-models.sh --list
+bash paavos-forge/set-agent-models.sh --list
 ```
 
 The agent-to-bucket assignment is framework knowledge and lives in the script. The bucket-to-model choice is yours.
@@ -381,7 +381,7 @@ The `deploy-profile` agent can do this step with you: it asks you to run the lis
 A working starting point that keeps Opus scarce, puts bulk work on Grok, and avoids Composer. Verified against the model catalog shape in August 2026; **re-check the IDs with the catalog listing above before using it**:
 
 ```bash
-bash ai-framework/set-agent-models.sh \
+bash paavos-forge/set-agent-models.sh \
   --frontier       "claude-opus-5[thinking=true,context=300k,effort=high,fast=false]" \
   --deep           "claude-sonnet-5[thinking=true,context=300k,effort=high,fast=false]" \
   --critic         "gpt-5.6-terra[context=272k,reasoning=high,fast=false]" \
@@ -445,8 +445,8 @@ Or verify manually:
 - [ ] `.taskrc` exists at project root (generated by `setup.sh`, not copied)
 - [ ] `.gitignore` contains `.task/`, `.taskrc`, and `.worktrees/`
 - [ ] `.taskrc` is NOT tracked by git: `git ls-files --error-unmatch .taskrc` must fail
-- [ ] `ai-framework/LOGIC.md` exists (copied from framework repo root `LOGIC.md` by the install script)
-- [ ] `ai-framework/project-profile.md` exists and is filled in
+- [ ] `paavos-forge/LOGIC.md` exists (copied from framework repo root `LOGIC.md` by the install script)
+- [ ] `paavos-forge/project-profile.md` exists and is filled in
 - [ ] `plan/templates/` contains 9 template files (project, milestone, epic, story, requirement, phase-plan, review-feedback, escalation, discovery)
 - [ ] `plan/epics/.gitkeep` exists
 - [ ] `taskwarrior/setup.sh` exists and is executable
@@ -458,9 +458,9 @@ Or verify manually:
 - [ ] `taskwarrior/` contains 27 orchestration scripts (epic, story, phase, lock management, diagnostics, telemetry)
 - [ ] `bash taskwarrior/doctor` exits 0
 - [ ] `.cursor/agents/` contains 19 agent files (including `roadmap-planner.md`, `escalation-triage.md`, and `environment-recovery.md`) and **no** `project-manager.md`
-- [ ] `ai-framework/set-agent-models.sh` exists and is executable
-- [ ] Every agent has a model assigned and none still says `inherit`: `bash ai-framework/set-agent-models.sh --list`
-- [ ] `.cursor/rules/ai-framework.mdc` exists
+- [ ] `paavos-forge/set-agent-models.sh` exists and is executable
+- [ ] Every agent has a model assigned and none still says `inherit`: `bash paavos-forge/set-agent-models.sh --list`
+- [ ] `.cursor/rules/paavos-forge.mdc` exists
 - [ ] `.cursor/skills/` contains `project-manager/SKILL.md` and `ai-status/SKILL.md`
 - [ ] Main-tree Taskwarrior UDAs are configured: `taskwarrior/tw _udas | grep aiepic` (the phase UDAs are worktree-scoped and appear only after `epic-fork`)
 - [ ] Project profile is filled in completely (including parallel limit and Paavo's Codex MCP section)
@@ -472,7 +472,7 @@ Or verify manually:
 
 ```bash
 cd "$PROJECT"
-git add AGENTS.md ARCHITECTURE.md .gitignore README.md ai-framework/ plan/ taskwarrior/ .cursor/
+git add AGENTS.md ARCHITECTURE.md .gitignore README.md paavos-forge/ plan/ taskwarrior/ .cursor/
 git commit -m "chore: deploy Paavo's Forge"
 ```
 
@@ -487,8 +487,8 @@ This includes the `model:` lines written in Step 6. Epic worktrees are created f
 Do not add `.taskrc` or `.task/`; both are gitignored on purpose. Verify:
 
 ```bash
-git status --porcelain -- taskwarrior/ ai-framework/ plan/   # must be empty
-git ls-tree --name-only main -- taskwarrior ai-framework plan/templates AGENTS.md
+git status --porcelain -- taskwarrior/ paavos-forge/ plan/   # must be empty
+git ls-tree --name-only main -- taskwarrior paavos-forge plan/templates AGENTS.md
 ```
 
 Commit planning artifacts to `main` the same way before each later dispatch. The PM does this as part of its normal loop.
@@ -520,7 +520,7 @@ Project (mandatory: plan/project.md) → Milestone → Epic (parallel) → Stori
 
 Use `/ai-status` to check project/roadmap progress and all active epics at any time. Run it in its own chat, without the PM skill loaded: it is a read-only report and deliberately sits outside the pipeline.
 
-> **Critical:** Always start work by invoking `/project-manager` in a fresh chat. Never ask a general/default agent to "implement the plan," "run the Coordinator," or write code, and never delegate to the PM as a subagent. A general agent will bypass the framework pipeline and write code directly, skipping requirements, architecture, test-first development, and review -- losing all the traceability and quality gates the framework provides. Delegating to the PM breaks the pipeline differently: it consumes a nesting level, and the Coordinator the PM launches then has none left for phase agents. The always-on rule in `.cursor/rules/ai-framework.mdc` will remind a general agent to redirect you, but using the correct entry point from the start is the most reliable approach.
+> **Critical:** Always start work by invoking `/project-manager` in a fresh chat. Never ask a general/default agent to "implement the plan," "run the Coordinator," or write code, and never delegate to the PM as a subagent. A general agent will bypass the framework pipeline and write code directly, skipping requirements, architecture, test-first development, and review -- losing all the traceability and quality gates the framework provides. Delegating to the PM breaks the pipeline differently: it consumes a nesting level, and the Coordinator the PM launches then has none left for phase agents. The always-on rule in `.cursor/rules/paavos-forge.mdc` will remind a general agent to redirect you, but using the correct entry point from the start is the most reliable approach.
 >
 > **Use a fresh chat.** The PM skill runs in your normal chat context, so anything discussed earlier in that thread stays visible to it. The PM is forbidden from reading source code, tests, and artifacts below the story level, which is easier to honour when the thread starts clean.
 >
@@ -554,17 +554,17 @@ One caveat on attribution: your PM chat runs on the model selected in the Cursor
 
 Re-fetch the `main` archive into a new `$STAGE` (same download/inspect/extract steps as Step 1), then selectively merge changes from that tree:
 
-- `ai-framework/LOGIC.md` -- replace with the latest root `LOGIC.md` from the stage, or compare and merge workflow changes
-- `.cursor/agents/` -- compare and merge agent prompt improvements, then re-run `bash ai-framework/set-agent-models.sh` with your chosen models. Upstream ships every prompt with `model: inherit`, so a merge can reset the line, and a newly added agent arrives unconfigured. The script exits non-zero if an agent prompt has no bucket assignment, which is how you find out.
-- `ai-framework/set-agent-models.sh` -- take the upstream version when the agent set changes; it carries the canonical agent-to-bucket mapping
-- `.cursor/rules/ai-framework.mdc` -- compare and merge rule changes
+- `paavos-forge/LOGIC.md` -- replace with the latest root `LOGIC.md` from the stage, or compare and merge workflow changes
+- `.cursor/agents/` -- compare and merge agent prompt improvements, then re-run `bash paavos-forge/set-agent-models.sh` with your chosen models. Upstream ships every prompt with `model: inherit`, so a merge can reset the line, and a newly added agent arrives unconfigured. The script exits non-zero if an agent prompt has no bucket assignment, which is how you find out.
+- `paavos-forge/set-agent-models.sh` -- take the upstream version when the agent set changes; it carries the canonical agent-to-bucket mapping
+- `.cursor/rules/paavos-forge.mdc` -- compare and merge rule changes
 - `plan/templates/` -- compare and merge template changes
 - `taskwarrior/` scripts -- compare and merge new or updated orchestration scripts
 
 Use `bash "$STAGE/scripts/install-into-project.sh" --framework "$STAGE" --project "$PROJECT" --force` only when the user explicitly wants leaf files overwritten. Prefer selective merges for lived-in projects. `--force` still refuses if a parent path is a file or symlink.
 
 Preserve during updates:
-- `ai-framework/project-profile.md` -- your project-specific settings
+- `paavos-forge/project-profile.md` -- your project-specific settings
 - `.taskrc` -- generated, contains UDA definitions added by `setup.sh` and an absolute `data.location`. Delete it only if you want `setup.sh` to regenerate it.
 - `taskwarrior/tw` and `taskwarrior/env.sh` -- unless you haven't customized them
 - `.task/` -- never overwrite or delete the Taskwarrior database

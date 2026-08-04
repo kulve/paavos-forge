@@ -30,7 +30,7 @@ You define your product goals in **Paavo's Codex** (e.g. the vision and features
 
 | File | Purpose |
 |------|---------|
-| `LOGIC.md` | Canonical workflow specification -- maintained here only; copied to `ai-framework/LOGIC.md` at deploy time |
+| `LOGIC.md` | Canonical workflow specification -- maintained here only; copied to `paavos-forge/LOGIC.md` at deploy time |
 | `DEPLOY.md` | Step-by-step guide to deploy into a downstream project |
 | `AGENTS.md` | Instructions for AI agents maintaining this framework repo |
 | `templates/base/AGENTS.md` | Template that becomes the downstream project's root `AGENTS.md` |
@@ -43,7 +43,7 @@ Deploy into an **empty project before product work**. Point a coding AI at the r
 
 `https://raw.githubusercontent.com/kulve/paavos-forge/main/DEPLOY.md`
 
-The AI downloads the `main` archive, inspects `scripts/install-into-project.sh`, and runs it (no pipe-to-bash). That script copies `templates/base/`, `LOGIC.md` → `ai-framework/LOGIC.md`, and `.cursor/`, and **refuses path conflicts** unless `--force` is used. Then follow the rest of [DEPLOY.md](DEPLOY.md): Taskwarrior setup, project profile (including Paavo's Codex), model buckets, validate, commit, and `/project-manager`.
+The AI downloads the `main` archive, inspects `scripts/install-into-project.sh`, and runs it (no pipe-to-bash). That script copies `templates/base/`, `LOGIC.md` → `paavos-forge/LOGIC.md`, and `.cursor/`, and **refuses path conflicts** unless `--force` is used. Then follow the rest of [DEPLOY.md](DEPLOY.md): Taskwarrior setup, project profile (including Paavo's Codex), model buckets, validate, commit, and `/project-manager`.
 
 ## Architecture
 

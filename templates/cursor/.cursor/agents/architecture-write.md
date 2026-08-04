@@ -24,7 +24,7 @@ Your prompt contains the absolute epic worktree path. Every artifact path in you
 3. `ARCHITECTURE.md` at the project root -- the domain dependency policy
 4. All requirement files for this story (from annotations or `plan/requirements/`)
 5. Existing architecture artifacts in the target directory (to maintain consistency)
-6. `ai-framework/project-profile.md` -- for architecture conventions and traceability syntax
+6. `paavos-forge/project-profile.md` -- for architecture conventions and traceability syntax
 
 **NEVER read:** implementation source code, test code.
 

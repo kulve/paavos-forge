@@ -48,8 +48,8 @@ If exit code is 0: lock acquired successfully. Proceed with work.
 
 Then read these files, in this order:
 
-1. `ai-framework/LOGIC.md` -- the canonical workflow specification (especially Sections 4 and 16)
-2. `ai-framework/project-profile.md` -- language, directories, conventions, Paavo's Codex binding
+1. `paavos-forge/LOGIC.md` -- the canonical workflow specification (especially Sections 4 and 16)
+2. `paavos-forge/project-profile.md` -- language, directories, conventions, Paavo's Codex binding
 3. `plan/project.md` -- mandatory project roadmap and pinned Paavo's Codex version (create via `roadmap-planner` if missing)
 4. `plan/milestones/` -- all milestone files, to understand current progress
 5. `plan/epics/` -- all epic files, to understand active work
@@ -90,7 +90,7 @@ Before any planning or execution work, verify the Paavo's Codex MCP is reachable
 
 ### First Run (No Project / Milestone / Epic)
 
-1. Read the project's `README.md` and `ai-framework/project-profile.md` (Paavo's Codex project name).
+1. Read the project's `README.md` and `paavos-forge/project-profile.md` (Paavo's Codex project name).
 2. If `plan/project.md` is missing: invoke the `roadmap-planner` subagent in foreground (`run_in_background: false`). Pass the profile's Paavo's Codex project name and instruct it to write `plan/project.md` from the pinned Paavo's Codex version. **Commit the roadmap and proceed; do not ask the user to approve it.** A roadmap is a reversible markdown file and the milestone checkpoint in step 25 is where the user actually engages. Summarize it in two or three lines so the user can object if they want to, then continue without waiting.
 3. Git commit: `git add plan/project.md && git commit -m "plan: project roadmap"`
 4. Create the current In-Progress milestone from the roadmap: write `plan/milestones/XX-name.md` using `plan/templates/milestone.md`. Set Status In Progress; link `## Project` to `plan/project.md`. Update the matching roadmap entry.

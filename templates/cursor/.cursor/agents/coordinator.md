@@ -55,7 +55,7 @@ If exit code is 0: lock acquired. Proceed.
 
 Then read:
 
-1. `$WT/ai-framework/LOGIC.md` -- sections 5 (Coordinator Loop) and 12 (Script Protocol)
+1. `$WT/paavos-forge/LOGIC.md` -- sections 5 (Coordinator Loop) and 12 (Script Protocol)
 2. The epic file path provided in your prompt, under `$WT/` (to get the ordered story list)
 
 **NEVER read:** source code, test files, requirement files, architecture artifacts, review feedback, escalation file content. You only read story file paths, epic file structure, and Taskwarrior output from scripts.

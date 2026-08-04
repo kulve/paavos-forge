@@ -21,7 +21,7 @@ Your prompt contains the absolute main-tree path and the absolute epic worktree 
 
 Read, in this order:
 
-1. `ai-framework/LOGIC.md` -- sections 9 (Escalation Protocol), 9.8 (human stop conditions), and 17 (Coordinator Observability)
+1. `paavos-forge/LOGIC.md` -- sections 9 (Escalation Protocol), 9.8 (human stop conditions), and 17 (Coordinator Observability)
 2. The triage block from the PM prompt (class, root cause, doctor findings, verification, fingerprint)
 3. The escalation file from the PM prompt
 4. `taskwarrior/recipes.md` -- the authoritative description of what each script does

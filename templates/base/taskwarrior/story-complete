@@ -33,7 +33,7 @@ case "$COMPLETED" in
 esac
 
 if [ "$RUN_TESTS" = "--run-tests" ]; then
-    PROFILE="${AI_ROOT}/ai-framework/project-profile.md"
+    PROFILE="${AI_ROOT}/paavos-forge/project-profile.md"
     if [ -f "$PROFILE" ]; then
         # The command lives inline on the "Run all tests:" line of the profile.
         RAW=$(grep -i "^- *Run all tests:" "$PROFILE" | head -1 | sed 's/^[^:]*:[[:space:]]*//' | sed 's/`//g' || true)

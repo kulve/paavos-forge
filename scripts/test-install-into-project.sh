@@ -33,7 +33,7 @@ EMPTY="${TMPDIR_TEST}/empty"
 mkdir -p "$EMPTY"
 if bash "$INSTALL" --framework "$REPO_ROOT" --project "$EMPTY" >/dev/null; then
     if [ -f "$EMPTY/AGENTS.md" ] \
-        && [ -f "$EMPTY/ai-framework/LOGIC.md" ] \
+        && [ -f "$EMPTY/paavos-forge/LOGIC.md" ] \
         && [ -f "$EMPTY/.cursor/agents/coordinator.md" ] \
         && [ -f "$EMPTY/.gitignore" ]; then
         pass "empty project install"

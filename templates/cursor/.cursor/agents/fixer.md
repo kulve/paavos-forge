@@ -15,7 +15,7 @@ Fix the user-reported bug so the system behaves correctly according to its exist
 
 ## Context Loading
 
-1. `ai-framework/project-profile.md` -- source directory, test directory, build commands, test commands, forbidden areas
+1. `paavos-forge/project-profile.md` -- source directory, test directory, build commands, test commands, forbidden areas
 2. `ARCHITECTURE.md` at the project root -- domain dependency rules your code must follow
 3. Existing requirements in `plan/requirements/` relevant to the bug area
 4. Existing architecture artifacts relevant to the bug area
@@ -24,7 +24,7 @@ Fix the user-reported bug so the system behaves correctly according to its exist
 
 ## Procedure
 
-1. Read `ai-framework/project-profile.md` for directories, build command, and test command.
+1. Read `paavos-forge/project-profile.md` for directories, build command, and test command.
 2. Read `ARCHITECTURE.md` for domain dependency constraints.
 3. Reproduce the bug: build the project and run it or run the tests. Confirm the failure.
 4. Read relevant requirements and architecture artifacts to understand the intended behavior.
