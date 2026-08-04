@@ -41,9 +41,8 @@ TMPDIR_TEST="$(mktemp -d)"
 PROJ="${TMPDIR_TEST}/proj"
 mkdir -p "$PROJ"
 
-cp -r "${REPO_ROOT}/templates/base/." "$PROJ/"
-cp -r "${REPO_ROOT}/templates/cursor/.cursor" "$PROJ/"
-cp "${REPO_ROOT}/LOGIC.md" "${PROJ}/ai-framework/LOGIC.md"
+bash "${REPO_ROOT}/scripts/install-into-project.sh" \
+  --framework "$REPO_ROOT" --project "$PROJ"
 chmod +x "${PROJ}/taskwarrior/"* 2>/dev/null || true
 
 git -C "$PROJ" init -q -b main

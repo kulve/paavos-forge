@@ -2,16 +2,23 @@
 
 How to deploy Paavo's Forge into a downstream project.
 
+**This guide is meant to be applied by a coding AI**, not followed manually by a human. Deployment has many steps (archive install, Taskwarrior setup, project-profile interview, model-bucket assignment, MCP check, first PM run). A human opens the empty target project in Cursor and points the AI at this document:
+
+`https://raw.githubusercontent.com/kulve/paavos-forge/main/DEPLOY.md`
+
+**Deploy into an empty project before starting real product work.** The framework should own requirements → architecture → tests → implementation from the start so artifacts and Taskwarrior state stay consistent. Do not bolt Forge onto a codebase that already has substantial features or a conflicting `.cursor/` / `taskwarrior/` layout. A fresh repo with `README.md` and `git init` is fine; deploy Forge, then begin work through the PM.
+
 ## Prerequisites
 
 - **Git** installed
 - **[Taskwarrior](https://taskwarrior.org/) 2.x+** installed -- verify with `task --version`
 - **[Cursor](https://cursor.com/) IDE** (for the agent system; other IDE support is future work)
+- **curl** and **tar** (to fetch the framework archive)
 - System packages for your target language (e.g. C++: cmake, compiler; Python: python3, pip)
 
 ## Deployment Inputs
 
-The framework ships from three locations in this repository:
+The framework ships from three locations in the Forge repository:
 
 | Source | Deployed to | Purpose |
 |--------|-------------|---------|
@@ -21,68 +28,80 @@ The framework ships from three locations in this repository:
 
 `templates/base/AGENTS.md` becomes your project's root `AGENTS.md`. Customize it after deployment if you need project-specific AI guidance (extra rules, domain context, or stricter review standards). The workflow specification itself lives in `ai-framework/LOGIC.md` and should not be edited unless you are intentionally forking the framework.
 
-## Step 1: Copy Base Templates
+There is no `.taskrc` to copy. It is generated per tree by `taskwarrior/setup.sh` from `taskwarrior/taskrc.template` and is gitignored, because its UDAs differ between the main tree and epic worktrees.
 
-Copy the base framework files into your project root:
+## Step 1: Obtain the Framework Archive
 
-```bash
-FRAMEWORK=/path/to/paavos-forge
-PROJECT=/path/to/your-project
+Work from the **target project root**. Download the full Forge archive to a file, inspect it, then extract it. Do **not** pipe a remote script into bash.
 
-cp -r "$FRAMEWORK/templates/base/"* "$PROJECT/"
-cp "$FRAMEWORK/templates/base/.gitignore" "$PROJECT/"
-```
-
-> **Note:** `cp -r base/*` does not copy dotfiles. Copy `.gitignore` explicitly, or use `cp -r base/. project/` if your shell supports it.
->
-> There is no `.taskrc` to copy. It is generated per tree by `taskwarrior/setup.sh` from `taskwarrior/taskrc.template` and is gitignored, because its UDAs differ between the main tree and epic worktrees.
-
-### Step 1b: Copy the Workflow Specification
-
-`LOGIC.md` is maintained once at the framework repo root. Copy it into your project:
+This guide tracks bleeding-edge **`main`**. Pinning to version tags is future work.
 
 ```bash
-mkdir -p "$PROJECT/ai-framework"
-cp "$FRAMEWORK/LOGIC.md" "$PROJECT/ai-framework/LOGIC.md"
+PROJECT="$(pwd)"
+STAGE=$(mktemp -d)
+ARCHIVE=$(mktemp /tmp/paavos-forge.XXXXXX.tar.gz)
+
+curl -fsSL -o "$ARCHIVE" \
+  "https://codeload.github.com/kulve/paavos-forge/tar.gz/refs/heads/main"
+
+# Inspect the archive listing before extracting
+tar -tzf "$ARCHIVE" | head -n 40
+
+tar -xzf "$ARCHIVE" -C "$STAGE" --strip-components=1
+rm -f "$ARCHIVE"
+
+# Confirm the extracted tree looks like Forge
+test -f "$STAGE/LOGIC.md"
+test -f "$STAGE/scripts/install-into-project.sh"
 ```
 
-This creates:
+**Keep `$STAGE` until after Step 6 (model catalog) and Step 9 (validate).** Remove it only when those steps are done.
+
+### Alternate: local Forge checkout
+
+If you already have a clone of this repository on disk, skip the download and set:
+
+```bash
+STAGE=/path/to/paavos-forge   # existing checkout
+PROJECT="$(pwd)"              # target project root
+```
+
+## Step 2: Install Templates into the Project
+
+Inspect the install script, then run it. It copies `templates/base/`, `LOGIC.md` → `ai-framework/LOGIC.md`, and `templates/cursor/.cursor/`. It does **not** run Taskwarrior setup or assign models.
+
+```bash
+# Inspect before running (Read tool in Cursor, or a pager)
+# $STAGE/scripts/install-into-project.sh
+
+bash "$STAGE/scripts/install-into-project.sh" \
+  --framework "$STAGE" \
+  --project "$PROJECT"
+```
+
+By default the script **refuses to overwrite** any destination path that already exists as a file or symlink (for example a same-named `.cursor/agents/*.md`), and always refuses if a parent that must be a directory is already a file or symlink. If it lists conflicts, stop and report them to the user. `--force` overwrites conflicting **leaf** files only; it cannot replace a blocking parent. Do **not** pass `--force` unless the user explicitly wants a leaf-level template overwrite/reset.
+
+After a successful install, the project contains:
+
 - `AGENTS.md` -- from `templates/base/AGENTS.md`; project-level AI instructions
 - `ARCHITECTURE.md` -- domain dependency policy registry (populated by agents as domains are introduced)
 - `.gitignore` -- ignores `.task/`, `.taskrc`, `build/`, and `.worktrees/`
 - `ai-framework/LOGIC.md` -- workflow specification (copied from framework repo root)
-- `ai-framework/project-profile.md` -- to be filled in by you
-- `ai-framework/set-agent-models.sh` -- assigns a model to every agent prompt by bucket (see Step 6)
+- `ai-framework/project-profile.md` -- to be filled in (Step 5)
+- `ai-framework/set-agent-models.sh` -- assigns a model to every agent prompt by bucket (Step 6)
 - `plan/templates/` -- 9 artifact templates used by agents (project, milestone, epic, story, requirement, phase-plan, review-feedback, escalation, discovery)
 - `plan/epics/.gitkeep` -- directory for epic definition files
-- `taskwarrior/setup.sh` -- generates `.taskrc` and configures the UDAs for the tree
-- `taskwarrior/taskrc.template` -- base config used to generate `.taskrc`
-- `taskwarrior/env.sh` -- environment setup (exports `TASKRC` and an absolute `TASKDATA`, creates `.task/`)
-- `taskwarrior/guard.sh` -- sourced by every script: resolves the tree from the script's own path and enforces the execution context
-- `taskwarrior/tw` -- project-local Taskwarrior wrapper (executable)
-- `taskwarrior/recipes.md` -- command reference for agents
-- `taskwarrior/` scripts -- epic lifecycle, story lifecycle, phase transitions, lock management, diagnostics, and telemetry (see Step 4)
-
-## Step 2: Copy Cursor Templates
-
-Copy the Cursor-specific files:
-
-```bash
-cp -r "$FRAMEWORK/templates/cursor/.cursor" "$PROJECT/"
-```
-
-This creates:
+- `taskwarrior/` -- setup, wrappers, recipes, and orchestration scripts (Step 4)
 - `.cursor/agents/` -- 19 agent prompt files (Coordinator, 10 phase agents, Roadmap Planner, Deploy Profile, Story Review, Escalation Analysis, Escalation Triage, Escalation Recovery, Environment Recovery, and Fixer)
-- `.cursor/skills/project-manager/SKILL.md` -- the PM, invoked as `/project-manager` in a top-level chat
-- `.cursor/rules/ai-framework.mdc` -- always-on framework rules
 - `.cursor/skills/` -- the `project-manager` and `ai-status` skills, invoked as `/project-manager` and `/ai-status`
+- `.cursor/rules/ai-framework.mdc` -- always-on framework rules
 
 ## Step 3: Initialize Git
 
-If your project is not already a git repository:
+If the project is not already a git repository:
 
 ```bash
-cd /path/to/your-project
+cd "$PROJECT"
 git init
 git branch -m main
 ```
@@ -106,7 +125,7 @@ Four files make this work:
 Run the setup script with `--main` to generate the project `.taskrc`, register the framework's UDAs, and configure the main tree:
 
 ```bash
-cd /path/to/your-project
+cd "$PROJECT"
 bash taskwarrior/setup.sh --main
 ```
 
@@ -317,10 +336,10 @@ The PM has no bucket. Pick the top-level chat model when you start `/project-man
 
 Model lineups, IDs, and parameters change faster than this document. Worse, the two places you would naturally look both show marketing names rather than selectable IDs: Cursor's model picker calls it "Cursor Grok 4.5" and your billing export calls it `cursor-grok-4.5-high-fast`, but the ID you must write is `grok-4.5`. Guessing from either one produces a model string that fails silently.
 
-Ask your account what it actually exposes. From your checkout of this framework repo:
+Ask your account what it actually exposes. From the retained Forge stage (or a local checkout):
 
 ```bash
-cd scripts/models && npm install
+cd "$STAGE/scripts/models" && npm install
 CURSOR_API_KEY=<your key> node list-models.mjs
 ```
 
@@ -411,10 +430,11 @@ The agent prompts are designed to be generic, but you may want to tune them for 
 
 ## Step 9: Validate
 
-Run the automated validation script (copy it from the framework repo):
+Run the automated validation script (copy it from the retained Forge stage):
 
 ```bash
-cp /path/to/paavos-forge/scripts/validate-deployment.sh ./
+cd "$PROJECT"
+cp "$STAGE/scripts/validate-deployment.sh" ./
 bash validate-deployment.sh
 ```
 
@@ -425,7 +445,7 @@ Or verify manually:
 - [ ] `.taskrc` exists at project root (generated by `setup.sh`, not copied)
 - [ ] `.gitignore` contains `.task/`, `.taskrc`, and `.worktrees/`
 - [ ] `.taskrc` is NOT tracked by git: `git ls-files --error-unmatch .taskrc` must fail
-- [ ] `ai-framework/LOGIC.md` exists (copied from framework repo root `LOGIC.md` in Step 1b)
+- [ ] `ai-framework/LOGIC.md` exists (copied from framework repo root `LOGIC.md` by the install script)
 - [ ] `ai-framework/project-profile.md` exists and is filled in
 - [ ] `plan/templates/` contains 9 template files (project, milestone, epic, story, requirement, phase-plan, review-feedback, escalation, discovery)
 - [ ] `plan/epics/.gitkeep` exists
@@ -451,9 +471,15 @@ Or verify manually:
 **Required before the first `epic-fork`.** Epic worktrees are created from `main`, so anything uncommitted does not exist inside the worktree: the Coordinator would find no scripts, no templates, and no profile. `epic-fork` refuses to run until this is done.
 
 ```bash
-cd /path/to/your-project
+cd "$PROJECT"
 git add AGENTS.md ARCHITECTURE.md .gitignore README.md ai-framework/ plan/ taskwarrior/ .cursor/
 git commit -m "chore: deploy Paavo's Forge"
+```
+
+After Step 9 (and this commit), you may remove the temporary stage:
+
+```bash
+rm -rf "$STAGE"
 ```
 
 This includes the `model:` lines written in Step 6. Epic worktrees are created from `main`, so an unconfigured `.cursor/` there means Coordinators dispatch subagents on the wrong models.
@@ -526,14 +552,16 @@ One caveat on attribution: your PM chat runs on the model selected in the Cursor
 
 ## Updating the Framework
 
-If the upstream framework template is updated, you can selectively merge changes:
+Re-fetch the `main` archive into a new `$STAGE` (same download/inspect/extract steps as Step 1), then selectively merge changes from that tree:
 
-- `ai-framework/LOGIC.md` -- replace with the latest root `LOGIC.md` from the framework repo, or compare and merge workflow changes
+- `ai-framework/LOGIC.md` -- replace with the latest root `LOGIC.md` from the stage, or compare and merge workflow changes
 - `.cursor/agents/` -- compare and merge agent prompt improvements, then re-run `bash ai-framework/set-agent-models.sh` with your chosen models. Upstream ships every prompt with `model: inherit`, so a merge can reset the line, and a newly added agent arrives unconfigured. The script exits non-zero if an agent prompt has no bucket assignment, which is how you find out.
 - `ai-framework/set-agent-models.sh` -- take the upstream version when the agent set changes; it carries the canonical agent-to-bucket mapping
 - `.cursor/rules/ai-framework.mdc` -- compare and merge rule changes
 - `plan/templates/` -- compare and merge template changes
 - `taskwarrior/` scripts -- compare and merge new or updated orchestration scripts
+
+Use `bash "$STAGE/scripts/install-into-project.sh" --framework "$STAGE" --project "$PROJECT" --force` only when the user explicitly wants leaf files overwritten. Prefer selective merges for lived-in projects. `--force` still refuses if a parent path is a file or symlink.
 
 Preserve during updates:
 - `ai-framework/project-profile.md` -- your project-specific settings
@@ -549,7 +577,10 @@ After updating templates, re-run `bash taskwarrior/setup.sh --main` to pick up a
 
 | Symptom | Cause | Fix |
 |---------|-------|-----|
-| Setup hangs on "Would you like a sample .taskrc" | `taskwarrior/taskrc.template` missing, so `.taskrc` could not be generated | Re-copy `templates/base/taskwarrior/`, then re-run `setup.sh --main` |
+| `curl` / archive download fails | Network error, wrong URL, or GitHub unavailable | Retry; confirm `https://codeload.github.com/kulve/paavos-forge/tar.gz/refs/heads/main` is reachable |
+| Install script lists conflicting paths | Destination already has Forge-like files (e.g. same-named `.cursor/agents/*.md`) or a blocking parent (file/symlink where a directory is required) | Use a fresh empty project or remove the listed paths; `--force` only overwrites leaf files, not blocking parents |
+| Install onto a lived-in codebase | Forge deployed after substantial product work | Prefer starting a new repo, deploy Forge first, then begin work through the PM |
+| Setup hangs on "Would you like a sample .taskrc" | `taskwarrior/taskrc.template` missing, so `.taskrc` could not be generated | Re-run the install script (or restore `taskwarrior/` from `$STAGE`), then re-run `setup.sh --main` |
 | Setup hangs on "Are you sure you want to add" | `confirmation=off` missing | Delete `.taskrc` and re-run `setup.sh` to regenerate it from the template |
 | UDAs missing in project but `task _udas` works | Verified wrong database (global `~/.taskrc`) | Use `taskwarrior/tw _udas`, not bare `task` |
 | Tasks from project A appear in project B | Shared `~/.task` | Generated `.taskrc` has an absolute `data.location`; `env.sh` also exports `TASKDATA`. Re-run `setup.sh` |
@@ -563,7 +594,7 @@ After updating templates, re-run `bash taskwarrior/setup.sh --main` to pick up a
 | PM hard-stops immediately | Paavo's Codex MCP unreachable | Start the MCP server; fix Cursor MCP registration; verify a closed version exists |
 | Roadmap invents goals | MCP not used / wrong project | Check profile project name; re-run `roadmap-planner` against Paavo's Codex |
 | Coordinator fails on git merge/reset | Command wrapper blocking local git | Allow local git merge, reset, checkout in wrapper config |
-| Agent not found | Missing `.cursor/agents/` files | Verify Step 2 copied `.cursor/` directory |
+| Agent not found | Missing `.cursor/agents/` files | Re-run the install script from `$STAGE`, or verify `.cursor/agents/` exists |
 | Subagent runs on the wrong model | Parent agent passed a `model` parameter when invoking it, which overrides frontmatter | Check the PM/Coordinator prompt: subagent invocations must never pass `model` |
 | Every agent runs on the model of the chat you launched, despite correct-looking frontmatter | Unrecognised model ID; Cursor falls back to the parent model without reporting anything | List the real IDs (Step 6) and re-run `set-agent-models.sh`. A `cursor-` prefix copied from a billing export is the usual cause |
 | An agent runs on the right model but the wrong reasoning level | Unrecognised parameter for that family; it is dropped and the model default applies | Check the parameter name against the family: `reasoning` for GPT, `effort` for Claude/Grok/Gemini |

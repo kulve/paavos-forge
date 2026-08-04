@@ -127,6 +127,8 @@ templates/cursor/.cursor/                  # Copied to downstream .cursor/
   skills/ai-status/SKILL.md                # Read-only pipeline status report
 
 scripts/
+  install-into-project.sh                  # Copies templates + LOGIC.md into a target project (DEPLOY.md)
+  test-install-into-project.sh             # Installer conflict-preflight smoke (called by validate-template-repo)
   validate-template-repo.sh                # Validates template-repo layout
   validate-deployment.sh                   # Validates a deployed downstream project
   test-isolation.sh                        # Worktree isolation + telemetry + doctor smoke test

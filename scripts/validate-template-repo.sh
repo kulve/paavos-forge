@@ -46,6 +46,24 @@ if ! grep -q 'ai-framework/LOGIC.md' DEPLOY.md; then
     fail "DEPLOY.md must document copying LOGIC.md to ai-framework/LOGIC.md"
 fi
 
+if [ ! -f "scripts/install-into-project.sh" ]; then
+    fail "Missing scripts/install-into-project.sh"
+elif [ ! -x "scripts/install-into-project.sh" ]; then
+    fail "scripts/install-into-project.sh must be executable"
+fi
+
+if ! grep -q 'install-into-project.sh' DEPLOY.md; then
+    fail "DEPLOY.md must document scripts/install-into-project.sh"
+fi
+
+if ! grep -q 'codeload.github.com/kulve/paavos-forge' DEPLOY.md; then
+    fail "DEPLOY.md must document the GitHub archive URL (codeload.github.com/kulve/paavos-forge)"
+fi
+
+if ! grep -qi 'empty project' DEPLOY.md; then
+    fail "DEPLOY.md must say to deploy into an empty project before product work"
+fi
+
 echo "--- Plan templates (9 required) ---"
 for tmpl in project milestone story epic requirement phase-plan review-feedback escalation discovery; do
     if [ ! -f "templates/base/plan/templates/${tmpl}.md" ]; then
@@ -220,6 +238,15 @@ if [ -f "templates/base/.gitignore" ]; then
     if ! grep -qx '.taskrc' templates/base/.gitignore; then
         fail ".gitignore missing .taskrc entry (a committed worktree .taskrc corrupts main's UDAs on merge)"
     fi
+fi
+
+echo "--- install-into-project smoke ---"
+if [ ! -f "scripts/test-install-into-project.sh" ]; then
+    fail "Missing scripts/test-install-into-project.sh"
+elif [ ! -x "scripts/test-install-into-project.sh" ]; then
+    fail "scripts/test-install-into-project.sh must be executable"
+elif ! bash scripts/test-install-into-project.sh; then
+    fail "scripts/test-install-into-project.sh reported failures"
 fi
 
 echo ""
