@@ -1,5 +1,5 @@
 #!/bin/bash
-# Validate that the AI execution framework was deployed correctly into a project.
+# Validate that Paavo's Forge was deployed correctly into a project.
 # Run from the deployed project root directory.
 set -euo pipefail
 
@@ -53,7 +53,7 @@ check_gitignore_entry() {
     fi
 }
 
-echo "=== AI Execution Framework Deployment Validator ==="
+echo "=== Paavo's Forge Deployment Validator ==="
 echo ""
 
 echo "--- Core Files ---"
@@ -77,8 +77,8 @@ check_file "plan/templates/review-feedback.md"
 check_file "plan/templates/escalation.md"
 check_file "plan/templates/discovery.md"
 
-if ! grep -q 'Paavo Notes' ai-framework/project-profile.md 2>/dev/null; then
-    echo "ERROR: ai-framework/project-profile.md must include a Paavo Notes MCP section"
+if ! grep -qF "Paavo's Codex" ai-framework/project-profile.md 2>/dev/null; then
+    echo "ERROR: ai-framework/project-profile.md must include a Paavo's Codex MCP section"
     ERRORS=$((ERRORS + 1))
 fi
 

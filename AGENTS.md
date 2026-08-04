@@ -1,6 +1,6 @@
-# AI Agents: Framework Maintenance Guide
+# AI Agents: Paavo's Forge Maintenance Guide
 
-This file is for AI agents maintaining the AI execution framework template repository itself. If you are an agent working in a downstream project that deployed this framework, read your project's `AGENTS.md` and `ai-framework/LOGIC.md` instead.
+This file is for AI agents maintaining the Paavo's Forge template repository itself. If you are an agent working in a downstream project that deployed this framework, read your project's `AGENTS.md` and `ai-framework/LOGIC.md` instead.
 
 ## Repository Purpose
 
@@ -54,7 +54,7 @@ This template must work for C++, Python, TypeScript, and other languages. When m
 - Use "architecture artifacts" instead of "headers" in generic contexts
 - Test your changes mentally against at least C++ and Python use cases
 
-**Exception -- Paavo Notes:** This framework intentionally couples to Paavo Notes as the hard dependency for product intent (MCP knowledge source). Naming Paavo Notes in `LOGIC.md`, agent prompts, the project profile, and deployment docs is allowed and required. Do not "genericize" that coupling away unless the user explicitly requests it. Still do not hardcode MCP tool names/signatures -- agents discover them via MCP.
+**Exception -- Paavo's Codex:** This framework intentionally couples to Paavo's Codex as the hard dependency for product intent (MCP knowledge source). Naming Paavo's Codex in `LOGIC.md`, agent prompts, the project profile, and deployment docs is allowed and required. Do not "genericize" that coupling away unless the user explicitly requests it. Still do not hardcode MCP tool names/signatures -- agents discover them via MCP.
 
 ### Keep Templates and Docs Consistent
 
@@ -73,7 +73,7 @@ Never add content that assumes a specific *downstream application* project. This
 - Specific build commands (always reference "the build command from the project profile")
 - Hardcoded directory paths (always reference "the directory from the project profile")
 
-Paavo Notes as the product-intent knowledge source is a framework dependency, not leakage (see Preserve Genericity exception above).
+Paavo's Codex as the product-intent knowledge source is a framework dependency, not leakage (see Preserve Genericity exception above).
 
 ## Script Protocol (`taskwarrior/`)
 

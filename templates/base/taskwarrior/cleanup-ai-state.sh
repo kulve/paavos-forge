@@ -1,5 +1,5 @@
 #!/bin/bash
-# Manual AI state cleanup for the execution framework.
+# Manual AI state cleanup for Paavo's Forge.
 # Run this after confirming no Cursor agents or subagents are active.
 #
 # Usage:

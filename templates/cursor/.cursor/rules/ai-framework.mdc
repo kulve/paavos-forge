@@ -1,9 +1,9 @@
 ---
-description: "AI execution framework invariants -- always-on rules for all agents"
+description: "Paavo's Forge invariants -- always-on rules for all agents"
 alwaysApply: true
 ---
 
-# AI Execution Framework Rules
+# Paavo's Forge Rules
 
 These rules apply to ALL agents working in this project. They are non-negotiable invariants.
 
@@ -32,7 +32,7 @@ These rules apply to ALL agents working in this project. They are non-negotiable
 
 The framework uses a four-level hierarchy:
 
-- **Project** (mandatory): `plan/project.md` pins a Paavo Notes closed version and an ordered milestone roadmap to product completion
+- **Project** (mandatory): `plan/project.md` pins a Paavo's Codex closed version and an ordered milestone roadmap to product completion
 - **Milestone**: derived from the roadmap; groups related epics; Status Done / In Progress / TODO
 - **Epic**: the unit of parallel execution; gets its own git worktree; contains ordered stories
 - **Story**: a vertical feature slice executed serially within its epic
@@ -49,17 +49,17 @@ The runtime allows two levels of subagents below the top-level chat, and a subag
 
 Consequences: the PM is never invoked with the Task tool, no phase agent may gain a dispatch step, and a Coordinator that finds it has no dispatch tool must abort before mutating any state and report to the PM. Stopping the top-level chat stops every subagent under it, so the PM chat stays open while Coordinators run.
 
-## Paavo Notes MCP (Hard Dependency)
+## Paavo's Codex MCP (Hard Dependency)
 
-- Product intent lives in Paavo Notes. The framework caches a pinned execution roadmap in `plan/project.md`.
-- The Paavo Notes MCP is required for all framework work. If unreachable, the PM hard-stops and requirements agents escalate. Do not invent product goals.
+- Product intent lives in Paavo's Codex. The framework caches a pinned execution roadmap in `plan/project.md`.
+- The Paavo's Codex MCP is required for all framework work. If unreachable, the PM hard-stops and requirements agents escalate. Do not invent product goals.
 - Always read a single **closed integer version** pinned in `plan/project.md`. Never query the open/live version for execution.
 - Every story cites its source article ids and the version it was authored against in `## Product Intent Source`. Article ids are stable across versions; titles are not. `None -- [reason]` is the only accepted form of absence. Requirements agents start from the cited articles and escalate an id that does not resolve at the pinned version.
 - Agents discover MCP tool names/signatures via Cursor MCP tool listing. Do not hardcode tool APIs.
-- **Who may access Paavo Notes**: PM, Roadmap Planner, and the four requirements-phase agents only.
+- **Who may access Paavo's Codex**: PM, Roadmap Planner, and the four requirements-phase agents only.
 - **Who must not**: Coordinator, architecture / integration-test / implementation agents, story-review, escalation agents, fixer, and general agents.
 - Open questions: the PM and `requirements-write` may **post** append-only open questions against the pinned version. Agents must never list, read, deduplicate, answer, or delete existing open questions. Non-blocking gaps: post and continue. Blocking gaps: escalate.
-- Local discoveries are for code/impl findings; product-intent gaps belong in Paavo Notes.
+- Local discoveries are for code/impl findings; product-intent gaps belong in Paavo's Codex.
 
 ## Script-Only State Mutations
 
@@ -96,7 +96,7 @@ Scripts enforce preconditions, validate transitions, and exit non-zero on violat
 
 - Review agents must cite specific files and issues. "Looks good" without evidence is forbidden.
 - Review agents must not nitpick formatting or style. Focus on correctness, completeness, and structural integrity.
-- **Every blocking issue must be anchored**: it names an artifact element (an acceptance criterion, requirement ID, `ARCHITECTURE.md` rule, interface element, test case, observed result, Paavo Notes item, or project-profile entry) and states how the work under review contradicts it. Each review prompt lists the anchors valid for its phase. An unanchored concern is not blocking: record it under `Non-Blocking Observations` when already rejecting, or approve. A rejection is binding on the Write agent, which has no channel to dispute it.
+- **Every blocking issue must be anchored**: it names an artifact element (an acceptance criterion, requirement ID, `ARCHITECTURE.md` rule, interface element, test case, observed result, Paavo's Codex item, or project-profile entry) and states how the work under review contradicts it. Each review prompt lists the anchors valid for its phase. An unanchored concern is not blocking: record it under `Non-Blocking Observations` when already rejecting, or approve. A rejection is binding on the Write agent, which has no channel to dispute it.
 - Anchoring governs how a rejection is justified, not whether one happens. Every quality criterion still applies, and rubber-stamping remains forbidden.
 - The Coordinator enforces the 3-rejection limit per phase and writes an escalation on the 3rd rejection.
 

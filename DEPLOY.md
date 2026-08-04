@@ -1,6 +1,6 @@
 # Deployment Guide
 
-How to deploy the AI execution framework into a downstream project.
+How to deploy Paavo's Forge into a downstream project.
 
 ## Prerequisites
 
@@ -26,7 +26,7 @@ The framework ships from three locations in this repository:
 Copy the base framework files into your project root:
 
 ```bash
-FRAMEWORK=/path/to/ai-execution-framework
+FRAMEWORK=/path/to/paavos-forge
 PROJECT=/path/to/your-project
 
 cp -r "$FRAMEWORK/templates/base/"* "$PROJECT/"
@@ -208,12 +208,12 @@ You can fill this in by hand, or open a chat with the `deploy-profile` agent, wh
 **Parallel Limit:**
 - Recommended maximum concurrent epics (e.g. 2-3 for typical projects). This limits how many epic worktrees the PM will have active simultaneously. More epics means more context switches and merge conflicts; fewer means less parallelism. Start with 2 and increase once you're comfortable with the workflow.
 
-**Project Knowledge Source (Paavo Notes MCP):**
+**Project Knowledge Source (Paavo's Codex MCP):**
 - MCP endpoint URL (e.g. `http://127.0.0.1:8770/mcp`)
-- Exact Paavo Notes project name (and optional id after first discovery)
+- Exact Paavo's Codex project name (and optional id after first discovery)
 - Optional roadmap-relevant entry domains
 
-Paavo Notes is a hard dependency. Fill this section before the first PM run.
+Paavo's Codex is a hard dependency. Fill this section before the first PM run.
 
 ### Examples
 
@@ -310,7 +310,7 @@ The agent-to-bucket assignment is framework knowledge and lives in the script. T
 
 The PM has no bucket. Pick the top-level chat model when you start `/project-manager`:
 
-- **Sonnet** when the session will create or revise roadmaps, milestones, epics, stories, or discovery triage. That work is product planning, not bookkeeping: the PM decomposes Paavo Notes into vertical slices, assigns rigor, cites article ids, and decides which discoveries become stories.
+- **Sonnet** when the session will create or revise roadmaps, milestones, epics, stories, or discovery triage. That work is product planning, not bookkeeping: the PM decomposes Paavo's Codex into vertical slices, assigns rigor, cites article ids, and decides which discoveries become stories.
 - **Luna** only for a supervision-only session: watching `coordinator-status`, launching Coordinators for already-planned epics, and running fork/merge scripts. If that chat later needs a new story batch, switch back to Sonnet (or start a fresh chat) rather than asking Luna to invent product structure.
 
 ### Picking current models
@@ -381,14 +381,14 @@ What this buys:
 
 Add `--dry-run` to preview changes. Re-run the command at any time to re-tune.
 
-## Step 7: Register Paavo Notes MCP and Create a README
+## Step 7: Register Paavo's Codex MCP and Create a README
 
-### Paavo Notes MCP (required)
+### Paavo's Codex MCP (required)
 
-Product intent lives in Paavo Notes. Register the Paavo Notes MCP server in the project's Cursor MCP configuration so agents can discover tools (streamable HTTP, typically `http://127.0.0.1:8770/mcp`). Ensure:
+Product intent lives in Paavo's Codex. Register the Paavo's Codex MCP server in the project's Cursor MCP configuration so agents can discover tools (streamable HTTP, typically `http://127.0.0.1:8770/mcp`). Ensure:
 
-1. The Paavo Notes MCP process is running and reachable.
-2. The project profile's Paavo Notes project name matches a real project with at least one **closed** (published) version.
+1. The Paavo's Codex MCP process is running and reachable.
+2. The project profile's Paavo's Codex project name matches a real project with at least one **closed** (published) version.
 3. Cursor can list MCP tools for that server.
 
 Agents discover tool names and signatures via MCP -- the framework does not hardcode the API. If the MCP is unreachable, the PM hard-stops and requirements agents escalate; do not invent product goals.
@@ -399,7 +399,7 @@ The pinned closed version for a run is stored in `plan/project.md` (created by t
 
 Before invoking the PM agent, create at least a brief `README.md` so the PM has context about your project. Also set up any minimal build skeleton your project needs (e.g. `CMakeLists.txt`, `pyproject.toml`).
 
-The PM reads `README.md` on its first run and invokes `roadmap-planner` to create `plan/project.md` from Paavo Notes.
+The PM reads `README.md` on its first run and invokes `roadmap-planner` to create `plan/project.md` from Paavo's Codex.
 
 ## Step 8: Customize Agents (Optional)
 
@@ -414,7 +414,7 @@ The agent prompts are designed to be generic, but you may want to tune them for 
 Run the automated validation script (copy it from the framework repo):
 
 ```bash
-cp /path/to/ai-execution-framework/scripts/validate-deployment.sh ./
+cp /path/to/paavos-forge/scripts/validate-deployment.sh ./
 bash validate-deployment.sh
 ```
 
@@ -443,8 +443,8 @@ Or verify manually:
 - [ ] `.cursor/rules/ai-framework.mdc` exists
 - [ ] `.cursor/skills/` contains `project-manager/SKILL.md` and `ai-status/SKILL.md`
 - [ ] Main-tree Taskwarrior UDAs are configured: `taskwarrior/tw _udas | grep aiepic` (the phase UDAs are worktree-scoped and appear only after `epic-fork`)
-- [ ] Project profile is filled in completely (including parallel limit and Paavo Notes MCP section)
-- [ ] Paavo Notes MCP is registered in Cursor and reachable
+- [ ] Project profile is filled in completely (including parallel limit and Paavo's Codex MCP section)
+- [ ] Paavo's Codex MCP is registered in Cursor and reachable
 
 ## Step 10: Commit the Framework to main
 
@@ -453,7 +453,7 @@ Or verify manually:
 ```bash
 cd /path/to/your-project
 git add AGENTS.md ARCHITECTURE.md .gitignore README.md ai-framework/ plan/ taskwarrior/ .cursor/
-git commit -m "chore: deploy AI execution framework"
+git commit -m "chore: deploy Paavo's Forge"
 ```
 
 This includes the `model:` lines written in Step 6. Epic worktrees are created from `main`, so an unconfigured `.cursor/` there means Coordinators dispatch subagents on the wrong models.
@@ -475,22 +475,22 @@ The framework uses a **project → milestone → epic** model with parallel epic
 Project (mandatory: plan/project.md) → Milestone → Epic (parallel) → Stories (serial within epic)
 ```
 
-- **Project** (`plan/project.md`) is mandatory. It pins a Paavo Notes closed version and lists an ordered milestone roadmap to product completion. Created via the `roadmap-planner` agent on first PM run.
+- **Project** (`plan/project.md`) is mandatory. It pins a Paavo's Codex closed version and lists an ordered milestone roadmap to product completion. Created via the `roadmap-planner` agent on first PM run.
 - **Milestones** are derived from the roadmap. They group related epics and define high-level goals. Status: Done / In Progress / TODO.
 - **Epics** are the unit of parallel work. Each epic gets its own git worktree and branch, allowing multiple epics to execute concurrently without interference.
 - **Stories** within an epic execute serially, each passing through the full phase pipeline (requirements → architecture → integration tests → implementation).
 
 ### Starting the Workflow
 
-1. Open your project in Cursor with the Paavo Notes MCP registered and running.
+1. Open your project in Cursor with the Paavo's Codex MCP registered and running.
 2. Start a new chat and invoke the **`/project-manager`** skill. The skill loads into the chat you are already in, so from that point on you are talking to the PM directly, with no intermediary agent relaying messages. You do not need to invoke it again in the same thread.
-3. Confirm the Paavo Notes project name in the profile. The PM verifies MCP reachability (hard-stop if down).
-4. If `plan/project.md` is missing, the PM invokes **`roadmap-planner`** to synthesize a milestone roadmap from Paavo Notes (human-in-loop). Refine and accept the roadmap.
+3. Confirm the Paavo's Codex project name in the profile. The PM verifies MCP reachability (hard-stop if down).
+4. If `plan/project.md` is missing, the PM invokes **`roadmap-planner`** to synthesize a milestone roadmap from Paavo's Codex (human-in-loop). Refine and accept the roadmap.
 5. The PM creates the current In Progress milestone from the roadmap, then defines one or more **epics** in `plan/epics/`.
 6. For each epic, the PM generates stories in rolling batches of 2-3 that execute serially within that epic.
 7. The PM **dispatches** an epic: `epic-fork` creates a worktree and branch, and a Coordinator begins executing stories in that worktree.
 8. Multiple epics can run in parallel (up to your configured parallel limit), each in its own worktree with its own Coordinator.
-9. When an epic completes all stories, it is merged back to main via `epic-merge`. After a milestone completes, the PM updates roadmap statuses and may rewrite TODO milestones or migrate to a newer Paavo Notes version.
+9. When an epic completes all stories, it is merged back to main via `epic-merge`. After a milestone completes, the PM updates roadmap statuses and may rewrite TODO milestones or migrate to a newer Paavo's Codex version.
 
 Use `/ai-status` to check project/roadmap progress and all active epics at any time. Run it in its own chat, without the PM skill loaded: it is a read-only report and deliberately sits outside the pipeline.
 
@@ -559,9 +559,9 @@ After updating templates, re-run `bash taskwarrior/setup.sh --main` to pick up a
 | PM cannot tell whether a Coordinator is alive | Looking in the wrong place | `bash taskwarrior/coordinator-status`; never read agent transcripts |
 | `coordinator-status` shows `NO-HEARTBEAT` | Coordinator subagent never started or died at startup | Run `bash taskwarrior/doctor`, then launch a fresh Coordinator with the absolute worktree path in its prompt |
 | `coordinator-status` shows `STALE`/`DEAD` | Coordinator stopped mid-story, or a phase legitimately runs longer than the threshold | Re-check once; raise `AI_HEARTBEAT_STALE_SECONDS` if your phases are genuinely slower |
-| PM has no context on first run | No `README.md` / no project roadmap | Create a brief README; ensure Paavo Notes MCP is up and profile names the project (Step 7) |
-| PM hard-stops immediately | Paavo Notes MCP unreachable | Start the MCP server; fix Cursor MCP registration; verify a closed version exists |
-| Roadmap invents goals | MCP not used / wrong project | Check profile project name; re-run `roadmap-planner` against Paavo Notes |
+| PM has no context on first run | No `README.md` / no project roadmap | Create a brief README; ensure Paavo's Codex MCP is up and profile names the project (Step 7) |
+| PM hard-stops immediately | Paavo's Codex MCP unreachable | Start the MCP server; fix Cursor MCP registration; verify a closed version exists |
+| Roadmap invents goals | MCP not used / wrong project | Check profile project name; re-run `roadmap-planner` against Paavo's Codex |
 | Coordinator fails on git merge/reset | Command wrapper blocking local git | Allow local git merge, reset, checkout in wrapper config |
 | Agent not found | Missing `.cursor/agents/` files | Verify Step 2 copied `.cursor/` directory |
 | Subagent runs on the wrong model | Parent agent passed a `model` parameter when invoking it, which overrides frontmatter | Check the PM/Coordinator prompt: subagent invocations must never pass `model` |

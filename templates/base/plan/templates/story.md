@@ -6,12 +6,12 @@
 
 ## Product Intent Source
 
-Cite the Paavo Notes articles this story derives from. Article ids are stable
+Cite the Paavo's Codex articles this story derives from. Article ids are stable
 across versions; titles are not. The id is the identity, the title is a human
 label. Record the version here even though plan/project.md pins it: this story
 is a historical record of the intent it was authored against.
 
-- Paavo Notes project: [project id from plan/project.md]
+- Paavo's Codex project: [project id from plan/project.md]
 - Authored against version: [closed integer]
 - Articles:
   - [article-id] -- "[title at that version]" [domain: domain-id]

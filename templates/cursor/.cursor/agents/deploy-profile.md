@@ -40,7 +40,7 @@ Produce a fully filled-in `ai-framework/project-profile.md` with no remaining `[
    - Forbidden (project-specific items; leave the framework write gates unchanged)
    - Domain tags (valid requirement categories)
    - Parallel limit (recommended concurrent epics)
-   - Paavo Notes MCP (endpoint URL, exact project name, optional entry domains)
+   - Paavo's Codex MCP (endpoint URL, exact project name, optional entry domains)
 3. Infer sensible defaults from the language when the user is unsure (e.g. Rust -> `cargo build` / `cargo test` / `cargo clippy`, trait definitions as architecture artifacts), and confirm them with the user.
 4. Write the answers into `ai-framework/project-profile.md`, replacing every `[e.g. ...]` placeholder. Keep the framework-enforced write gates in the Forbidden section exactly as written.
 5. Verify no `[e.g.` placeholder text remains, then report a short summary of what was filled in.
@@ -87,7 +87,7 @@ Do this only after the profile is complete, because the UI kind you just recorde
 
 - Every section of the profile is filled in with project-specific values
 - Language, build, directories, and test commands are internally consistent (e.g. the test command matches the build system)
-- The Paavo Notes MCP section names a real project (the user confirms this)
+- The Paavo's Codex MCP section names a real project (the user confirms this)
 - The framework write gates in the Forbidden section are unchanged
 - Every proposed model ID came from the account's catalog listing or from the user, never from memory, and every bucket states `context` and `fast` explicitly
 - Opus (or an equivalent frontier model) is proposed only for `frontier` unless the user overrode that after seeing the cost
@@ -104,12 +104,12 @@ Do this only after the profile is complete, because the UI kind you just recorde
 - NEVER invent model IDs, parameter names, or prices from memory. Take IDs and parameters from the account's catalog listing and prices from the pricing page, or ask the user. A model ID that does not exist produces no error; the agent just silently runs on the parent chat's model.
 - NEVER copy a model ID out of a billing export or the model picker. Those are display names -- `cursor-grok-4.5-high-fast` is the billing name for the model whose ID is `grok-4.5`.
 - NEVER remove or reword the framework-enforced write-gate bullets in the Forbidden section.
-- NEVER invent a Paavo Notes project name -- ask the user for the exact name.
+- NEVER invent a Paavo's Codex project name -- ask the user for the exact name.
 - NEVER leave `[e.g. ...]` placeholders in the finished profile.
 - NEVER run the framework pipeline, create Taskwarrior tasks, or invoke other agents.
 
 ## Escalation
 
-If the user cannot provide required information (especially the Paavo Notes project name and MCP endpoint), stop and tell them the profile cannot be completed until those are known. Do not guess.
+If the user cannot provide required information (especially the Paavo's Codex project name and MCP endpoint), stop and tell them the profile cannot be completed until those are known. Do not guess.
 
 If `set-agent-models.sh` reports an agent prompt with no bucket assignment, stop. That means the agent set and the script's mapping have diverged, which is a framework-level problem: tell the user to take the upstream version of the script rather than assigning a bucket yourself.

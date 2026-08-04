@@ -47,10 +47,10 @@ For each story, check:
 - **Rigor is correctly set:** `## Rigor` says `full` or `light`. `light` is legitimate only when **all three** qualifying tests hold, and you must check each one explicitly:
   1. The story requires no new or changed architecture artifact.
   2. The story requires no new integration test; existing tests already cover the behavior.
-  3. The story introduces no new product intent -- `## Product Intent Source` cites a discovery rather than a Paavo Notes article, in the `None -- [reason]` form.
+  3. The story introduces no new product intent -- `## Product Intent Source` cites a discovery rather than a Paavo's Codex article, in the `None -- [reason]` form.
 
   Any one false means the story must be `full`, and saying so is a blocking finding. Apply these as written rather than as a judgement about size: `light` skips requirements, architecture, and integration tests entirely, so a mistaken `light` is an unreviewed architectural change. A missing `## Rigor` field defaults to `full` and is a defect worth flagging, not a blocker.
-- **Product intent source is filled in:** `## Product Intent Source` names a Paavo Notes project id, a version, and either at least one article id or an explicit `None -- [reason]`. Template placeholders left in place are a defect. You have no Paavo Notes access (LOGIC.md 16.5), so check the structure only -- never judge whether an id resolves or whether the cited article is the right one.
+- **Product intent source is filled in:** `## Product Intent Source` names a Paavo's Codex project id, a version, and either at least one article id or an explicit `None -- [reason]`. Template placeholders left in place are a defect. You have no Paavo's Codex access (LOGIC.md 16.5), so check the structure only -- never judge whether an id resolves or whether the cited article is the right one.
 - **Acceptance criteria are binary and verifiable:** each criterion has a clear yes/no test, not subjective language like "should work well"
 - **Scope boundaries are explicit:** both in-scope and out-of-scope sections are filled in with specific items
 - **Vertical slice:** the story describes a user-facing feature that touches all necessary layers, NOT a horizontal technical task (e.g. "add database layer" is wrong; "user can save game state" is right)

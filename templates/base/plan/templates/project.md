@@ -1,8 +1,8 @@
 # Project: [Product Name]
 
-## Paavo Notes Binding
+## Paavo's Codex Binding
 
-- Project name: [exact name as shown in Paavo Notes]
+- Project name: [exact name as shown in Paavo's Codex]
 - Project id: [id from MCP discovery]
 - Pinned closed version: [integer]
 - MCP endpoint: [from project profile / Cursor MCP config]
@@ -10,7 +10,7 @@
 ## Product Vision
 
 [2-4 sentences: what the finished product is and why it exists.
-This is the north star -- derived from Paavo Notes, not invented.]
+This is the north star -- derived from Paavo's Codex, not invented.]
 
 ## Product Definition of Done
 
@@ -39,7 +39,7 @@ Status: Done (immutable) | In Progress (at most one) | TODO (rewritable).]
 
 ## Version Migration Log
 
-[Record each re-pin of the Paavo Notes closed version.
+[Record each re-pin of the Paavo's Codex closed version.
 Leave empty until the first migration.]
 
 <!--

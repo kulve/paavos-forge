@@ -48,7 +48,7 @@ bash "$WT/taskwarrior/tw" +ACTIVE -AI_LOCK count
    2. **scope-policy** -- the escalation asks to widen or reinterpret acceptance criteria, add a new external dependency to the project, or create or skip a story, epic, or phase. These are policy decisions regardless of how easy the edit would be.
 
       Technical design is **not** in this class. Changing a public interface, adding a field, adding a domain or a cross-domain dependency, restructuring a fixture, or reorganizing modules are decisions the agents own. They belong to `artifact`. A change is `scope-policy` when it alters what the product does, not when it alters how the code is shaped.
-   3. **product-intent** -- the required product behavior is missing, ambiguous, or self-contradictory, so no correct artifact can be written without a decision from Paavo Notes or the user.
+   3. **product-intent** -- the required product behavior is missing, ambiguous, or self-contradictory, so no correct artifact can be written without a decision from Paavo's Codex or the user.
    4. **artifact** -- everything else: a story-local inconsistency between requirements, architecture, tests, or source that a bounded correction can fix.
 4. Assign confidence. Use `low` whenever the evidence is incomplete, the escalation is vague, or two classes fit equally well.
 5. Choose the handler: `environment` -> `environment-recovery`; `artifact` -> `escalation-recovery`; `product-intent` or `scope-policy` -> `user`. **Any `low` confidence result routes to `user`,** whatever the class.

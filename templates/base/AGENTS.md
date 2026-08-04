@@ -1,6 +1,6 @@
 # AI Agents: Project Instructions
 
-This file tells AI agents how this project uses the AI execution framework.
+This file tells AI agents how this project uses Paavo's Forge.
 
 ## Starting Development (READ THIS FIRST)
 
@@ -14,7 +14,7 @@ The framework only produces requirements, architecture, tested code, and full tr
 
 ## Framework
 
-This project uses the AI execution framework. The canonical workflow specification is in `ai-framework/LOGIC.md`. Read it before doing any work.
+This project uses Paavo's Forge. The canonical workflow specification is in `ai-framework/LOGIC.md`. Read it before doing any work.
 
 ## Project Profile
 
@@ -24,33 +24,33 @@ Project-specific conventions (language, directories, test commands, architecture
 
 The framework uses a four-level hierarchy:
 
-- **Project** (mandatory): `plan/project.md` pins a Paavo Notes closed version and an ordered milestone roadmap to product completion
+- **Project** (mandatory): `plan/project.md` pins a Paavo's Codex closed version and an ordered milestone roadmap to product completion
 - **Milestone**: derived from the roadmap; groups related epics; Status Done / In Progress / TODO
 - **Epic**: the unit of parallel execution; each epic gets its own git worktree
 - **Story**: a vertical feature slice; stories within an epic execute serially
 
 Multiple epics run in parallel in isolated git worktrees. Each worktree has its own Taskwarrior database. A merge gate ensures only one epic merges to main at a time.
 
-## Paavo Notes (Hard Dependency)
+## Paavo's Codex (Hard Dependency)
 
-Product intent lives in Paavo Notes (MCP). The framework caches a pinned execution roadmap in `plan/project.md`.
+Product intent lives in Paavo's Codex (MCP). The framework caches a pinned execution roadmap in `plan/project.md`.
 
-- If the Paavo Notes MCP is unreachable, the PM hard-stops and requirements agents escalate. Do not invent product goals.
+- If the Paavo's Codex MCP is unreachable, the PM hard-stops and requirements agents escalate. Do not invent product goals.
 - Always read the closed integer version pinned in `plan/project.md`.
-- Every story cites the Paavo Notes article ids it derives from, plus the version it was authored against, in its `## Product Intent Source` section. `None -- [reason]` is the only accepted form of absence.
+- Every story cites the Paavo's Codex article ids it derives from, plus the version it was authored against, in its `## Product Intent Source` section. `None -- [reason]` is the only accepted form of absence.
 - Agents discover MCP tool signatures via Cursor; do not hardcode tool APIs.
-- **Who may access Paavo Notes**: PM, Roadmap Planner, and the four requirements-phase agents.
-- Architecture, test, and implementation agents must never access Paavo Notes.
+- **Who may access Paavo's Codex**: PM, Roadmap Planner, and the four requirements-phase agents.
+- Architecture, test, and implementation agents must never access Paavo's Codex.
 - Open questions may be posted append-only against the pinned version; agents must not list/read existing open questions.
-- Local discoveries are for code/impl findings; product-intent gaps belong in Paavo Notes.
+- Local discoveries are for code/impl findings; product-intent gaps belong in Paavo's Codex.
 
 ## Agent Roles
 
 Agents follow a strict hierarchy:
 
 - **Project Manager** (`/project-manager` skill, runs as the top-level chat): owns `plan/project.md`, defines milestones from the roadmap, creates epics, generates stories, dispatches epics for parallel execution, merges back to main, orchestrates escalation recovery
-- **Roadmap Planner** (`roadmap-planner`): PM-invoked; synthesizes `plan/project.md` from Paavo Notes
-- **Coordinator** (`coordinator`): drives all stories in an epic through phases, manages Taskwarrior and git within its worktree (never accesses Paavo Notes)
+- **Roadmap Planner** (`roadmap-planner`): PM-invoked; synthesizes `plan/project.md` from Paavo's Codex
+- **Coordinator** (`coordinator`): drives all stories in an epic through phases, manages Taskwarrior and git within its worktree (never accesses Paavo's Codex)
 - **Phase Agents**: ten specialized agents. Architecture and implementation each have plan, write, and review; requirements and integration tests have write and review, with planning folded into the write agent
 - **Support Agents**: story review, escalation analysis, escalation triage, escalation recovery (also the Coordinator's inline reconciler), environment recovery
 - **Fixer** (`fixer`): fixes bugs in existing code outside the PM pipeline; invoked directly by the user
@@ -102,7 +102,7 @@ All Taskwarrior read-only commands must use `taskwarrior/tw`, never bare `task`.
 10. Stale locks and gates require manual user recovery via `cleanup-ai-state.sh`.
 11. The PM must not invoke a Coordinator while one is already running in that worktree.
 12. Agents may record significant out-of-scope findings as discoveries; only PM triages them.
-13. Paavo Notes MCP is a hard dependency; never invent product intent when it is unavailable.
+13. Paavo's Codex MCP is a hard dependency; never invent product intent when it is unavailable.
 14. `plan/project.md` is mandatory before milestone/epic work; create it via `roadmap-planner`.
 15. Invoke framework scripts by absolute path; never rely on the working directory.
 16. Never pass a `model` parameter to a subagent; its frontmatter owns that choice.

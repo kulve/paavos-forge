@@ -22,17 +22,17 @@ Your prompt contains the absolute epic worktree path. Every artifact path in you
 Read these files from Taskwarrior annotations:
 
 1. **If re-doing after review:** read the feedback file from the `Feedback:` annotation AND the existing requirement files
-2. `plan/project.md` -- pinned Paavo Notes project id and closed version
+2. `plan/project.md` -- pinned Paavo's Codex project id and closed version
 4. `ARCHITECTURE.md` at the project root -- to understand domain structure and dependency rules
 5. The story file (path provided in prompt)
 6. Existing requirements in affected domains (to avoid contradiction)
-7. Paavo Notes (via MCP) at the **pinned closed version** -- discover tools on the fly. Fetch the article ids the story cites in its `## Product Intent Source` section first, then drill into further product-intent detail only where the citations leave a gap. A cited id that does not resolve at the pinned version is a stale citation: escalate instead of substituting another article.
+7. Paavo's Codex (via MCP) at the **pinned closed version** -- discover tools on the fly. Fetch the article ids the story cites in its `## Product Intent Source` section first, then drill into further product-intent detail only where the citations leave a gap. A cited id that does not resolve at the pinned version is a stale citation: escalate instead of substituting another article.
 
 **NEVER read:** source code, test code, architecture artifacts (except `ARCHITECTURE.md` as listed above).
 
-If the Paavo Notes MCP is unreachable: escalate (do not invent product rules).
+If the Paavo's Codex MCP is unreachable: escalate (do not invent product rules).
 
-Discovery note: If you notice a significant out-of-scope bug, gap, stub, design flaw, or risk in code/impl, write one new file under `plan/discoveries/` using `plan/templates/discovery.md`, then continue your assigned task. Never read, list, search, modify, deduplicate, or delete existing discovery files. Product-intent gaps: post an open question against the pinned Paavo Notes version (append-only; never list/read existing questions) and continue if non-blocking; escalate if blocking.
+Discovery note: If you notice a significant out-of-scope bug, gap, stub, design flaw, or risk in code/impl, write one new file under `plan/discoveries/` using `plan/templates/discovery.md`, then continue your assigned task. Never read, list, search, modify, deduplicate, or delete existing discovery files. Product-intent gaps: post an open question against the pinned Paavo's Codex version (append-only; never list/read existing questions) and continue if non-blocking; escalate if blocking.
 
 ## Procedure
 
@@ -95,4 +95,4 @@ bash taskwarrior/phase-transition <id> review
 
 ## Escalation
 
-If the story requires requirements that contradict existing requirements and the contradiction cannot be resolved, the Paavo Notes MCP is unreachable, or a blocking product-intent gap cannot be resolved from the pinned version, write an escalation to `plan/escalations/XXXXX-req-contradiction.md`.
+If the story requires requirements that contradict existing requirements and the contradiction cannot be resolved, the Paavo's Codex MCP is unreachable, or a blocking product-intent gap cannot be resolved from the pinned version, write an escalation to `plan/escalations/XXXXX-req-contradiction.md`.

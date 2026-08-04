@@ -1,5 +1,5 @@
 #!/bin/bash
-# Idempotent Taskwarrior UDA setup for the AI execution framework.
+# Idempotent Taskwarrior UDA setup for Paavo's Forge.
 # Two modes:
 #   setup.sh --main      : Configure PM-level state (run once on project root)
 #   setup.sh --worktree  : Configure Coordinator/phase-level state (run per epic worktree)
@@ -47,7 +47,7 @@ if [ ! -f "${TASKRC}" ]; then
     echo "Generated ${TASKRC}"
 fi
 
-echo "Configuring AI execution framework (TASKRC=${TASKRC}, mode=${MODE})..."
+echo "Configuring Paavo's Forge (TASKRC=${TASKRC}, mode=${MODE})..."
 
 # Suppress the per-setting "Config file ... modified." chatter; errors still surface.
 tw_config() {

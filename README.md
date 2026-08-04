@@ -1,14 +1,14 @@
-# AI Execution Framework
+# Paavo's Forge
 
-A generic template that enables AI agents to autonomously implement large projects from high-level goals. Your product goals live in **Paavo Notes** (an MCP-served knowledge base); this framework reads those goals and drives them to completion. Deploy it into a downstream project, point it at your Paavo Notes project, and the framework drives epics through requirements, architecture, tests, and implementation -- each phase planned, written, and reviewed by specialized agents. Multiple epics execute in parallel via git worktrees.
+A generic template that enables AI agents to autonomously implement large projects from high-level goals. Your product goals live in **Paavo's Codex** (an MCP-served knowledge base); this framework reads those goals and drives them to completion. Deploy it into a downstream project, point it at your Paavo's Codex project, and the framework drives epics through requirements, architecture, tests, and implementation -- each phase planned, written, and reviewed by specialized agents. Multiple epics execute in parallel via git worktrees.
 
-Paavo Notes owns *what* to build (product intent). This framework owns *how* it gets built: it caches a pinned execution roadmap in `plan/project.md` and never invents product goals of its own.
+Paavo's Codex owns *what* to build (product intent). This framework owns *how* it gets built: it caches a pinned execution roadmap in `plan/project.md` and never invents product goals of its own.
 
 ## What It Does
 
-You define your product goals in **Paavo Notes** (e.g. the vision and features for a multiplayer game). The framework reads those goals via MCP and:
+You define your product goals in **Paavo's Codex** (e.g. the vision and features for a multiplayer game). The framework reads those goals via MCP and:
 
-0. Synthesizes an ordered milestone roadmap from your Paavo Notes goals, pinned to a closed version in `plan/project.md`
+0. Synthesizes an ordered milestone roadmap from your Paavo's Codex goals, pinned to a closed version in `plan/project.md`
 1. Organizes work into **epics** (independent feature areas) and **stories** (vertical slices within each epic)
 2. Dispatches each epic to its own **git worktree** for isolated parallel execution
 3. For each story, runs four phases in sequence: **requirements -> architecture -> integration tests -> implementation**
@@ -45,20 +45,20 @@ See [DEPLOY.md](DEPLOY.md) for the full deployment guide. The short version:
 2. Copy root `LOGIC.md` to `ai-framework/LOGIC.md` in your project
 3. Copy `templates/cursor/.cursor/` into your project root
 4. Run `bash taskwarrior/setup.sh --main` to configure PM-level Taskwarrior state
-5. Fill in `ai-framework/project-profile.md` with your project's details, including the Paavo Notes project name and MCP endpoint
-6. Register the Paavo Notes MCP in Cursor and confirm it's reachable (your product goals must already live there in a closed version)
-7. Start a new chat and invoke the `/project-manager` skill -- on first run it reads your Paavo Notes goals and synthesizes `plan/project.md`
+5. Fill in `ai-framework/project-profile.md` with your project's details, including the Paavo's Codex project name and MCP endpoint
+6. Register the Paavo's Codex MCP in Cursor and confirm it's reachable (your product goals must already live there in a closed version)
+7. Start a new chat and invoke the `/project-manager` skill -- on first run it reads your Paavo's Codex goals and synthesizes `plan/project.md`
 
 ## Architecture
 
 The framework has a layered agent hierarchy:
 
-- **Project Manager**: a skill that runs as the top-level chat, not a subagent. Owns the project roadmap, defines milestones from Paavo Notes goals, creates epics, generates stories, dispatches epics to worktrees for parallel execution, merges completed epics back to main
+- **Project Manager**: a skill that runs as the top-level chat, not a subagent. Owns the project roadmap, defines milestones from Paavo's Codex goals, creates epics, generates stories, dispatches epics to worktrees for parallel execution, merges completed epics back to main
 - **Coordinator**: deterministic state machine that drives all stories in one epic through all four phases (operates within an epic's worktree)
 - **Phase Agents** (10 total): architecture and implementation have plan, write, and review; requirements and integration tests have write and review, planning folded into the write agent. Each has narrow context
 - **Support Agents**: roadmap planner, deploy profile, story review, escalation analysis, escalation triage, escalation recovery (also the Coordinator's inline reconciler), environment recovery
 
-Product intent comes from **Paavo Notes** (MCP hard dependency). The framework caches a pinned milestone roadmap in `plan/project.md`. All state mutations go through deterministic scripts under `taskwarrior/`. Scripts enforce preconditions and mutual exclusion (merge gate, active-task guards). Context passes through Taskwarrior annotations. Agents never talk to each other directly.
+Product intent comes from **Paavo's Codex** (MCP hard dependency). The framework caches a pinned milestone roadmap in `plan/project.md`. All state mutations go through deterministic scripts under `taskwarrior/`. Scripts enforce preconditions and mutual exclusion (merge gate, active-task guards). Context passes through Taskwarrior annotations. Agents never talk to each other directly.
 
 Coordinators run in the background so epics progress in parallel, and the scripts they call emit a heartbeat, so the PM supervises them with a single command (`taskwarrior/coordinator-status`) instead of guessing. Worktree isolation is enforced by construction: every script resolves its own tree from its own path and refuses to run against the wrong one, so a Coordinator cannot touch the main tree's database or branch.
 
@@ -67,7 +67,7 @@ When something breaks, the Coordinator first dispatches the reconciler inline: m
 ### Execution Model
 
 ```
-Project (mandatory: plan/project.md — pins Paavo Notes version + roadmap)
+Project (mandatory: plan/project.md — pins Paavo's Codex version + roadmap)
 └── Milestone (Done / In Progress / TODO)
     └── Epic (parallel, one git worktree each)
         └── Story (serial within epic)

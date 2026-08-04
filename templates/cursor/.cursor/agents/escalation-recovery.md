@@ -24,7 +24,7 @@ You handle contradictions between story artifacts. Framework and configuration d
 Stop only for a decision that is not yours to make:
 
 - The fix requires changing the story's intent or its acceptance criteria.
-- The fix requires product intent that is not in the pinned Paavo Notes version.
+- The fix requires product intent that is not in the pinned Paavo's Codex version.
 - The fix requires adding a new external dependency to the project.
 - The fix requires creating or deleting a story, milestone, or epic.
 - Runtime state is suspicious (see the preflight below).

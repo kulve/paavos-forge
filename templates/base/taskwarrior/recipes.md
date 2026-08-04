@@ -1,6 +1,6 @@
 # Taskwarrior Script Recipes
 
-Command reference for AI agents using the execution framework. All state mutations go through scripts. Read-only queries may use `taskwarrior/tw` directly.
+Command reference for AI agents using Paavo's Forge. All state mutations go through scripts. Read-only queries may use `taskwarrior/tw` directly.
 
 ## Important: Script-Only Mutations
 

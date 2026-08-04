@@ -1,5 +1,5 @@
 #!/bin/bash
-# Worktree isolation smoke test for the AI execution framework.
+# Worktree isolation smoke test for Paavo's Forge.
 # Deploys the templates into a throwaway git repo and proves that Taskwarrior and
 # git state cannot leak between the main tree and an epic worktree, regardless of
 # the caller's working directory.
@@ -27,7 +27,7 @@ assert_eq() {
     if [ "$2" = "$3" ]; then pass "$1 ($2)"; else fail "$1 (expected '$2', got '$3')"; fi
 }
 
-echo "=== AI Execution Framework Isolation Test ==="
+echo "=== Paavo's Forge Isolation Test ==="
 echo ""
 
 if ! command -v task >/dev/null 2>&1; then

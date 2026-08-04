@@ -1,5 +1,5 @@
 #!/bin/bash
-# Validate the AI execution framework template repository layout.
+# Validate Paavo's Forge template repository layout.
 # Run from the framework repo root.
 set -euo pipefail
 
@@ -10,7 +10,7 @@ fail() {
     ERRORS=$((ERRORS + 1))
 }
 
-echo "=== AI Execution Framework Template Repo Validator ==="
+echo "=== Paavo's Forge Template Repo Validator ==="
 echo ""
 
 echo "--- Canonical workflow spec ---"
@@ -53,8 +53,8 @@ for tmpl in project milestone story epic requirement phase-plan review-feedback 
     fi
 done
 
-if ! grep -q 'Paavo Notes' templates/base/ai-framework/project-profile.md; then
-    fail "project-profile.md must include a Paavo Notes MCP section"
+if ! grep -qF "Paavo's Codex" templates/base/ai-framework/project-profile.md; then
+    fail "project-profile.md must include a Paavo's Codex MCP section"
 fi
 
 echo "--- Epic directory ---"

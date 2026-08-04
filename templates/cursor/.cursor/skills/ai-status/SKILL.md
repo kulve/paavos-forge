@@ -1,12 +1,12 @@
 ---
 name: ai-status
-description: Reports AI execution framework pipeline status - project roadmap, milestones, epics, stories, phases, Coordinator liveness, and the merge gate. Read-only.
+description: Reports Paavo's Forge pipeline status - project roadmap, milestones, epics, stories, phases, Coordinator liveness, and the merge gate. Read-only.
 disable-model-invocation: true
 ---
 
 # AI Status
 
-Show the current status of the AI execution framework pipeline.
+Show the current status of the Paavo's Forge pipeline.
 
 This is a read-only report that sits outside the pipeline. Run it in its own chat, without the `project-manager` skill loaded. Do not mutate Taskwarrior state, do not touch git, and do not dispatch any subagent.
 
@@ -18,7 +18,7 @@ Run the following commands and present the results in a readable table format:
 
 Read `plan/project.md` (if present) and summarize:
 
-1. **Paavo Notes binding**: project name/id and pinned closed version
+1. **Paavo's Codex binding**: project name/id and pinned closed version
 2. **Roadmap**: ordered milestones with Status (Done / In Progress / TODO)
 3. **Current milestone**: the In Progress entry and its file under `plan/milestones/` if created
 4. **Product Definition of Done**: whether the product appears complete

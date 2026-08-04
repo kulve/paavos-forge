@@ -1,6 +1,6 @@
-# AI Execution Framework -- Canonical Workflow Specification
+# Paavo's Forge -- Canonical Workflow Specification
 
-This document is the single source of truth for the AI execution framework. All agent prompts, rules, templates, and deployment docs reference this file. If there is a conflict between this document and any other file, this document wins.
+This document is the single source of truth for Paavo's Forge. All agent prompts, rules, templates, and deployment docs reference this file. If there is a conflict between this document and any other file, this document wins.
 
 ---
 
@@ -8,8 +8,8 @@ This document is the single source of truth for the AI execution framework. All 
 
 This framework enables AI agents to autonomously implement large projects from high-level goals. It relies on:
 
-- **Line-of-sight Project layer**: a mandatory project roadmap (`plan/project.md`) pins product goals from Paavo Notes and orders milestones from now to product completion
-- **External product intent**: Paavo Notes owns product goals (versioned knowledge base); the framework caches a pinned execution roadmap locally and never invents product intent
+- **Line-of-sight Project layer**: a mandatory project roadmap (`plan/project.md`) pins product goals from Paavo's Codex and orders milestones from now to product completion
+- **External product intent**: Paavo's Codex owns product goals (versioned knowledge base); the framework caches a pinned execution roadmap locally and never invents product intent
 - **Strict isolation of concerns**: each agent has a narrow role and limited context
 - **Explicit state management**: Taskwarrior owns execution state, not filesystem layout
 - **Parallel epic execution**: independent epics run in isolated git worktrees; stories within an epic execute serially
@@ -18,7 +18,7 @@ This framework enables AI agents to autonomously implement large projects from h
 - **Single active subagent per worktree**: at most one Taskwarrior task may be `+ACTIVE` at any time within a given worktree; the Coordinator enforces this via scripts
 - **Top-level singleton locks**: only one PM may run at any time (global); only one Coordinator may run per worktree
 
-The framework is language-agnostic. All language, build system, directory layout, and architecture-artifact conventions come from the project profile, so the same workflow supports C++, Python, TypeScript, Rust, and other languages without changes to the core spec or agent prompts. Paavo Notes is a hard dependency for product intent (see Section 16).
+The framework is language-agnostic. All language, build system, directory layout, and architecture-artifact conventions come from the project profile, so the same workflow supports C++, Python, TypeScript, Rust, and other languages without changes to the core spec or agent prompts. Paavo's Codex is a hard dependency for product intent (see Section 16).
 
 ---
 
@@ -26,13 +26,13 @@ The framework is language-agnostic. All language, build system, directory layout
 
 ### 2.1 Project Manager (PM)
 
-The top-level orchestrator. Talks to the user, owns `plan/project.md`, derives milestones from the project roadmap, creates epics, generates stories in rolling batches, and dispatches epics to worktrees for parallel execution. The PM never touches code. Operates in the main project tree. The PM may read Paavo Notes (via MCP) for project goals and may post open questions; it does not invent product intent.
+The top-level orchestrator. Talks to the user, owns `plan/project.md`, derives milestones from the project roadmap, creates epics, generates stories in rolling batches, and dispatches epics to worktrees for parallel execution. The PM never touches code. Operates in the main project tree. The PM may read Paavo's Codex (via MCP) for project goals and may post open questions; it does not invent product intent.
 
 The PM is delivered as a **skill** (`.cursor/skills/project-manager/SKILL.md`), invoked as `/project-manager`, and runs as the top-level chat itself rather than as a subagent. This is a hard requirement of the nesting budget in Section 11.5, not a packaging preference: a delegated PM pushes Coordinators one level down, where they can no longer dispatch phase agents. There must be no `project-manager` agent prompt; both validators fail if one exists.
 
 ### 2.2 Coordinator
 
-A deterministic state machine that drives all stories within a single epic through all four phases. The Coordinator is not creative -- it reads Taskwarrior state via scripts, decides which subagent to invoke next, and halts on escalations. It never reads code or artifact content directly. It never accesses Paavo Notes. It invokes exactly one subagent at a time. Operates within an epic's worktree.
+A deterministic state machine that drives all stories within a single epic through all four phases. The Coordinator is not creative -- it reads Taskwarrior state via scripts, decides which subagent to invoke next, and halts on escalations. It never reads code or artifact content directly. It never accesses Paavo's Codex. It invokes exactly one subagent at a time. Operates within an epic's worktree.
 
 ### 2.3 Phase Agents
 
@@ -42,7 +42,7 @@ The four phases are deliberately not symmetric. Architecture and implementation 
 
 There are no plan-review agents. A plan is an intention, so there is nothing factual to check it against; the check on a plan is the executable gate and the review that follow the write.
 
-**Paavo Notes access**: only the two requirements-phase agents may read Paavo Notes (and requirements-write may post open questions). Architecture, integration-test, and implementation agents must never access Paavo Notes.
+**Paavo's Codex access**: only the two requirements-phase agents may read Paavo's Codex (and requirements-write may post open questions). Architecture, integration-test, and implementation agents must never access Paavo's Codex.
 
 ### 2.4 Support Agents
 
@@ -50,7 +50,7 @@ Story Review, Escalation Analysis, Escalation Triage, Escalation Recovery, Envir
 
 ### 2.4.1 Roadmap Planner
 
-A PM-invoked support agent that synthesizes or revises `plan/project.md` from Paavo Notes product goals. It runs at project init and at post-milestone re-evaluation (when the PM asks for a roadmap rewrite). It proposes an end-to-end milestone roadmap with rolling detail (near milestones detailed, far milestones brief), discusses refinements with the user/PM, then writes the project file pinning a Paavo Notes project id and closed version. It is not part of the Coordinator's dispatch table.
+A PM-invoked support agent that synthesizes or revises `plan/project.md` from Paavo's Codex product goals. It runs at project init and at post-milestone re-evaluation (when the PM asks for a roadmap rewrite). It proposes an end-to-end milestone roadmap with rolling detail (near milestones detailed, far milestones brief), discusses refinements with the user/PM, then writes the project file pinning a Paavo's Codex project id and closed version. It is not part of the Coordinator's dispatch table.
 
 ### 2.4.2 Escalation Triage
 
@@ -64,7 +64,7 @@ A PM-invoked support agent that repairs framework runtime state after an `enviro
 
 The pipeline's reconciler. The Coordinator dispatches it inline, in the foreground and under its own lock, whenever a subagent escalates, a `phase-gate` fails, or a phase is rejected twice (Section 9.0). It reads the failure and the minimum relevant story artifacts, applies the smallest correction that makes the story internally consistent -- in whichever phase's artifact is wrong, including a completed one -- and returns the list of gates its change invalidated. It never moves a task. The PM may also invoke it directly for the `artifact` class after a halt.
 
-It is the one agent besides the Coordinator that the Coordinator dispatches, and the only one at level 2 permitted to edit artifacts outside the current phase. It must stop for human input only if recovery requires changing story intent or acceptance criteria, product intent absent from the pinned Paavo Notes version, a new external dependency, creating or deleting a story, or resolving suspicious runtime state. Technical design -- interfaces, decomposition, fixtures, code -- is its own to decide.
+It is the one agent besides the Coordinator that the Coordinator dispatches, and the only one at level 2 permitted to edit artifacts outside the current phase. It must stop for human input only if recovery requires changing story intent or acceptance criteria, product intent absent from the pinned Paavo's Codex version, a new external dependency, creating or deleting a story, or resolving suspicious runtime state. Technical design -- interfaces, decomposition, fixtures, code -- is its own to decide.
 
 ### 2.6 Fixer
 
@@ -91,7 +91,7 @@ bash taskwarrior/cleanup-ai-state.sh --apply
 ### 3.1 Hierarchy
 
 ```
-Project (mandatory: plan/project.md — pins Paavo Notes version + milestone roadmap)
+Project (mandatory: plan/project.md — pins Paavo's Codex version + milestone roadmap)
 └── Milestone (derived from roadmap; Status: Done | In Progress | TODO)
     └── Epic (parallel execution, one worktree per epic)
         └── Story (serial execution within epic)
@@ -126,7 +126,7 @@ A story qualifies as `light` only if **all three** of these hold; any one false 
 
 1. No new or changed architecture artifact.
 2. No new integration test needed; existing tests already cover the behavior.
-3. No new product intent -- `## Product Intent Source` cites a discovery rather than a Paavo Notes article, using the `None -- [reason]` form.
+3. No new product intent -- `## Product Intent Source` cites a discovery rather than a Paavo's Codex article, using the `None -- [reason]` form.
 
 The tests are deliberately objective. Loosened into a judgement about size, `light` becomes the default and review disappears. Discovery-derived stories (Section 15) normally satisfy all three and default to `light`.
 
@@ -221,15 +221,15 @@ The Coordinator reads these annotations (via `story-next` script output) to cons
 
 The PM operates in the main project tree. It owns the project roadmap, defines milestones from that roadmap, and dispatches epics for parallel execution.
 
-0. **Paavo Notes hard dependency**: Before any planning or execution work, the PM verifies the Paavo Notes MCP is reachable (using Cursor MCP discovery / a lightweight tool call). If unreachable, the PM stops all framework work and reports to the user. This is a hard stop -- already-planned work must not continue while product intent is unavailable. See Section 16.
+0. **Paavo's Codex hard dependency**: Before any planning or execution work, the PM verifies the Paavo's Codex MCP is reachable (using Cursor MCP discovery / a lightweight tool call). If unreachable, the PM stops all framework work and reports to the user. This is a hard stop -- already-planned work must not continue while product intent is unavailable. See Section 16.
 
-1. **Project init**: If `plan/project.md` does not exist, the PM invokes the `roadmap-planner` subagent (foreground, human-in-loop). The planner synthesizes a milestone roadmap from Paavo Notes and writes `plan/project.md`, pinning the Paavo Notes project id and a closed version. The PM discusses refinements with the user, then commits `plan/project.md` to `main`. Project init must complete before any milestone is created.
+1. **Project init**: If `plan/project.md` does not exist, the PM invokes the `roadmap-planner` subagent (foreground, human-in-loop). The planner synthesizes a milestone roadmap from Paavo's Codex and writes `plan/project.md`, pinning the Paavo's Codex project id and a closed version. The PM discusses refinements with the user, then commits `plan/project.md` to `main`. Project init must complete before any milestone is created.
 
 2. **Milestone definition**: PM writes `plan/milestones/XX-name.md` for the current In-Progress (or next TODO) roadmap entry. The milestone must be traceable to `plan/project.md`. It contains high-level goals, epic list, boundaries, Status, and done criteria. Important decisions from chat are captured in the milestone file. Mark the matching roadmap entry In Progress; at most one milestone is In Progress at a time.
 
 3. **Epic definition**: PM writes `plan/epics/EXXXX-slug.md` containing goal, boundaries, ordered story list, done criteria, and epic dependencies. Epics are coherent feature areas that can execute independently.
 
-4. **Story generation**: PM reads the epic, existing stories, and codebase README, then writes the next 2-3 stories to `plan/stories/XXXXX-slug.md`. Stories are vertical feature slices, not horizontal technical layers. Every story records its **Product Intent Source**: the Paavo Notes project id, the pinned closed version it was authored against, and the article ids it derives from (Section 16.4). When new behavior conflicts with or replaces behavior from an earlier story, the new story must include a **Modifies Stories** section.
+4. **Story generation**: PM reads the epic, existing stories, and codebase README, then writes the next 2-3 stories to `plan/stories/XXXXX-slug.md`. Stories are vertical feature slices, not horizontal technical layers. Every story records its **Product Intent Source**: the Paavo's Codex project id, the pinned closed version it was authored against, and the article ids it derives from (Section 16.4). When new behavior conflicts with or replaces behavior from an earlier story, the new story must include a **Modifies Stories** section.
 
 5. **Story review**: PM invokes the story-review subagent for the batch. PM addresses feedback by updating story files directly.
 
@@ -238,7 +238,7 @@ The PM operates in the main project tree. It owns the project roadmap, defines m
    bash taskwarrior/pm-preflight
    bash taskwarrior/epic-fork EXXXX slug
    ```
-   The fork script checks the merge gate, creates the worktree, initializes Taskwarrior, and registers the epic. Preflight for the PM also includes the Paavo Notes reachability check from step 0.
+   The fork script checks the merge gate, creates the worktree, initializes Taskwarrior, and registers the epic. Preflight for the PM also includes the Paavo's Codex reachability check from step 0.
 
 7. **Coordinator invocation**: PM launches a Coordinator subagent with `run_in_background: true`. Subagents cannot be given a working directory, so the Coordinator starts in the main tree: its prompt must carry the absolute worktree path and the invariant that every framework script is invoked as `bash <worktree>/taskwarrior/<script>`. The Coordinator runs its Startup Assertion before any other work.
 
@@ -266,15 +266,15 @@ The PM operates in the main project tree. It owns the project roadmap, defines m
 12. **Re-evaluation**: After epic merge, PM re-reads the milestone file and `plan/project.md`. If milestone done criteria are met:
     - Mark the milestone Status Done (immutable history) in both the milestone file and the roadmap entry in `plan/project.md`
     - Perform discovery triage on whatever accumulated since the last story batch (Section 15)
-    - Advance the next TODO roadmap entry to In Progress, or rewrite/reorder remaining TODO milestones (optionally re-invoke `roadmap-planner`) based on Paavo Notes and user direction
+    - Advance the next TODO roadmap entry to In Progress, or rewrite/reorder remaining TODO milestones (optionally re-invoke `roadmap-planner`) based on Paavo's Codex and user direction
     - If the product Definition of Done in `plan/project.md` is met, declare the product complete
-    - **Version migration**: if Paavo Notes has a newer closed version the user wants to adopt, the PM re-pins `plan/project.md` to the new version, scopes changes via the MCP per-step change/diff tools (one call per version step), and inserts one or more **migration milestones** (Status TODO / In Progress as appropriate) before continuing normal roadmap work
+    - **Version migration**: if Paavo's Codex has a newer closed version the user wants to adopt, the PM re-pins `plan/project.md` to the new version, scopes changes via the MCP per-step change/diff tools (one call per version step), and inserts one or more **migration milestones** (Status TODO / In Progress as appropriate) before continuing normal roadmap work
 
 13. **Git for planning artifacts**: PM commits project, milestone, epic, and story files to `main` directly, before dispatching the epic.
 
 14. **Escalation received**: A Coordinator that returns due to escalation has already tried inline recovery (Section 9.0), so what reaches the PM is what the reconciler could not settle. PM reads the escalation file, verifies the Coordinator lock is inactive (via worktree status), then invokes `escalation-triage` in the foreground and routes by class per Section 9.1. If a handler resolves it, PM clears the block with `phase-resume` and launches a fresh Coordinator for the same epic.
 
-15. **Discovery triage**: Once a milestone is otherwise complete (all epics merged), the PM reads `plan/discoveries/`, groups findings, writes `plan/discoveries/triage-XX.md`, and summarizes proposed handling for the user. Product-intent gaps that belong in Paavo Notes are surfaced as open questions there (Section 16), not as local discoveries.
+15. **Discovery triage**: Once a milestone is otherwise complete (all epics merged), the PM reads `plan/discoveries/`, groups findings, writes `plan/discoveries/triage-XX.md`, and summarizes proposed handling for the user. Product-intent gaps that belong in Paavo's Codex are surfaced as open questions there (Section 16), not as local discoveries.
 
 ---
 
@@ -494,7 +494,7 @@ Only `needs-human`, `failed-recovery`, a gate that fails again after a fix, or a
 
 ### 9.1 Escalation Halt (the exception path)
 
-1. **Trigger**: inline recovery could not resolve the failure, the Coordinator detects the 3rd review rejection for the same phase, the Paavo Notes MCP is unreachable when required, or a product-intent gap cannot be resolved from the pinned Paavo Notes version (blocking). Non-blocking product-intent gaps may instead be posted as open questions to Paavo Notes (Section 16) without escalating.
+1. **Trigger**: inline recovery could not resolve the failure, the Coordinator detects the 3rd review rejection for the same phase, the Paavo's Codex MCP is unreachable when required, or a product-intent gap cannot be resolved from the pinned Paavo's Codex version (blocking). Non-blocking product-intent gaps may instead be posted as open questions to Paavo's Codex (Section 16) without escalating.
 
 2. **Report**: the subagent (or Coordinator on reject limit) writes `plan/escalations/XXXXX-phase-slug.md` using the escalation template, annotates the task with `Escalation: <path>`, and exits immediately. The subagent does not continue working after writing the escalation.
 
@@ -512,7 +512,7 @@ Only `needs-human`, `failed-recovery`, a gate that fails again after a fix, or a
    |-------|---------|-----------|
    | `environment` | `environment-recovery` | Framework state, configuration, or runtime damage. Mechanical, so no user decision exists to make. |
    | `artifact` | `escalation-recovery` | Story-local inconsistency between requirements, architecture, tests, or source. Rare at this point: the Coordinator already tried it inline. |
-   | `product-intent` | user (or a Paavo Notes open question) | The required behavior is missing or contradictory. **Always stops for the user.** |
+   | `product-intent` | user (or a Paavo's Codex open question) | The required behavior is missing or contradictory. **Always stops for the user.** |
    | `scope-policy` | user | Widening story scope, adding an external dependency, or creating/skipping a story or phase. **Always stops for the user.** Technical design -- interfaces, decomposition, fixtures, code -- is not in this class. |
 
    Any `Confidence: low` result routes to the user regardless of class.
@@ -536,7 +536,7 @@ Only `needs-human`, `failed-recovery`, a gate that fails again after a fix, or a
 
 7. **Resume**: PM launches a fresh Coordinator for the same epic in the background (see Section 17). The Coordinator picks up from the restored task state. The old Coordinator is never resumed.
 
-8. **Human stop conditions**: PM stops and asks the user when a decision is **irreversible**, is about **product intent**, or **exceeds the current milestone's scope**. Concretely: changing story intent, widening acceptance criteria, adding a new external dependency, creating or skipping stories, skipping phases, adopting a new Paavo Notes version or rewriting product goals, or resolving a root cause whose fingerprint has already been attempted.
+8. **Human stop conditions**: PM stops and asks the user when a decision is **irreversible**, is about **product intent**, or **exceeds the current milestone's scope**. Concretely: changing story intent, widening acceptance criteria, adding a new external dependency, creating or skipping stories, skipping phases, adopting a new Paavo's Codex version or rewriting product goals, or resolving a root cause whose fingerprint has already been attempted.
 
    Technical design is explicitly **not** a stop condition. Interfaces, decomposition, module boundaries, test fixtures, and code are the agents' to decide, and asking the user to approve them is the failure mode this rule exists to prevent -- a user asked to approve a struct field is a user who stops reading. Milestone completion is the natural checkpoint, not each technical choice inside one.
 
@@ -548,11 +548,11 @@ Only `needs-human`, `failed-recovery`, a gate that fails again after a fix, or a
 
 ### 10.0 Projects (`plan/project.md`)
 
-Mandatory living document owned by the PM (produced by the Roadmap Planner). Pins the Paavo Notes project identity and a closed integer version, states the product vision and product-level Definition of Done, and lists an ordered milestone roadmap. Each roadmap entry has Status `Done` (immutable), `In Progress` (at most one), or `TODO` (freely rewritable on re-evaluation). Near milestones are detailed; far milestones may be brief bullets. Includes a Version Migration Log when the pinned Paavo Notes version changes.
+Mandatory living document owned by the PM (produced by the Roadmap Planner). Pins the Paavo's Codex project identity and a closed integer version, states the product vision and product-level Definition of Done, and lists an ordered milestone roadmap. Each roadmap entry has Status `Done` (immutable), `In Progress` (at most one), or `TODO` (freely rewritable on re-evaluation). Near milestones are detailed; far milestones may be brief bullets. Includes a Version Migration Log when the pinned Paavo's Codex version changes.
 
 ### 10.1 Milestones (`plan/milestones/XX-name.md`)
 
-High-level planning documents derived from the project roadmap. Contain a backlink to `plan/project.md`, Status (`Done` / `In Progress` / `TODO`), vision, goals, boundaries, epic list, and done criteria. Updated by the PM as epics are generated and completed. **Migration milestones** are a special kind used when adopting a newer Paavo Notes version: their scope is the product-intent delta between the old and new pinned versions (scoped via MCP per-step change/diff tools).
+High-level planning documents derived from the project roadmap. Contain a backlink to `plan/project.md`, Status (`Done` / `In Progress` / `TODO`), vision, goals, boundaries, epic list, and done criteria. Updated by the PM as epics are generated and completed. **Migration milestones** are a special kind used when adopting a newer Paavo's Codex version: their scope is the product-intent delta between the old and new pinned versions (scoped via MCP per-step change/diff tools).
 
 ### 10.2 Epics (`plan/epics/EXXXX-slug.md`)
 
@@ -562,7 +562,7 @@ Coherent feature areas decomposed into ordered stories. Contain goal, boundaries
 
 Problem-space documents describing vertical feature slices. Must include: epic reference, product intent source, goal (what and why), scope boundaries, trigger conditions, binary acceptance criteria, domain tags, dependencies, and non-goals. Stories describe user-facing behavior, not technical tasks.
 
-Mandatory **Product Intent Source** section: the story's citation of the Paavo Notes articles it derives from. It records the Paavo Notes project id, the closed version the story was authored against, and one line per source article (id, title at that version, domain id). Article ids are stable across versions while titles are not, so the id is the identity and the title is only a human label. The version is recorded per story even though `plan/project.md` pins it: project.md is re-pinned over time, while a completed story is a historical record of the intent it was written against. When no single article backs the story -- intent synthesized across a whole domain, framework scaffolding, and similar cases -- the section states `None -- [reason]` so the absence is a deliberate, reviewable claim rather than an omission. See Section 16.4.
+Mandatory **Product Intent Source** section: the story's citation of the Paavo's Codex articles it derives from. It records the Paavo's Codex project id, the closed version the story was authored against, and one line per source article (id, title at that version, domain id). Article ids are stable across versions while titles are not, so the id is the identity and the title is only a human label. The version is recorded per story even though `plan/project.md` pins it: project.md is re-pinned over time, while a completed story is a historical record of the intent it was written against. When no single article backs the story -- intent synthesized across a whole domain, framework scaffolding, and similar cases -- the section states `None -- [reason]` so the absence is a deliberate, reviewable claim rather than an omission. See Section 16.4.
 
 Optional **Modifies Stories** section: when a new story changes or deprecates behavior from earlier stories, list the old story file paths and a brief reason.
 
@@ -743,7 +743,7 @@ Two risks are accepted rather than engineered around. A reviewer could label eve
 
 **Anchoring.** A blocking finding is binding: the Write agent must comply with it and has no channel to dispute it. It must therefore be **anchored** -- it names a specific artifact element and states how the work under review contradicts it. An issue the reviewer cannot anchor is advisory by definition.
 
-Each review agent's prompt lists the anchors valid for its phase, drawn only from what that agent is permitted to read. Across the pipeline they are: a story acceptance criterion, a requirement ID, a rule or DAG edge in `ARCHITECTURE.md`, a named element in an architecture artifact, a named test case, an observed command or test result, a project-profile entry (domain tag, mock boundary, convention, review standard, or Forbidden entry), and a Paavo Notes item at the pinned closed version.
+Each review agent's prompt lists the anchors valid for its phase, drawn only from what that agent is permitted to read. Across the pipeline they are: a story acceptance criterion, a requirement ID, a rule or DAG edge in `ARCHITECTURE.md`, a named element in an architecture artifact, a named test case, an observed command or test result, a project-profile entry (domain tag, mock boundary, convention, review standard, or Forbidden entry), and a Paavo's Codex item at the pinned closed version.
 
 Judgment criteria -- cohesion, meaningfulness, actionability, scope appropriateness -- remain enforceable. They are anchored by naming the specific element and the concrete consequence, never by asserting a quality label. "Interface X is not cohesive" is not anchored; "class X exposes `save()` and `render()`; `render()` traces to no requirement" is.
 
@@ -791,9 +791,9 @@ The framework is designed to be extended via the project profile. Downstream pro
 - **Forbidden areas**: directories and actions agents must never touch
 - **Domain tags**: valid categories for organizing requirements
 - **Parallel limit**: recommended maximum concurrent epics
-- **Paavo Notes MCP**: endpoint URL (Cursor MCP registration) and Paavo Notes project name/id. The pinned closed version lives in `plan/project.md`, not the profile.
+- **Paavo's Codex MCP**: endpoint URL (Cursor MCP registration) and Paavo's Codex project name/id. The pinned closed version lives in `plan/project.md`, not the profile.
 
-Agent prompts read the project profile to adapt their behavior. The core workflow (phases, states, script protocol, git policy) remains fixed. Paavo Notes is a hard dependency of this framework (see Section 16); it is not a generic swappable knowledge-source plug-in.
+Agent prompts read the project profile to adapt their behavior. The core workflow (phases, states, script protocol, git policy) remains fixed. Paavo's Codex is a hard dependency of this framework (see Section 16); it is not a generic swappable knowledge-source plug-in.
 
 ---
 
@@ -817,27 +817,27 @@ Discoveries preserve important observations without derailing the current task. 
 
    Discovery-derived stories default to `light` rigor (Section 3.3).
 
-**Discoveries vs open questions**: local discoveries capture code/implementation findings that belong in the repo. Product-intent gaps (unclear goals, missing product rules, ambiguous user-facing behavior) belong in Paavo Notes as open questions (Section 16), not as discovery files.
+**Discoveries vs open questions**: local discoveries capture code/implementation findings that belong in the repo. Product-intent gaps (unclear goals, missing product rules, ambiguous user-facing behavior) belong in Paavo's Codex as open questions (Section 16), not as discovery files.
 
 ---
 
-## 16. Project Knowledge Source Protocol (Paavo Notes)
+## 16. Project Knowledge Source Protocol (Paavo's Codex)
 
-Product intent lives in Paavo Notes. The framework caches a pinned execution roadmap in `plan/project.md`. Agents discover MCP tool names and signatures via Cursor's MCP tool listing -- this specification does **not** hardcode tool APIs.
+Product intent lives in Paavo's Codex. The framework caches a pinned execution roadmap in `plan/project.md`. Agents discover MCP tool names and signatures via Cursor's MCP tool listing -- this specification does **not** hardcode tool APIs.
 
 ### 16.1 Hard dependency
 
-The Paavo Notes MCP is required for all framework work. If it is unreachable, the PM hard-stops (Section 4 step 0) and requirements agents escalate. Do not invent product goals or continue execution while product intent is unavailable.
+The Paavo's Codex MCP is required for all framework work. If it is unreachable, the PM hard-stops (Section 4 step 0) and requirements agents escalate. Do not invent product goals or continue execution while product intent is unavailable.
 
 ### 16.2 Identity and pinning
 
-- The project profile names the Paavo Notes project (name and/or id) and how the MCP is registered in Cursor.
-- `plan/project.md` pins the Paavo Notes `project_id` and a **closed integer version**.
-- Every Paavo Notes read for a given project run uses that single pinned closed version. Do not query the open/live version. Do not silently switch versions mid-milestone.
+- The project profile names the Paavo's Codex project (name and/or id) and how the MCP is registered in Cursor.
+- `plan/project.md` pins the Paavo's Codex `project_id` and a **closed integer version**.
+- Every Paavo's Codex read for a given project run uses that single pinned closed version. Do not query the open/live version. Do not silently switch versions mid-milestone.
 
 ### 16.3 Intent-level retrieval (agents select tools on the fly)
 
-Agents that may access Paavo Notes pursue these outcomes, choosing appropriate MCP tools themselves:
+Agents that may access Paavo's Codex pursue these outcomes, choosing appropriate MCP tools themselves:
 
 1. Discover/resolve the project by the name/id from the profile.
 2. Confirm or select a closed (published/frozen) version; pin it in `plan/project.md` when creating or migrating the roadmap.
@@ -846,7 +846,7 @@ Agents that may access Paavo Notes pursue these outcomes, choosing appropriate M
 
 ### 16.4 Story-level intent citations
 
-Every story cites the product intent it derives from as `(project_id, version, article_id)` triples in its **Product Intent Source** section (Section 10.3). This closes the traceability chain: requirements back-link to stories, and stories back-link to Paavo Notes articles.
+Every story cites the product intent it derives from as `(project_id, version, article_id)` triples in its **Product Intent Source** section (Section 10.3). This closes the traceability chain: requirements back-link to stories, and stories back-link to Paavo's Codex articles.
 
 - Article ids are stable across versions; titles are mutable. Cite the id as the identity and carry the title only as a human label.
 - A citation is verifiable: fetching a cited id at the pinned version either returns the article or reports that it does not exist at that version. A cited id that does not resolve is a stale citation, not a product-intent gap, and requirements agents escalate it as such.
@@ -854,7 +854,7 @@ Every story cites the product intent it derives from as `(project_id, version, a
 - Only the PM writes citations, because only the PM writes stories. Agents downstream of the story read them.
 - `None -- [reason]` is the only acceptable form of absence. An unfilled template placeholder is a defect that story review must reject.
 
-### 16.5 Who may access Paavo Notes
+### 16.5 Who may access Paavo's Codex
 
 - **Allowed**: PM, Roadmap Planner, and the two requirements-phase agents (write, review).
 - **Forbidden**: Coordinator, architecture / integration-test / implementation agents, story-review, escalation-analysis, escalation-triage, escalation-recovery, environment-recovery, fixer, and general agents.
@@ -863,14 +863,14 @@ Requirements-plan and requirements-write may post open questions. Review agents 
 
 ### 16.6 Open questions (append-only)
 
-Open questions are metadata attached to a frozen Paavo Notes version (clarifications / deferred product decisions), not mutations of KB content.
+Open questions are metadata attached to a frozen Paavo's Codex version (clarifications / deferred product decisions), not mutations of KB content.
 
 Rules (mirror the Discovery Protocol):
 
 - Allowed agents may **post** a new open question against the pinned closed version, then continue their task.
 - Agents must **never** list, search, read, deduplicate, modify, answer, or delete existing open questions as part of framework work.
 - Non-blocking product-intent gap: post an open question and continue.
-- Blocking product-intent gap (cannot proceed without changed/clarified intent): escalate (and optionally also post an open question so the gap is captured at the source). Answers and classification (clarification vs real change for a future version) happen in the Paavo Notes web UI / user process, not in the framework.
+- Blocking product-intent gap (cannot proceed without changed/clarified intent): escalate (and optionally also post an open question so the gap is captured at the source). Answers and classification (clarification vs real change for a future version) happen in the Paavo's Codex web UI / user process, not in the framework.
 
 ---
 
