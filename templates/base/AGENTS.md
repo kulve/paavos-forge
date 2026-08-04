@@ -73,7 +73,7 @@ See `taskwarrior/recipes.md` for full documentation.
 
 ## Subagent Models
 
-Each agent's model is pinned in its own `.cursor/agents/*.md` frontmatter, assigned by bucket via `ai-framework/set-agent-models.sh` (see `DEPLOY.md` Step 6). Run it with `--list` to see the current assignment. The PM has no bucket: it is a skill, so it runs on whatever model you select for the top-level chat.
+Each agent's model is pinned in its own `.cursor/agents/*.md` frontmatter, assigned by bucket via `ai-framework/set-agent-models.sh` (see `DEPLOY.md` Step 6). Run it with `--list` to see the current assignment. The PM has no bucket: it is a skill, so it runs on whatever model you select for the top-level chat -- Sonnet when creating or revising plans and stories, Luna only for supervision-only sessions.
 
 **Never pass a `model` parameter when invoking a subagent.** That argument overrides the frontmatter and silently replaces a deliberate capability assignment with the parent's model. Do not hand-edit `model:` lines either; re-run the script so a whole bucket stays consistent.
 

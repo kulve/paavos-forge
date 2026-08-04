@@ -272,17 +272,18 @@ Note: adapting the framework to a language requires editing only `ai-framework/p
 
 The framework ships every agent prompt with `model: inherit`, which means each agent runs on whatever model happens to be selected in the chat that started the PM. That makes pipeline quality a side effect of an unrelated UI choice, and it drifts whenever you switch models. Pin the models deliberately before your first run.
 
-Model choice trades off two independent axes. **World knowledge** decides which library, algorithm, or architecture is the right one -- it matters enormously where designs are generated and barely at all where a written plan is being executed. **Reasoning effort** buys long-horizon consistency and self-checking, which matters wherever an agent runs a long tool loop, even when the thinking has already been done upstream. Configuring 19 agents individually is unmanageable, so the framework groups them into five buckets. The PM is not among them: it is a skill, so it runs on whatever model you select for the top-level chat.
+Model choice trades off two independent axes. **World knowledge** decides which library, algorithm, or architecture is the right one -- it matters enormously where designs are generated and barely at all where a written plan is being executed. **Reasoning effort** buys long-horizon consistency and self-checking, which matters wherever an agent runs a long tool loop, even when the thinking has already been done upstream. Configuring 19 agents individually is unmanageable, so the framework groups them into six buckets. The PM is not among them: it is a skill, so it runs on whatever model you select for the top-level chat (see "Project Manager model" below).
 
 ### The buckets
 
 | Bucket | For | Why it is separate |
 |--------|-----|--------------------|
-| `deep` | Roadmap, architecture design, debugging, escalation recovery | Irreversible choices that everything downstream inherits. Low token volume, highest leverage per token. |
-| `critic` | Adversarial review: implementation, architecture, stories | Must judge semantic correctness of work it did not write. This is where weak models rubber-stamp. |
-| `builder` | Implementation, tests, requirements, and their plans | Your largest token consumer, and the place where the hard decisions are already made upstream. |
-| `checker` | Structural conformance checks against a written plan | Bounded procedures with clear pass/fail criteria. |
-| `mechanical` | Coordinator state machine, environment repair | Follows an explicit procedure. Failures are loud, not silent (see below). |
+| `frontier` | Architecture planning only | The scarce high-leverage slot: interfaces, dependency direction, extensibility. One dispatch per full story. |
+| `deep` | Roadmap, escalation recovery, environment repair, deploy-profile | Generative design and diagnosis that still needs real technical judgment, without spending the frontier budget. |
+| `critic` | Adversarial review: architecture, implementation, stories, requirements | Must judge semantic correctness of work it did not write. This is where weak models rubber-stamp. |
+| `builder` | Requirements write, architecture write, implementation plan/write, tests | Your largest token consumer, and the place where the hard decisions are already made upstream. |
+| `checker` | Integration-test review, escalation triage | Bounded checks against written artifacts, gate output, and fixed routing rules. |
+| `orchestration` | Coordinator state machine | Procedure following with no artifact or code interpretation. Failures are loud, not silent (see below). |
 
 To see which agent is in which bucket and what each currently resolves to:
 
@@ -294,14 +295,23 @@ The agent-to-bucket assignment is framework knowledge and lives in the script. T
 
 ### Constraints you must respect
 
-- **Prefer a different model family for a reviewer than for the bucket it reviews.** Every write agent is reviewed by a `checker` or `critic` agent, and `architecture-write` (in `deep`) is reviewed by `architecture-review` (in `critic`). A reviewer from the same family as the writer shares its blind spots, so failures correlate exactly where the framework assumes independent judgment. That argues for `critic` differing from both `builder` and `deep`, and for `checker` differing from `builder`.
+- **Keep Opus (or an equivalent frontier model) in `frontier` only.** Putting it on `deep` as well quietly burns the budget that this split exists to protect. Sonnet is the intended default for every other Anthropic role.
+- **Prefer a different model family for a reviewer than for the bucket it reviews.** Every write agent is reviewed by a `checker` or `critic` agent, and `architecture-plan` (`frontier`) / `architecture-write` (`builder`) are reviewed by `architecture-review` (`critic`). `requirements-review` sits in `critic` for the same reason: it must not share the writer's family with `requirements-write`. A reviewer from the same family as the writer shares its blind spots.
 
-  This is a recommendation, not a hard rule, and it is worth most among the expensive buckets, where several frontier families sit at a similar price point and separation is nearly free. Inside Cursor's included pool the only choices are Composer and Grok, so buying separation there means accepting a clearly weaker reviewer. A same-family reviewer that is strong enough to reject catches more than a different-family one that rubber-stamps. Take the stronger model.
+  This is a recommendation, not a hard rule, and it is worth most among the expensive buckets. Inside Cursor's included first-party pool the practical bulk writer is Grok; do not introduce Composer just to buy family separation for `checker`. A same-family Grok checker that actually rejects catches more than a weaker separated option that rubber-stamps.
 - **`builder` must be vision-capable whenever the project profile's UI kind is not `none`.** `implementation-write` captures screenshots and must actually look at them to verify Visual Acceptance Criteria; its prompt explicitly forbids substituting histogram or pixel-count scripts. A non-vision model there degrades visual verification into "the agent claims it looked," silently.
-- **Set `context` explicitly, to the smaller tier.** A 200-300k window covers every agent in this pipeline, but `claude-opus-5` and the GPT family default to the `1m` tier, which bills at a premium. Omitting the parameter opts you into the expensive option rather than out of it.
-- **Do not downgrade `critic` to save money.** The framework's safety property -- the three-rejection limit, the escalation protocol, the implementation anti-patterns -- only works if reviewers actually reject. If `critic` is too expensive, move down one tier within the same family rather than into the `builder` model.
-- **`mechanical` can be genuinely cheap.** The Coordinator is the highest-frequency agent, but `guard.sh` enforces tree isolation by construction and the scripts exit non-zero on invalid transitions, so a confused Coordinator fails loudly instead of corrupting state.
+- **Set `context` explicitly, to the smaller tier.** A 200-300k window covers every agent in this pipeline, but `claude-opus-5`, `claude-sonnet-5`, and the GPT family default to the `1m` tier, which bills at a premium. Omitting the parameter opts you into the expensive option rather than out of it.
+- **Do not downgrade `critic` to save money.** The framework's safety property -- severity-graded reviews, the rejection limit, the escalation protocol -- only works if reviewers actually reject. If `critic` is too expensive, move down one tier within the same family (Sol -> Terra) rather than into the `builder` model.
+- **`orchestration` can be genuinely cheap.** The Coordinator is the highest-frequency agent, but `guard.sh` enforces tree isolation by construction and the scripts exit non-zero on invalid transitions, so a confused Coordinator fails loudly instead of corrupting state. Luna is enough here.
+- **Do not use Composer.** Grok covers the included-pool bulk work, and Luna covers the Coordinator. Composer adds no capability the framework needs and has a history of resolving to its expensive fast variant.
 - **Check your plan.** On legacy request-based plans without Max Mode, subagents run on Cursor's own model regardless of what you configure here, and several frontier models are unavailable. On usage-based plans this step takes effect for every agent, including subagents launched by other subagents; nesting depth does not weaken the assignment.
+
+### Project Manager model
+
+The PM has no bucket. Pick the top-level chat model when you start `/project-manager`:
+
+- **Sonnet** when the session will create or revise roadmaps, milestones, epics, stories, or discovery triage. That work is product planning, not bookkeeping: the PM decomposes Paavo Notes into vertical slices, assigns rigor, cites article ids, and decides which discoveries become stories.
+- **Luna** only for a supervision-only session: watching `coordinator-status`, launching Coordinators for already-planned epics, and running fork/merge scripts. If that chat later needs a new story batch, switch back to Sonnet (or start a fresh chat) rather than asking Luna to invent product structure.
 
 ### Picking current models
 
@@ -316,7 +326,7 @@ CURSOR_API_KEY=<your key> node list-models.mjs
 
 This prints every model ID available to your account, the parameters each one accepts with their allowed values, and which variant is the default. That output is the source of truth for this step. It needs Node 22.13 or later and an API key from <https://cursor.com/dashboard/api>.
 
-For prices, see <https://cursor.com/docs/models-and-pricing>. Note the two usage pools: Cursor's own models (Grok 4.5, Composer) come from a separate pool with generous included usage and are exempt from the Cursor Token Rate, which makes high reasoning effort nearly free in that pool.
+For prices, see <https://cursor.com/docs/models-and-pricing>. Note the two usage pools: Cursor's own models (Grok 4.5 and Composer) come from a separate first-party pool with generous included usage and are exempt from the Cursor Token Rate. This framework's recommended bulk writer is Grok from that pool; Composer is not used.
 
 #### Writing a model string
 
@@ -324,11 +334,13 @@ A model string is an ID followed by bracket parameters:
 
 ```
 model: claude-opus-5[thinking=true,context=300k,effort=high,fast=false]
+model: claude-sonnet-5[thinking=true,context=300k,effort=high,fast=false]
+model: gpt-5.6-terra[context=272k,reasoning=high,fast=false]
 model: grok-4.5[effort=high,fast=false]
-model: composer-2.5[fast=false]
+model: gpt-5.6-luna[context=272k,reasoning=medium,fast=false]
 ```
 
-**State every parameter.** Each model's default variant is the expensive one. `grok-4.5` and `composer-2.5` default to `fast=true`; `claude-opus-5` and the GPT family default to the `1m` context tier. A bare `grok-4.5` resolves to the fast variant.
+**State every parameter.** Each model's default variant is the expensive one. `grok-4.5` defaults to `fast=true`; `claude-opus-5`, `claude-sonnet-5`, and the GPT family default to the `1m` context tier. A bare `grok-4.5` resolves to the fast variant.
 
 **Parameter names differ by family.** Claude, Grok, and Gemini take `effort`; the GPT family takes `reasoning`; Claude also takes `thinking`. Both take `context` and `fast`.
 
@@ -337,28 +349,35 @@ Both kinds of mistake are silent at run time:
 | Mistake | What happens |
 |---------|--------------|
 | Unrecognised model ID | The agent runs on the parent chat's model, while its frontmatter still reads correctly. This is what makes a whole pipeline quietly run on one model. |
-| Unrecognised parameter | The parameter is dropped and the model's default applies. `gpt-5.6-sol[effort=high]` runs at `reasoning=medium`. |
+| Unrecognised parameter | The parameter is dropped and the model's default applies. `gpt-5.6-terra[effort=high]` runs at `reasoning=medium`. |
 
 Neither reports an error. `set-agent-models.sh` rejects both patterns before it writes anything, but it cannot know about models released after it was written; the catalog listing above can.
+
+Billing exports append display suffixes such as `-fast` or `-medium` that are not a faithful audit of the parameters you wrote. Always state `fast=false` anyway. If the dashboard still shows only fast variants for Grok after an explicit `fast=false`, treat that as a Cursor routing/billing labeling issue rather than proof that the frontmatter was wrong -- and verify with a controlled one-agent test before assuming non-fast is active.
 
 The `deploy-profile` agent can do this step with you: it asks you to run the listing above, proposes candidates per bucket with prices, and applies your confirmed choices.
 
 ### Example configuration
 
-A working starting point for a project whose bulk work should come from Cursor's included model pool. Verified against a live account in August 2026; **re-check the IDs with the catalog listing above before using it**:
+A working starting point that keeps Opus scarce, puts bulk work on Grok, and avoids Composer. Verified against the model catalog shape in August 2026; **re-check the IDs with the catalog listing above before using it**:
 
 ```bash
 bash ai-framework/set-agent-models.sh \
-  --deep       "claude-opus-5[thinking=true,context=300k,effort=high,fast=false]" \
-  --critic     "gpt-5.6-sol[context=272k,reasoning=high,fast=false]" \
-  --builder    "grok-4.5[effort=high,fast=false]" \
-  --checker    "grok-4.5[effort=high,fast=false]" \
-  --mechanical "composer-2.5[fast=false]"
+  --frontier       "claude-opus-5[thinking=true,context=300k,effort=high,fast=false]" \
+  --deep           "claude-sonnet-5[thinking=true,context=300k,effort=high,fast=false]" \
+  --critic         "gpt-5.6-terra[context=272k,reasoning=high,fast=false]" \
+  --builder        "grok-4.5[effort=high,fast=false]" \
+  --checker        "grok-4.5[effort=high,fast=false]" \
+  --orchestration  "gpt-5.6-luna[context=272k,reasoning=medium,fast=false]"
 ```
 
-The two expensive buckets are family-separated where it counts: `deep` (Anthropic) is reviewed by `critic` (OpenAI), which also reviews `builder` (xAI). `checker` shares xAI with `builder`, which the recommendation above would otherwise avoid -- but the only separated option inside the included pool is Composer, and a reviewer too weak to reject misses more than a same-family one does. `mechanical` stays on Composer because it follows an explicit procedure and fails loudly rather than silently. Effort is high across both Grok buckets because that pool's usage is included, so the usual cost argument for lowering effort does not apply there.
+What this buys:
 
-Which frontier family goes in `deep` versus `critic` is close to a coin flip. Treat it as your first experiment rather than a decision -- swapping is one command, and the rejection statistics (see "Cost and Quality Telemetry") will tell you more than any benchmark.
+- `frontier` (Opus) is only `architecture-plan` -- about one expensive design dispatch per full story.
+- `deep` (Sonnet) covers roadmap, recovery, environment repair, and deploy-profile without spending Opus.
+- `critic` (Terra) reviews architecture, implementation, stories, and requirements. Requirements review left the Grok `checker` bucket so it does not share a family with `requirements-write`.
+- `builder` and `checker` (Grok) absorb the bulk token volume from Cursor's included first-party pool. High effort is fine there because that pool's usage is included.
+- `orchestration` (Luna) runs the Coordinator. It never reads code or artifacts; isolation scripts make mistakes fail loudly.
 
 Add `--dry-run` to preview changes. Re-run the command at any time to re-tune.
 

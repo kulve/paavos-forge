@@ -147,7 +147,7 @@ else
 
     # The mapping and the prompt directory must describe the same set of agents,
     # so a newly added prompt cannot ship without a bucket.
-    MAPPED_AGENTS="$(grep -oE '^(deep|critic|builder|checker|mechanical):[a-z-]+' "$BUCKET_SCRIPT" | cut -d: -f2 | sort)"
+    MAPPED_AGENTS="$(grep -oE '^(frontier|deep|critic|builder|checker|orchestration):[a-z-]+' "$BUCKET_SCRIPT" | cut -d: -f2 | sort)"
     PROMPT_AGENTS="$(find templates/cursor/.cursor/agents -maxdepth 1 -type f -name '*.md' -exec basename {} .md \; | sort)"
 
     for agent in $(comm -13 <(echo "$MAPPED_AGENTS") <(echo "$PROMPT_AGENTS")); do

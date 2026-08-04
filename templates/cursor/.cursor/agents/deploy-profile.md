@@ -57,20 +57,23 @@ Do this only after the profile is complete, because the UI kind you just recorde
    ```
    It lists every model ID their account exposes, the parameters each accepts with allowed values, and the default variant. If they cannot run it, ask them for the IDs; never supply IDs from memory. Read Cursor's models and pricing page for prices and for which models come from Cursor's own usage pool.
 8. Propose one model per bucket. For each, state the model ID, its input/output price, and one sentence of reasoning. Check your proposal against every constraint in Step 6 before showing it:
-   - reviewer buckets preferably differ in model family from what they review (`critic` from `builder` and `deep`; `checker` from `builder`). This is a recommendation, not a hard rule. Say so when a proposal collides, and let the user decide -- never push them onto a weaker model purely to achieve separation, which matters most among the expensive buckets and least inside Cursor's included pool, where the only options are Composer and Grok.
+   - `frontier` is the only bucket that should get Opus (or an equivalent frontier model); `deep` should be Sonnet-class
+   - reviewer buckets preferably differ in model family from what they review (`critic` from `builder` and `frontier`/`deep`; `checker` from `builder`). This is a recommendation, not a hard rule. Say so when a proposal collides, and let the user decide -- never push them onto a weaker model purely to achieve separation, and never introduce Composer just for separation
    - if the profile's UI kind is not `none`, the `builder` model can see images
    - every bucket states `context` explicitly at the smaller tier and `fast=false`; omitting either selects the model's default variant, which is the expensive one
    - parameter names match the model family: `reasoning` for the GPT family, `effort` for Claude, Grok, and Gemini. A parameter the family does not accept is silently dropped.
+   - do not propose Composer for any bucket
    - the user's plan supports the models proposed
-9. Ask the user to confirm or adjust. Never apply models the user has not agreed to.
-10. Apply the confirmed choices:
+9. Remind the user that the PM has no bucket: they pick the top-level chat model when starting `/project-manager` (Sonnet for planning, Luna only for supervision-only sessions).
+10. Ask the user to confirm or adjust. Never apply models the user has not agreed to.
+11. Apply the confirmed choices:
     ```bash
     bash ai-framework/set-agent-models.sh \
-      --deep "<model>" --critic "<model>" --builder "<model>" \
-      --checker "<model>" --mechanical "<model>"
+      --frontier "<model>" --deep "<model>" --critic "<model>" \
+      --builder "<model>" --checker "<model>" --orchestration "<model>"
     ```
     Use `--dry-run` first if the user wants to preview. If the script exits non-zero, report its message verbatim; do not work around it by editing agent files.
-11. Re-run `--list` to confirm no agent is left on `inherit`, and remind the user to commit `.cursor/agents/` (DEPLOY.md Step 10) so epic worktrees inherit the assignment.
+12. Re-run `--list` to confirm no agent is left on `inherit`, and remind the user to commit `.cursor/agents/` (DEPLOY.md Step 10) so epic worktrees inherit the assignment.
 
 ## Output Specification
 
@@ -87,13 +90,16 @@ Do this only after the profile is complete, because the UI kind you just recorde
 - The Paavo Notes MCP section names a real project (the user confirms this)
 - The framework write gates in the Forbidden section are unchanged
 - Every proposed model ID came from the account's catalog listing or from the user, never from memory, and every bucket states `context` and `fast` explicitly
+- Opus (or an equivalent frontier model) is proposed only for `frontier` unless the user overrode that after seeing the cost
+- No bucket uses Composer
 - The bucket assignment satisfies every constraint in `DEPLOY.md` Step 6, and the user explicitly confirmed it
 
 ## Anti-Patterns (NEVER DO)
 
 - NEVER edit agent prompts, `LOGIC.md`, `ARCHITECTURE.md`, or any file other than `ai-framework/project-profile.md`. Agent `model:` lines change only by running the script.
 - NEVER choose models without the user's explicit confirmation, and never skip showing what each one costs.
-- NEVER let a family overlap between a reviewer bucket and the bucket it reviews pass unmentioned. A reviewer sharing the writer's family shares its blind spots. Point it out and let the user choose; it is a recommendation, not a hard rule, and inside Cursor's included pool there may be no separated option worth taking.
+- NEVER let a family overlap between a reviewer bucket and the bucket it reviews pass unmentioned. A reviewer sharing the writer's family shares its blind spots. Point it out and let the user choose; it is a recommendation, not a hard rule. Do not propose Composer to buy separation.
+- NEVER put Opus (or another frontier model) on any bucket other than `frontier` unless the user explicitly insists after seeing the cost.
 - NEVER assign a model without vision to `builder` when the profile's UI kind is not `none`. The implementation agent must be able to look at the screenshots it captures.
 - NEVER invent model IDs, parameter names, or prices from memory. Take IDs and parameters from the account's catalog listing and prices from the pricing page, or ask the user. A model ID that does not exist produces no error; the agent just silently runs on the parent chat's model.
 - NEVER copy a model ID out of a billing export or the model picker. Those are display names -- `cursor-grok-4.5-high-fast` is the billing name for the model whose ID is `grok-4.5`.

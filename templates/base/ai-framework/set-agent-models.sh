@@ -12,37 +12,38 @@ set -euo pipefail
 AI_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 AGENT_DIR="$AI_ROOT/.cursor/agents"
 
-BUCKETS="deep critic builder checker mechanical"
+BUCKETS="frontier deep critic builder checker orchestration"
 
 # bucket:agent -- the canonical assignment. Adding an agent prompt without adding
 # it here is an error, which is how a new upstream agent gets noticed.
 BUCKET_MAP="
+frontier:architecture-plan
 deep:roadmap-planner
-deep:architecture-plan
 deep:fixer
 deep:escalation-analysis
 deep:escalation-recovery
 deep:deploy-profile
+deep:environment-recovery
 critic:implementation-review
 critic:architecture-review
 critic:story-review
+critic:requirements-review
 builder:architecture-write
 builder:implementation-write
 builder:implementation-plan
 builder:integration-test-write
 builder:requirements-write
-checker:requirements-review
 checker:integration-test-review
 checker:escalation-triage
-mechanical:coordinator
-mechanical:environment-recovery
+orchestration:coordinator
 "
 
+MODEL_frontier=""
 MODEL_deep=""
 MODEL_critic=""
 MODEL_builder=""
 MODEL_checker=""
-MODEL_mechanical=""
+MODEL_orchestration=""
 DRY_RUN=0
 DO_LIST=0
 
@@ -50,32 +51,44 @@ usage() {
     cat <<'EOF'
 Usage:
   set-agent-models.sh --list
-  set-agent-models.sh [--dry-run] --deep M --critic M --builder M --checker M --mechanical M
+  set-agent-models.sh [--dry-run] \
+    --frontier M --deep M --critic M --builder M --checker M --orchestration M
 
 Buckets:
-  deep        World knowledge and generative design. Roadmap, architecture, debugging,
-              escalation recovery. Low token volume, highest leverage per token.
-  critic      Adversarial review. Judges semantic correctness of work it did not write.
-              Prefer a different model family than builder and deep.
-  builder     Bulk write volume: architecture headers, implementation, tests, and
-              requirements. Turning an approved architecture plan into interface
-              declarations is mechanical, so architecture-write sits here while
-              architecture-plan stays in deep.
-              Must be vision-capable if the project profile's UI kind is not `none`.
-  checker     Bounded structural checks against a written artifact. Prefer a different
-              family than builder, but not at the cost of a clearly weaker model.
-  mechanical  Procedure following: the Coordinator state machine and environment repair.
+  frontier       Architecture planning only. The one place worth a frontier model:
+                 interfaces, dependency direction, and extensibility. Keep this
+                 rare; one dispatch per full story.
+  deep           Remaining generative design and diagnosis: roadmap, escalation
+                 recovery, environment repair, deploy-profile. High leverage, but
+                 not the scarce frontier slot.
+  critic         Adversarial review of semantic correctness. Prefer a different
+                 model family than builder and frontier/deep. Includes
+                 requirements-review so Grok-written requirements get an
+                 independent-family check.
+  builder        Bulk write volume: requirements, architecture headers,
+                 implementation plans/writes, and tests. Turning an approved
+                 architecture plan into interface declarations is mechanical, so
+                 architecture-write sits here while architecture-plan stays in
+                 frontier. Must be vision-capable if the project profile's UI
+                 kind is not `none`.
+  checker        Bounded structural checks against written artifacts and
+                 executable output. Prefer a different family than builder when
+                 that does not force a clearly weaker model.
+  orchestration  The Coordinator state machine. Procedure following with no
+                 artifact or code interpretation; a cheap model is enough
+                 because isolation and scripts fail loudly.
 
 The Project Manager has no bucket. It is a skill, not a subagent, so it runs on
 whatever model the top-level chat is set to. Pick that model yourself when you
-start a `/project-manager` chat.
+start a `/project-manager` chat: Sonnet for planning and story generation; Luna
+only when the session is supervision-only (status checks, fork/merge dispatch).
 
 Model syntax is a Cursor model ID followed by bracket parameters, for example
 "claude-opus-5[thinking=true,context=300k,effort=high,fast=false]". Use "inherit"
 to fall back to the parent chat's model.
 
 State every parameter. Each model's default variant is the expensive one:
-grok-4.5 and composer-2.5 default to fast=true, and claude-opus-5 and the GPT
+grok-4.5 defaults to fast=true, and claude-opus-5 / claude-sonnet-5 and the GPT
 family default to the 1m context tier.
 
 Parameter names differ by family. Claude, Grok, and Gemini take `effort`; the GPT
@@ -181,11 +194,12 @@ while [ $# -gt 0 ]; do
     case "$1" in
         --list) DO_LIST=1; shift ;;
         --dry-run) DRY_RUN=1; shift ;;
+        --frontier) MODEL_frontier="${2:-}"; shift 2 ;;
         --deep) MODEL_deep="${2:-}"; shift 2 ;;
         --critic) MODEL_critic="${2:-}"; shift 2 ;;
         --builder) MODEL_builder="${2:-}"; shift 2 ;;
         --checker) MODEL_checker="${2:-}"; shift 2 ;;
-        --mechanical) MODEL_mechanical="${2:-}"; shift 2 ;;
+        --orchestration) MODEL_orchestration="${2:-}"; shift 2 ;;
         -h|--help) usage; exit 0 ;;
         *) echo "ERROR: unknown argument: $1" >&2; usage >&2; exit 1 ;;
     esac

@@ -6,7 +6,8 @@
 // "Cursor Grok 4.5" and `cursor-grok-4.5-high-fast` are the same model, whose
 // selectable ID is `grok-4.5`. Writing either display form into an agent
 // prompt fails silently: Cursor falls back to the parent chat's model without
-// reporting anything.
+// reporting anything. Billing suffixes such as `-fast` or `-medium` are also
+// not a faithful audit of the `fast=` / effort parameters you configured.
 //
 // The catalog is account- and team-specific, so this is the only authoritative
 // answer for a given deployment. See DEPLOY.md Step 6.
