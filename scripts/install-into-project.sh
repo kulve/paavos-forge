@@ -3,8 +3,8 @@
 # Copy-only: does not run setup.sh, fill the profile, or assign models.
 #
 # Usage:
-#   bash scripts/install-into-project.sh --framework <forge-root> --project <target-root>
-#   bash scripts/install-into-project.sh --framework <forge-root> --project <target-root> --force
+#   bash scripts/install-into-project.sh --forge <forge-root> --project <target-root>
+#   bash scripts/install-into-project.sh --forge <forge-root> --project <target-root> --force
 #
 # Always refuses if any ancestor that must be a directory already exists as a
 # file or symlink (including under --force). Without --force, also refuses to
@@ -15,7 +15,7 @@ set -euo pipefail
 usage() {
     cat <<'EOF'
 Usage:
-  bash scripts/install-into-project.sh --framework <forge-root> --project <target-root> [--force]
+  bash scripts/install-into-project.sh --forge <forge-root> --project <target-root> [--force]
 
 Copy templates/base/, LOGIC.md -> paavos-forge/LOGIC.md, and templates/cursor/.cursor/
 into the target project. Does not run Taskwarrior setup or assign agent models.
@@ -27,15 +27,15 @@ existing leaf files/symlinks only (use for intentional template resets).
 EOF
 }
 
-FRAMEWORK=""
+FORGE=""
 PROJECT=""
 FORCE=0
 
 while [ $# -gt 0 ]; do
     case "$1" in
-        --framework)
-            [ $# -ge 2 ] || { echo "ERROR: --framework requires a path" >&2; exit 2; }
-            FRAMEWORK=$2
+        --forge)
+            [ $# -ge 2 ] || { echo "ERROR: --forge requires a path" >&2; exit 2; }
+            FORGE=$2
             shift 2
             ;;
         --project)
@@ -59,28 +59,28 @@ while [ $# -gt 0 ]; do
     esac
 done
 
-if [ -z "$FRAMEWORK" ] || [ -z "$PROJECT" ]; then
-    echo "ERROR: --framework and --project are required" >&2
+if [ -z "$FORGE" ] || [ -z "$PROJECT" ]; then
+    echo "ERROR: --forge and --project are required" >&2
     usage >&2
     exit 2
 fi
 
-if [ ! -d "$FRAMEWORK" ]; then
-    echo "ERROR: framework path is not a directory: $FRAMEWORK" >&2
+if [ ! -d "$FORGE" ]; then
+    echo "ERROR: Forge path is not a directory: $FORGE" >&2
     exit 2
 fi
 
-FRAMEWORK=$(cd "$FRAMEWORK" && pwd)
+FORGE=$(cd "$FORGE" && pwd)
 mkdir -p "$PROJECT"
 PROJECT=$(cd "$PROJECT" && pwd)
 
 for required in \
-    "$FRAMEWORK/LOGIC.md" \
-    "$FRAMEWORK/templates/base/AGENTS.md" \
-    "$FRAMEWORK/templates/cursor/.cursor/agents"
+    "$FORGE/LOGIC.md" \
+    "$FORGE/templates/base/AGENTS.md" \
+    "$FORGE/templates/cursor/.cursor/agents"
 do
     if [ ! -e "$required" ]; then
-        echo "ERROR: framework tree does not look like Paavo's Forge (missing $required)" >&2
+        echo "ERROR: Forge tree does not look like Paavo's Forge (missing $required)" >&2
         exit 2
     fi
 done
@@ -151,9 +151,9 @@ collect_conflicts_from_tree() {
     done < <(cd "$src_root" && find . -type f -print0)
 }
 
-collect_conflicts_from_tree "$FRAMEWORK/templates/base" ""
+collect_conflicts_from_tree "$FORGE/templates/base" ""
 check_dest_path "paavos-forge/LOGIC.md"
-collect_conflicts_from_tree "$FRAMEWORK/templates/cursor/.cursor" ".cursor/"
+collect_conflicts_from_tree "$FORGE/templates/cursor/.cursor" ".cursor/"
 
 if [ "${#ancestor_conflicts[@]}" -gt 0 ]; then
     echo "ERROR: refusing to install into $PROJECT; blocking parent paths cannot be overwritten" >&2
@@ -173,10 +173,10 @@ if [ "$FORCE" -eq 0 ] && [ "${#leaf_conflicts[@]}" -gt 0 ]; then
     exit 1
 fi
 
-cp -a "$FRAMEWORK/templates/base/." "$PROJECT/"
+cp -a "$FORGE/templates/base/." "$PROJECT/"
 mkdir -p "$PROJECT/paavos-forge"
-cp -a "$FRAMEWORK/LOGIC.md" "$PROJECT/paavos-forge/LOGIC.md"
-cp -a "$FRAMEWORK/templates/cursor/.cursor" "$PROJECT/"
+cp -a "$FORGE/LOGIC.md" "$PROJECT/paavos-forge/LOGIC.md"
+cp -a "$FORGE/templates/cursor/.cursor" "$PROJECT/"
 
 echo "Installed Paavo's Forge into $PROJECT"
 echo
@@ -184,7 +184,7 @@ echo "Next steps (see DEPLOY.md):"
 echo "  1. Ensure git is initialized (Step 3)"
 echo "  2. bash taskwarrior/setup.sh --main (Step 4)"
 echo "  3. Fill paavos-forge/project-profile.md (Step 5)"
-echo "  4. Assign agent models with paavos-forge/set-agent-models.sh (Step 6)"
+echo "  4. Assign agent models with paavos-forge/scripts/set-agent-models.sh (Step 6)"
 echo "  5. Validate, commit, then start /project-manager (Steps 7-11)"
 echo
-echo "Keep the framework STAGE/checkout until Steps 6 and 9 finish (list-models, validate-deployment)."
+echo "Keep the Forge STAGE/checkout until Steps 6 and 9 finish (list-models, validate-deployment)."

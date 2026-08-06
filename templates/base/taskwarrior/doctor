@@ -1,5 +1,5 @@
 #!/bin/bash
-# Check the framework's runtime invariants and optionally repair the safe subset.
+# Check the Forge's runtime invariants and optionally repair the safe subset.
 # Usage: doctor [--fix] [--force] [--json]
 #
 #   (no flags) dry-run: report every check, change nothing
@@ -396,7 +396,7 @@ if output_mode == "json":
         "exit_code": code,
     }, indent=2))
 else:
-    print("=== Framework Doctor ===")
+    print("=== Forge Doctor ===")
     print("Mode: %s" % ("FIX" if applied else "DRY-RUN"))
     print("")
     for c in checks:

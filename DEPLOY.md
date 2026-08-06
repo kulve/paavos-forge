@@ -6,19 +6,19 @@ How to deploy Paavo's Forge into a downstream project.
 
 `https://raw.githubusercontent.com/kulve/paavos-forge/main/DEPLOY.md`
 
-**Deploy into an empty project before starting real product work.** The framework should own requirements → architecture → tests → implementation from the start so artifacts and Taskwarrior state stay consistent. Do not bolt Forge onto a codebase that already has substantial features or a conflicting `.cursor/` / `taskwarrior/` layout. A fresh repo with `README.md` and `git init` is fine; deploy Forge, then begin work through the PM.
+**Deploy into an empty project before starting real product work.** Forge should own requirements → architecture → tests → implementation from the start so artifacts and Taskwarrior state stay consistent. Do not bolt Forge onto a codebase that already has substantial features or a conflicting `.cursor/` / `taskwarrior/` layout. A fresh repo with `README.md` and `git init` is fine; deploy Forge, then begin work through the PM.
 
 ## Prerequisites
 
 - **Git** installed
 - **[Taskwarrior](https://taskwarrior.org/) 2.x+** installed -- verify with `task --version`
 - **[Cursor](https://cursor.com/) IDE** (for the agent system; other IDE support is future work)
-- **curl** and **tar** (to fetch the framework archive)
+- **curl** and **tar** (to fetch the Forge archive)
 - System packages for your target language (e.g. C++: cmake, compiler; Python: python3, pip)
 
 ## Deployment Inputs
 
-The framework ships from three locations in the Forge repository:
+Forge ships from three locations in the Forge repository:
 
 | Source | Deployed to | Purpose |
 |--------|-------------|---------|
@@ -26,11 +26,11 @@ The framework ships from three locations in the Forge repository:
 | `LOGIC.md` (repo root) | `paavos-forge/LOGIC.md` | Canonical workflow specification (copied as-is) |
 | `templates/cursor/.cursor/` | `.cursor/` | Cursor agents, rules, and commands |
 
-`templates/base/AGENTS.md` becomes your project's root `AGENTS.md`. Customize it after deployment if you need project-specific AI guidance (extra rules, domain context, or stricter review standards). The workflow specification itself lives in `paavos-forge/LOGIC.md` and should not be edited unless you are intentionally forking the framework.
+`templates/base/AGENTS.md` becomes your project's root `AGENTS.md`. Customize it after deployment if you need project-specific AI guidance (extra rules, domain context, or stricter review standards). The workflow specification itself lives in `paavos-forge/LOGIC.md` and should not be edited unless you are intentionally forking Forge.
 
 There is no `.taskrc` to copy. It is generated per tree by `taskwarrior/setup.sh` from `taskwarrior/taskrc.template` and is gitignored, because its UDAs differ between the main tree and epic worktrees.
 
-## Step 1: Obtain the Framework Archive
+## Step 1: Obtain the Forge Archive
 
 Work from the **target project root**. Download the full Forge archive to a file, inspect it, then extract it. Do **not** pipe a remote script into bash.
 
@@ -75,7 +75,7 @@ Inspect the install script, then run it. It copies `templates/base/`, `LOGIC.md`
 # $STAGE/scripts/install-into-project.sh
 
 bash "$STAGE/scripts/install-into-project.sh" \
-  --framework "$STAGE" \
+  --forge "$STAGE" \
   --project "$PROJECT"
 ```
 
@@ -86,15 +86,15 @@ After a successful install, the project contains:
 - `AGENTS.md` -- from `templates/base/AGENTS.md`; project-level AI instructions
 - `ARCHITECTURE.md` -- domain dependency policy registry (populated by agents as domains are introduced)
 - `.gitignore` -- ignores `.task/`, `.taskrc`, `build/`, and `.worktrees/`
-- `paavos-forge/LOGIC.md` -- workflow specification (copied from framework repo root)
+- `paavos-forge/LOGIC.md` -- workflow specification (copied from Forge repository root)
 - `paavos-forge/project-profile.md` -- to be filled in (Step 5)
-- `paavos-forge/set-agent-models.sh` -- assigns a model to every agent prompt by bucket (Step 6)
+- `paavos-forge/scripts/set-agent-models.sh` -- assigns a model to every agent prompt by bucket (Step 6)
 - `plan/templates/` -- 9 artifact templates used by agents (project, milestone, epic, story, requirement, phase-plan, review-feedback, escalation, discovery)
 - `plan/epics/.gitkeep` -- directory for epic definition files
 - `taskwarrior/` -- setup, wrappers, recipes, and orchestration scripts (Step 4)
-- `.cursor/agents/` -- 19 agent prompt files (Coordinator, 10 phase agents, Roadmap Planner, Deploy Profile, Story Review, Escalation Analysis, Escalation Triage, Escalation Recovery, Environment Recovery, and Fixer)
+- `.cursor/agents/` -- 20 agent prompt files (Coordinator, 10 phase agents, Roadmap Planner, Deploy Profile, Project Profile Maintainer, Story Review, Escalation Analysis, Escalation Triage, Escalation Recovery, Environment Recovery, and Fixer)
 - `.cursor/skills/` -- the `project-manager` and `ai-status` skills, invoked as `/project-manager` and `/ai-status`
-- `.cursor/rules/paavos-forge.mdc` -- always-on framework rules
+- `.cursor/rules/paavos-forge.mdc` -- always-on Forge rules
 
 ## Step 3: Initialize Git
 
@@ -108,7 +108,7 @@ git branch -m main
 
 ## Step 4: Configure Taskwarrior
 
-The framework uses **per-project Taskwarrior isolation** so each project has its own task database, independent of `~/.taskrc` and `~/.task/`.
+Forge uses **per-project Taskwarrior isolation** so each project has its own task database, independent of `~/.taskrc` and `~/.task/`.
 
 Four files make this work:
 
@@ -122,7 +122,7 @@ Four files make this work:
 
 `TASKDATA` is an absolute path derived from the script's own location, so the database is never selected by the caller's working directory. This is what keeps a Coordinator standing in the main tree from mutating the main database.
 
-Run the setup script with `--main` to generate the project `.taskrc`, register the framework's UDAs, and configure the main tree:
+Run the setup script with `--main` to generate the project `.taskrc`, register the Forge's UDAs, and configure the main tree:
 
 ```bash
 cd "$PROJECT"
@@ -172,18 +172,18 @@ The `taskwarrior/` directory contains orchestration scripts used by the agents:
 | `coordinator-lock-status` | Check whether a Coordinator lock is held |
 | `coordinator-heartbeat` | Record Coordinator liveness/progress (called by the scripts above, never by agents) |
 | `coordinator-status` | Aggregate liveness and progress across all epic worktrees (PM supervision) |
-| `doctor` | Check framework invariants D01-D12; `--fix` applies only the safe repairs |
+| `doctor` | Check Forge invariants D01-D12; `--fix` applies only the safe repairs |
 | `cleanup-ai-state.sh` | Manual cleanup of stale locks and state |
 
 All scripts are invoked by **absolute path** (`bash <tree-root>/taskwarrior/<script>`) and exit 2 if run against the wrong kind of tree.
 
 ## Step 5: Fill in the Project Profile
 
-Open `paavos-forge/project-profile.md` and answer every question. This is the most important customization step -- it tells all agents how your project works.
+Open `paavos-forge/project-profile.md` and answer the deploy-time questions. This is the most important customization step -- it tells all agents how your project works.
 
-You can fill this in by hand, or open a chat with the `deploy-profile` agent, which interviews you with the questions below and writes the profile for you (it edits only `project-profile.md`).
+You can fill this in by hand, or open a chat with the `deploy-profile` agent, which interviews you and writes the profile for you (it edits only `project-profile.md`). Replace every `[e.g. ...]` placeholder. Sections marked `[No content yet]` may stay that way until the `project-profile-maintainer` agent fills them after a milestone lands evidence (architecture conventions, mocks, verification harness details, review standards, extra domain tags, heartbeat tuning).
 
-### Questions to Answer
+### Questions to Answer at Deploy
 
 **Language and Build:**
 - What language? (e.g. C++17, Python 3.12, Rust 2021)
@@ -197,32 +197,17 @@ You can fill this in by hand, or open a chat with the `deploy-profile` agent, wh
 - Where are unit tests? (e.g. `tests/unit/`)
 - What directories are generated and should never be edited? (e.g. `build/`)
 
-**Test Commands:**
+**Test Commands and Phase Gates:**
 - How to run integration tests? (e.g. `pytest tests/integration/`)
 - How to run all tests? (e.g. `make test`)
 - How to lint/typecheck? (e.g. `mypy src/`)
+- Architecture gate and test compile gate commands (see the profile's Phase Gates section)
 
-**Architecture Conventions:**
-- What type of architecture artifact? (e.g. "C++ header files", "Python abstract base classes", "Rust trait definitions")
-- How are requirement IDs traced in code? (e.g. `// REQ:XXXXX-name`)
-
-**Mock Boundaries:**
-- What may be mocked in tests? (e.g. file I/O, network, hardware)
-- Everything else must use real objects.
-
-**Verification Tooling:**
-- How does the app expose a deterministic, read-only snapshot of internal state for verification? (e.g. `World::snapshot()`, a `state()` dataclass, a store selector)
-- What is the UI kind? (web / game / TUI / none)
-- If it has a UI: how to launch/drive it to a named state and capture a screenshot, which named states to capture, and where screenshots are written. This lets the implementation agent self-verify behavior and visuals while building.
-
-**Review Standards:**
-- Any project-specific quality requirements? (e.g. "no raw pointers", "all functions documented")
+**UI Kind:**
+- What is the UI kind? (web / game / TUI / none) -- required at deploy so model buckets can require vision for `builder` when needed
 
 **Forbidden:**
-- What must agents never touch? (e.g. `vendor/`, credentials, generated files)
-
-**Domain Tags:**
-- List the valid categories for organizing requirements (e.g. core, rendering, input, audio, network)
+- Leave the Forge-enforced write-gate bullets unchanged. Project-specific extras may wait (`[No content yet]`).
 
 **Parallel Limit:**
 - Recommended maximum concurrent epics (e.g. 2-3 for typical projects). This limits how many epic worktrees the PM will have active simultaneously. More epics means more context switches and merge conflicts; fewer means less parallelism. Start with 2 and increase once you're comfortable with the workflow.
@@ -285,13 +270,13 @@ Paavo's Codex is a hard dependency. Fill this section before the first PM run.
 - Parallel limit: 2
 ```
 
-Note: adapting the framework to a language requires editing only `paavos-forge/project-profile.md` (plus your `README.md` and build skeleton). Do not edit the agent prompts under `.cursor/agents/` per language -- they read the profile at runtime, and keeping them untouched lets you merge upstream framework updates cleanly.
+Note: adapting Forge to a language requires editing only `paavos-forge/project-profile.md` (plus your `README.md` and build skeleton). Do not edit the agent prompts under `.cursor/agents/` per language -- they read the profile at runtime, and keeping them untouched lets you merge upstream Forge updates cleanly.
 
 ## Step 6: Choose Models for Agent Buckets
 
-The framework ships every agent prompt with `model: inherit`, which means each agent runs on whatever model happens to be selected in the chat that started the PM. That makes pipeline quality a side effect of an unrelated UI choice, and it drifts whenever you switch models. Pin the models deliberately before your first run.
+Forge ships every agent prompt with `model: inherit`, which means each agent runs on whatever model happens to be selected in the chat that started the PM. That makes pipeline quality a side effect of an unrelated UI choice, and it drifts whenever you switch models. Pin the models deliberately before your first run.
 
-Model choice trades off two independent axes. **World knowledge** decides which library, algorithm, or architecture is the right one -- it matters enormously where designs are generated and barely at all where a written plan is being executed. **Reasoning effort** buys long-horizon consistency and self-checking, which matters wherever an agent runs a long tool loop, even when the thinking has already been done upstream. Configuring 19 agents individually is unmanageable, so the framework groups them into six buckets. The PM is not among them: it is a skill, so it runs on whatever model you select for the top-level chat (see "Project Manager model" below).
+Model choice trades off two independent axes. **World knowledge** decides which library, algorithm, or architecture is the right one -- it matters enormously where designs are generated and barely at all where a written plan is being executed. **Reasoning effort** buys long-horizon consistency and self-checking, which matters wherever an agent runs a long tool loop, even when the thinking has already been done upstream. Configuring 20 agents individually is unmanageable, so Forge groups them into six buckets. The PM is not among them: it is a skill, so it runs on whatever model you select for the top-level chat (see "Project Manager model" below).
 
 ### The buckets
 
@@ -300,17 +285,17 @@ Model choice trades off two independent axes. **World knowledge** decides which 
 | `frontier` | Architecture planning only | The scarce high-leverage slot: interfaces, dependency direction, extensibility. One dispatch per full story. |
 | `deep` | Roadmap, escalation recovery, environment repair, deploy-profile | Generative design and diagnosis that still needs real technical judgment, without spending the frontier budget. |
 | `critic` | Adversarial review: architecture, implementation, stories, requirements | Must judge semantic correctness of work it did not write. This is where weak models rubber-stamp. |
-| `builder` | Requirements write, architecture write, implementation plan/write, tests | Your largest token consumer, and the place where the hard decisions are already made upstream. |
+| `builder` | Requirements write, architecture write, implementation plan/write, tests, project-profile-maintainer | Your largest token consumer, and the place where the hard decisions are already made upstream. |
 | `checker` | Integration-test review, escalation triage | Bounded checks against written artifacts, gate output, and fixed routing rules. |
 | `orchestration` | Coordinator state machine | Procedure following with no artifact or code interpretation. Failures are loud, not silent (see below). |
 
 To see which agent is in which bucket and what each currently resolves to:
 
 ```bash
-bash paavos-forge/set-agent-models.sh --list
+bash paavos-forge/scripts/set-agent-models.sh --list
 ```
 
-The agent-to-bucket assignment is framework knowledge and lives in the script. The bucket-to-model choice is yours.
+The agent-to-bucket assignment is Forge knowledge and lives in the script. The bucket-to-model choice is yours.
 
 ### Constraints you must respect
 
@@ -320,9 +305,9 @@ The agent-to-bucket assignment is framework knowledge and lives in the script. T
   This is a recommendation, not a hard rule, and it is worth most among the expensive buckets. Inside Cursor's included first-party pool the practical bulk writer is Grok; do not introduce Composer just to buy family separation for `checker`. A same-family Grok checker that actually rejects catches more than a weaker separated option that rubber-stamps.
 - **`builder` must be vision-capable whenever the project profile's UI kind is not `none`.** `implementation-write` captures screenshots and must actually look at them to verify Visual Acceptance Criteria; its prompt explicitly forbids substituting histogram or pixel-count scripts. A non-vision model there degrades visual verification into "the agent claims it looked," silently.
 - **Set `context` explicitly, to the smaller tier.** A 200-300k window covers every agent in this pipeline, but `claude-opus-5`, `claude-sonnet-5`, and the GPT family default to the `1m` tier, which bills at a premium. Omitting the parameter opts you into the expensive option rather than out of it.
-- **Do not downgrade `critic` to save money.** The framework's safety property -- severity-graded reviews, the rejection limit, the escalation protocol -- only works if reviewers actually reject. If `critic` is too expensive, move down one tier within the same family (Sol -> Terra) rather than into the `builder` model.
+- **Do not downgrade `critic` to save money.** The Forge's safety property -- severity-graded reviews, the rejection limit, the escalation protocol -- only works if reviewers actually reject. If `critic` is too expensive, move down one tier within the same family (Sol -> Terra) rather than into the `builder` model.
 - **`orchestration` can be genuinely cheap.** The Coordinator is the highest-frequency agent, but `guard.sh` enforces tree isolation by construction and the scripts exit non-zero on invalid transitions, so a confused Coordinator fails loudly instead of corrupting state. Luna is enough here.
-- **Do not use Composer.** Grok covers the included-pool bulk work, and Luna covers the Coordinator. Composer adds no capability the framework needs and has a history of resolving to its expensive fast variant.
+- **Do not use Composer.** Grok covers the included-pool bulk work, and Luna covers the Coordinator. Composer adds no capability Forge needs and has a history of resolving to its expensive fast variant.
 - **Check your plan.** On legacy request-based plans without Max Mode, subagents run on Cursor's own model regardless of what you configure here, and several frontier models are unavailable. On usage-based plans this step takes effect for every agent, including subagents launched by other subagents; nesting depth does not weaken the assignment.
 
 ### Project Manager model
@@ -345,7 +330,7 @@ CURSOR_API_KEY=<your key> node list-models.mjs
 
 This prints every model ID available to your account, the parameters each one accepts with their allowed values, and which variant is the default. That output is the source of truth for this step. It needs Node 22.13 or later and an API key from <https://cursor.com/dashboard/api>.
 
-For prices, see <https://cursor.com/docs/models-and-pricing>. Note the two usage pools: Cursor's own models (Grok 4.5 and Composer) come from a separate first-party pool with generous included usage and are exempt from the Cursor Token Rate. This framework's recommended bulk writer is Grok from that pool; Composer is not used.
+For prices, see <https://cursor.com/docs/models-and-pricing>. Note the two usage pools: Cursor's own models (Grok 4.5 and Composer) come from a separate first-party pool with generous included usage and are exempt from the Cursor Token Rate. This Forge's recommended bulk writer is Grok from that pool; Composer is not used.
 
 #### Writing a model string
 
@@ -381,7 +366,7 @@ The `deploy-profile` agent can do this step with you: it asks you to run the lis
 A working starting point that keeps Opus scarce, puts bulk work on Grok, and avoids Composer. Verified against the model catalog shape in August 2026; **re-check the IDs with the catalog listing above before using it**:
 
 ```bash
-bash paavos-forge/set-agent-models.sh \
+bash paavos-forge/scripts/set-agent-models.sh \
   --frontier       "claude-opus-5[thinking=true,context=300k,effort=high,fast=false]" \
   --deep           "claude-sonnet-5[thinking=true,context=300k,effort=high,fast=false]" \
   --critic         "gpt-5.6-terra[context=272k,reasoning=high,fast=false]" \
@@ -410,7 +395,7 @@ Product intent lives in Paavo's Codex. Register the Paavo's Codex MCP server in 
 2. The project profile's Paavo's Codex project name matches a real project with at least one **closed** (published) version.
 3. Cursor can list MCP tools for that server.
 
-Agents discover tool names and signatures via MCP -- the framework does not hardcode the API. If the MCP is unreachable, the PM hard-stops and requirements agents escalate; do not invent product goals.
+Agents discover tool names and signatures via MCP -- Forge does not hardcode the API. If the MCP is unreachable, the PM hard-stops and requirements agents escalate; do not invent product goals.
 
 The pinned closed version for a run is stored in `plan/project.md` (created by the `roadmap-planner` on first PM run), not only in the profile.
 
@@ -445,7 +430,7 @@ Or verify manually:
 - [ ] `.taskrc` exists at project root (generated by `setup.sh`, not copied)
 - [ ] `.gitignore` contains `.task/`, `.taskrc`, and `.worktrees/`
 - [ ] `.taskrc` is NOT tracked by git: `git ls-files --error-unmatch .taskrc` must fail
-- [ ] `paavos-forge/LOGIC.md` exists (copied from framework repo root `LOGIC.md` by the install script)
+- [ ] `paavos-forge/LOGIC.md` exists (copied from Forge repository root `LOGIC.md` by the install script)
 - [ ] `paavos-forge/project-profile.md` exists and is filled in
 - [ ] `plan/templates/` contains 9 template files (project, milestone, epic, story, requirement, phase-plan, review-feedback, escalation, discovery)
 - [ ] `plan/epics/.gitkeep` exists
@@ -457,16 +442,16 @@ Or verify manually:
 - [ ] `taskwarrior/recipes.md` exists
 - [ ] `taskwarrior/` contains 27 orchestration scripts (epic, story, phase, lock management, diagnostics, telemetry)
 - [ ] `bash taskwarrior/doctor` exits 0
-- [ ] `.cursor/agents/` contains 19 agent files (including `roadmap-planner.md`, `escalation-triage.md`, and `environment-recovery.md`) and **no** `project-manager.md`
-- [ ] `paavos-forge/set-agent-models.sh` exists and is executable
-- [ ] Every agent has a model assigned and none still says `inherit`: `bash paavos-forge/set-agent-models.sh --list`
+- [ ] `.cursor/agents/` contains 20 agent files (including `roadmap-planner.md`, `project-profile-maintainer.md`, `escalation-triage.md`, and `environment-recovery.md`) and **no** `project-manager.md`
+- [ ] `paavos-forge/scripts/set-agent-models.sh` exists and is executable
+- [ ] Every agent has a model assigned and none still says `inherit`: `bash paavos-forge/scripts/set-agent-models.sh --list`
 - [ ] `.cursor/rules/paavos-forge.mdc` exists
 - [ ] `.cursor/skills/` contains `project-manager/SKILL.md` and `ai-status/SKILL.md`
 - [ ] Main-tree Taskwarrior UDAs are configured: `taskwarrior/tw _udas | grep aiepic` (the phase UDAs are worktree-scoped and appear only after `epic-fork`)
 - [ ] Project profile is filled in completely (including parallel limit and Paavo's Codex MCP section)
 - [ ] Paavo's Codex MCP is registered in Cursor and reachable
 
-## Step 10: Commit the Framework to main
+## Step 10: Commit Forge to main
 
 **Required before the first `epic-fork`.** Epic worktrees are created from `main`, so anything uncommitted does not exist inside the worktree: the Coordinator would find no scripts, no templates, and no profile. `epic-fork` refuses to run until this is done.
 
@@ -495,7 +480,7 @@ Commit planning artifacts to `main` the same way before each later dispatch. The
 
 ## Step 11: First Run
 
-The framework uses a **project → milestone → epic** model with parallel epic execution. The hierarchy is:
+Forge uses a **project → milestone → epic** model with parallel epic execution. The hierarchy is:
 
 ```
 Project (mandatory: plan/project.md) → Milestone → Epic (parallel) → Stories (serial within epic)
@@ -520,15 +505,15 @@ Project (mandatory: plan/project.md) → Milestone → Epic (parallel) → Stori
 
 Use `/ai-status` to check project/roadmap progress and all active epics at any time. Run it in its own chat, without the PM skill loaded: it is a read-only report and deliberately sits outside the pipeline.
 
-> **Critical:** Always start work by invoking `/project-manager` in a fresh chat. Never ask a general/default agent to "implement the plan," "run the Coordinator," or write code, and never delegate to the PM as a subagent. A general agent will bypass the framework pipeline and write code directly, skipping requirements, architecture, test-first development, and review -- losing all the traceability and quality gates the framework provides. Delegating to the PM breaks the pipeline differently: it consumes a nesting level, and the Coordinator the PM launches then has none left for phase agents. The always-on rule in `.cursor/rules/paavos-forge.mdc` will remind a general agent to redirect you, but using the correct entry point from the start is the most reliable approach.
+> **Critical:** Always start work by invoking `/project-manager` in a fresh chat. Never ask a general/default agent to "implement the plan," "run the Coordinator," or write code, and never delegate to the PM as a subagent. A general agent will bypass the Forge pipeline and write code directly, skipping requirements, architecture, test-first development, and review -- losing all the traceability and quality gates Forge provides. Delegating to the PM breaks the pipeline differently: it consumes a nesting level, and the Coordinator the PM launches then has none left for phase agents. The always-on rule in `.cursor/rules/paavos-forge.mdc` will remind a general agent to redirect you, but using the correct entry point from the start is the most reliable approach.
 >
 > **Use a fresh chat.** The PM skill runs in your normal chat context, so anything discussed earlier in that thread stays visible to it. The PM is forbidden from reading source code, tests, and artifacts below the story level, which is easier to honour when the thread starts clean.
 >
-> **For bug fixes:** you can use the `fixer` agent directly instead of the full PM pipeline. The fixer can modify source code and tests to fix bugs, but cannot add features, change interfaces, or create framework artifacts. Start a chat with the `fixer` agent and describe the bug.
+> **For bug fixes:** you can use the `fixer` agent directly instead of the full PM pipeline. The fixer can modify source code and tests to fix bugs, but cannot add features, change interfaces, or create Forge artifacts. Start a chat with the `fixer` agent and describe the bug.
 
 ### Planning with Todos
 
-If you create plan-level todos (e.g. in a Cursor plan file) to track your project execution, phrase them as **human actions**, not framework-internal steps:
+If you create plan-level todos (e.g. in a Cursor plan file) to track your project execution, phrase them as **human actions**, not Forge-internal steps:
 
 - **Good:** "Start a `/project-manager` chat for epic-01 (authentication)"
 - **Bad:** "Run Coordinator for stories 00001-00003"
@@ -550,18 +535,18 @@ Attribute a falling rejection rate to the model only if the model is what change
 
 One caveat on attribution: your PM chat runs on the model selected in the Cursor UI, not on the `deep` bucket's frontmatter. If that happens to be a bucket model, its spend is indistinguishable from that bucket's. Select something outside your bucket set for the PM chat to keep the report clean.
 
-## Updating the Framework
+## Updating Forge
 
 Re-fetch the `main` archive into a new `$STAGE` (same download/inspect/extract steps as Step 1), then selectively merge changes from that tree:
 
 - `paavos-forge/LOGIC.md` -- replace with the latest root `LOGIC.md` from the stage, or compare and merge workflow changes
-- `.cursor/agents/` -- compare and merge agent prompt improvements, then re-run `bash paavos-forge/set-agent-models.sh` with your chosen models. Upstream ships every prompt with `model: inherit`, so a merge can reset the line, and a newly added agent arrives unconfigured. The script exits non-zero if an agent prompt has no bucket assignment, which is how you find out.
-- `paavos-forge/set-agent-models.sh` -- take the upstream version when the agent set changes; it carries the canonical agent-to-bucket mapping
+- `.cursor/agents/` -- compare and merge agent prompt improvements, then re-run `bash paavos-forge/scripts/set-agent-models.sh` with your chosen models. Upstream ships every prompt with `model: inherit`, so a merge can reset the line, and a newly added agent arrives unconfigured. The script exits non-zero if an agent prompt has no bucket assignment, which is how you find out.
+- `paavos-forge/scripts/set-agent-models.sh` -- take the upstream version when the agent set changes; it carries the canonical agent-to-bucket mapping
 - `.cursor/rules/paavos-forge.mdc` -- compare and merge rule changes
 - `plan/templates/` -- compare and merge template changes
 - `taskwarrior/` scripts -- compare and merge new or updated orchestration scripts
 
-Use `bash "$STAGE/scripts/install-into-project.sh" --framework "$STAGE" --project "$PROJECT" --force` only when the user explicitly wants leaf files overwritten. Prefer selective merges for lived-in projects. `--force` still refuses if a parent path is a file or symlink.
+Use `bash "$STAGE/scripts/install-into-project.sh" --forge "$STAGE" --project "$PROJECT" --force` only when the user explicitly wants leaf files overwritten. Prefer selective merges for lived-in projects. `--force` still refuses if a parent path is a file or symlink.
 
 Preserve during updates:
 - `paavos-forge/project-profile.md` -- your project-specific settings
@@ -585,7 +570,7 @@ After updating templates, re-run `bash taskwarrior/setup.sh --main` to pick up a
 | UDAs missing in project but `task _udas` works | Verified wrong database (global `~/.taskrc`) | Use `taskwarrior/tw _udas`, not bare `task` |
 | Tasks from project A appear in project B | Shared `~/.task` | Generated `.taskrc` has an absolute `data.location`; `env.sh` also exports `TASKDATA`. Re-run `setup.sh` |
 | Script exits 2 with "must run in the main/worktree tree" | Script invoked against the wrong tree | Use the absolute path of the intended tree: `bash <tree-root>/taskwarrior/<script>` |
-| `epic-fork` refuses: "Framework files are not committed to main" | Deployment not committed | Complete Step 10 |
+| `epic-fork` refuses: "Forge files are not committed to main" | Deployment not committed | Complete Step 10 |
 | Phase tasks appear in the main database | Historical failure mode; now blocked by the context guard | `bash taskwarrior/doctor` then `--fix` via the `environment-recovery` agent |
 | PM cannot tell whether a Coordinator is alive | Looking in the wrong place | `bash taskwarrior/coordinator-status`; never read agent transcripts |
 | `coordinator-status` shows `NO-HEARTBEAT` | Coordinator subagent never started or died at startup | Run `bash taskwarrior/doctor`, then launch a fresh Coordinator with the absolute worktree path in its prompt |

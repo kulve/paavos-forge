@@ -1,12 +1,12 @@
 # Paavo's Forge
 
-A generic template that enables AI agents to autonomously implement large projects from high-level goals. Your product goals live in **Paavo's Codex** (an MCP-served knowledge base); this framework reads those goals and drives them to completion. Deploy it into a downstream project, point it at your Paavo's Codex project, and the framework drives epics through requirements, architecture, tests, and implementation -- each phase planned, written, and reviewed by specialized agents. Multiple epics execute in parallel via git worktrees.
+A generic template that enables AI agents to autonomously implement large projects from high-level goals. Your product goals live in **Paavo's Codex** (an MCP-served knowledge base); Forge reads those goals and drives them to completion. Deploy it into a downstream project, point it at your Paavo's Codex project, and Forge drives epics through requirements, architecture, tests, and implementation -- each phase planned, written, and reviewed by specialized agents. Multiple epics execute in parallel via git worktrees.
 
-Paavo's Codex owns *what* to build (product intent). This framework owns *how* it gets built: it caches a pinned execution roadmap in `plan/project.md` and never invents product goals of its own.
+Paavo's Codex owns *what* to build (product intent). Forge owns *how* it gets built: it caches a pinned execution roadmap in `plan/project.md` and never invents product goals of its own.
 
 ## What It Does
 
-You define your product goals in **Paavo's Codex** (e.g. the vision and features for a multiplayer game). The framework reads those goals via MCP and:
+You define your product goals in **Paavo's Codex** (e.g. the vision and features for a multiplayer game). Forge reads those goals via MCP and:
 
 0. Synthesizes an ordered milestone roadmap from your Paavo's Codex goals, pinned to a closed version in `plan/project.md`
 1. Organizes work into **epics** (independent feature areas) and **stories** (vertical slices within each epic)
@@ -32,7 +32,7 @@ You define your product goals in **Paavo's Codex** (e.g. the vision and features
 |------|---------|
 | `LOGIC.md` | Canonical workflow specification -- maintained here only; copied to `paavos-forge/LOGIC.md` at deploy time |
 | `DEPLOY.md` | Step-by-step guide to deploy into a downstream project |
-| `AGENTS.md` | Instructions for AI agents maintaining this framework repo |
+| `AGENTS.md` | Instructions for AI agents maintaining this Forge repository |
 | `templates/base/AGENTS.md` | Template that becomes the downstream project's root `AGENTS.md` |
 | `templates/base/` | Scaffolding copied to every downstream project (except `LOGIC.md`) |
 | `templates/cursor/` | Cursor-specific agents, rules, and commands |
@@ -47,18 +47,18 @@ The AI downloads the `main` archive, inspects `scripts/install-into-project.sh`,
 
 ## Architecture
 
-The framework has a layered agent hierarchy:
+Forge has a layered agent hierarchy:
 
 - **Project Manager**: a skill that runs as the top-level chat, not a subagent. Owns the project roadmap, defines milestones from Paavo's Codex goals, creates epics, generates stories, dispatches epics to worktrees for parallel execution, merges completed epics back to main
 - **Coordinator**: deterministic state machine that drives all stories in one epic through all four phases (operates within an epic's worktree)
 - **Phase Agents** (10 total): architecture and implementation have plan, write, and review; requirements and integration tests have write and review, planning folded into the write agent. Each has narrow context
 - **Support Agents**: roadmap planner, deploy profile, story review, escalation analysis, escalation triage, escalation recovery (also the Coordinator's inline reconciler), environment recovery
 
-Product intent comes from **Paavo's Codex** (MCP hard dependency). The framework caches a pinned milestone roadmap in `plan/project.md`. All state mutations go through deterministic scripts under `taskwarrior/`. Scripts enforce preconditions and mutual exclusion (merge gate, active-task guards). Context passes through Taskwarrior annotations. Agents never talk to each other directly.
+Product intent comes from **Paavo's Codex** (MCP hard dependency). Forge caches a pinned milestone roadmap in `plan/project.md`. All state mutations go through deterministic scripts under `taskwarrior/`. Scripts enforce preconditions and mutual exclusion (merge gate, active-task guards). Context passes through Taskwarrior annotations. Agents never talk to each other directly.
 
 Coordinators run in the background so epics progress in parallel, and the scripts they call emit a heartbeat, so the PM supervises them with a single command (`taskwarrior/coordinator-status`) instead of guessing. Worktree isolation is enforced by construction: every script resolves its own tree from its own path and refuses to run against the wrong one, so a Coordinator cannot touch the main tree's database or branch.
 
-When something breaks, the Coordinator first dispatches the reconciler inline: most failures are two artifacts disagreeing, which is a technical problem with a technical answer. Only what the reconciler cannot settle reaches the PM, where `taskwarrior/doctor` checks the framework's invariants and the escalation triage agent routes mechanical failures to automated recovery while product decisions stop for the user.
+When something breaks, the Coordinator first dispatches the reconciler inline: most failures are two artifacts disagreeing, which is a technical problem with a technical answer. Only what the reconciler cannot settle reaches the PM, where `taskwarrior/doctor` checks the Forge's invariants and the escalation triage agent routes mechanical failures to automated recovery while product decisions stop for the user.
 
 ### Execution Model
 

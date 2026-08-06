@@ -23,7 +23,7 @@ The workflow is language-agnostic: language, layout, build, test, and architectu
 | Test agents | Integration tests, requirements, interfaces | Read implementation source |
 | Implementation agents | Source, tests, interfaces, requirements | Access Paavo's Codex |
 | Roadmap Planner / Story Review | Roadmap or story quality | Enter the Coordinator phase pipeline |
-| Escalation Triage / Environment Recovery | Classification or framework repair | Respectively write artifacts / run outside the closed whitelist |
+| Escalation Triage / Environment Recovery | Classification or Forge repair | Respectively write artifacts / run outside the closed whitelist |
 | Escalation Recovery | Bounded cross-phase correction | Change intent, task state, or unbounded scope |
 | Fixer | Existing source and tests outside the pipeline | Add features, interfaces, requirements, or Taskwarrior state |
 
@@ -168,7 +168,7 @@ The Coordinator reads these annotations (via `story-next` script output) to cons
 
 The PM operates in the main project tree. It owns the project roadmap, defines milestones from that roadmap, and dispatches epics for parallel execution.
 
-0. **Paavo's Codex hard dependency**: Before any planning or execution work, the PM verifies the Paavo's Codex MCP is reachable (using Cursor MCP discovery / a lightweight tool call). If unreachable, the PM stops all framework work and reports to the user. This is a hard stop -- already-planned work must not continue while product intent is unavailable. See Section 16.
+0. **Paavo's Codex hard dependency**: Before any planning or execution work, the PM verifies the Paavo's Codex MCP is reachable (using Cursor MCP discovery / a lightweight tool call). If unreachable, the PM stops all Forge work and reports to the user. This is a hard stop -- already-planned work must not continue while product intent is unavailable. See Section 16.
 
 1. **Project init**: If `plan/project.md` does not exist, the PM invokes the `roadmap-planner` subagent (foreground, human-in-loop). The planner synthesizes a milestone roadmap from Paavo's Codex and writes `plan/project.md`, pinning the Paavo's Codex project id and a closed version. The PM discusses refinements with the user, then commits `plan/project.md` to `main`. Project init must complete before any milestone is created.
 
@@ -187,7 +187,7 @@ The PM operates in the main project tree. It owns the project roadmap, defines m
    ```
    The fork script checks the merge gate, creates the worktree, initializes Taskwarrior, and registers the epic. Preflight for the PM also includes the Paavo's Codex reachability check from step 0.
 
-7. **Coordinator invocation**: PM launches a Coordinator subagent with `run_in_background: true`. Subagents cannot be given a working directory, so the Coordinator starts in the main tree: its prompt must carry the absolute worktree path and the invariant that every framework script is invoked as `bash <worktree>/taskwarrior/<script>`. The Coordinator runs its Startup Assertion before any other work.
+7. **Coordinator invocation**: PM launches a Coordinator subagent with `run_in_background: true`. Subagents cannot be given a working directory, so the Coordinator starts in the main tree: its prompt must carry the absolute worktree path and the invariant that every Forge script is invoked as `bash <worktree>/taskwarrior/<script>`. The Coordinator runs its Startup Assertion before any other work.
 
 8. **Parallel dispatch**: PM may repeat steps 3-7 for additional independent epics. Multiple epics execute simultaneously in their own worktrees.
 
@@ -213,9 +213,11 @@ The PM operates in the main project tree. It owns the project roadmap, defines m
 12. **Re-evaluation**: After epic merge, PM re-reads the milestone file and `plan/project.md`. If milestone done criteria are met:
     - Mark the milestone Status Done (immutable history) in both the milestone file and the roadmap entry in `plan/project.md`
     - Perform discovery triage on whatever accumulated since the last story batch (Section 15)
+    - Invoke `project-profile-maintainer` (foreground) with the completed milestone path and the git range on `main` since the previous milestone Done commit (or project init if first). That agent is the only post-deploy writer of `paavos-forge/project-profile.md`; it fills deferred knobs and corrects stale ones from milestone evidence, or reports `no-change`
     - Advance the next TODO roadmap entry to In Progress, or rewrite/reorder remaining TODO milestones (optionally re-invoke `roadmap-planner`) based on Paavo's Codex and user direction
     - If the product Definition of Done in `plan/project.md` is met, declare the product complete
     - **Version migration**: if Paavo's Codex has a newer closed version the user wants to adopt, the PM re-pins `plan/project.md` to the new version, scopes changes via the MCP per-step change/diff tools (one call per version step), and inserts one or more **migration milestones** (Status TODO / In Progress as appropriate) before continuing normal roadmap work
+    - Commit planning artifacts and `paavos-forge/project-profile.md` together on the milestone closeout
 
 13. **Git for planning artifacts**: PM commits project, milestone, epic, and story files to `main` directly, before dispatching the epic.
 
@@ -401,7 +403,7 @@ Only `needs-human`, `failed-recovery`, a gate that fails again after a fix, or a
 
    | Class | Handler | Rationale |
    |-------|---------|-----------|
-   | `environment` | `environment-recovery` | Framework state, configuration, or runtime damage. Mechanical, so no user decision exists to make. |
+   | `environment` | `environment-recovery` | Forge state, configuration, or runtime damage. Mechanical, so no user decision exists to make. |
    | `artifact` | `escalation-recovery` | Story-local inconsistency between requirements, architecture, tests, or source. Rare at this point: the Coordinator already tried it inline. |
    | `product-intent` | user (or a Paavo's Codex open question) | The required behavior is missing or contradictory. **Always stops for the user.** |
    | `scope-policy` | user | Widening story scope, adding an external dependency, or creating/skipping a story or phase. **Always stops for the user.** Technical design -- interfaces, decomposition, fixtures, code -- is not in this class. |
@@ -453,7 +455,7 @@ Coherent feature areas decomposed into ordered stories. Contain goal, boundaries
 
 Problem-space documents describing vertical feature slices. Must include: epic reference, product intent source, goal (what and why), scope boundaries, trigger conditions, binary acceptance criteria, domain tags, dependencies, and non-goals. Stories describe user-facing behavior, not technical tasks.
 
-Mandatory **Product Intent Source** section: the story's citation of the Paavo's Codex articles it derives from. It records the Paavo's Codex project id, the closed version the story was authored against, and one line per source article (id, title at that version, domain id). Article ids are stable across versions while titles are not, so the id is the identity and the title is only a human label. The version is recorded per story even though `plan/project.md` pins it: project.md is re-pinned over time, while a completed story is a historical record of the intent it was written against. When no single article backs the story -- intent synthesized across a whole domain, framework scaffolding, and similar cases -- the section states `None -- [reason]` so the absence is a deliberate, reviewable claim rather than an omission. See Section 16.4.
+Mandatory **Product Intent Source** section: the story's citation of the Paavo's Codex articles it derives from. It records the Paavo's Codex project id, the closed version the story was authored against, and one line per source article (id, title at that version, domain id). Article ids are stable across versions while titles are not, so the id is the identity and the title is only a human label. The version is recorded per story even though `plan/project.md` pins it: project.md is re-pinned over time, while a completed story is a historical record of the intent it was written against. When no single article backs the story -- intent synthesized across a whole domain, Forge scaffolding, and similar cases -- the section states `None -- [reason]` so the absence is a deliberate, reviewable claim rather than an omission. See Section 16.4.
 
 Optional **Modifies Stories** section: when a new story changes or deprecates behavior from earlier stories, list the old story file paths and a brief reason.
 
@@ -521,11 +523,11 @@ Update Taskwarrior via scripts when done.
 
 The subagent reads its own agent definition file for role instructions, then reads the files listed in the prompt for task-specific context.
 
-**Never pass a `model` parameter when invoking a subagent.** Each agent's model is pinned in its own prompt frontmatter, assigned by bucket at deploy time. A `model` argument supplied by the invoking agent overrides that frontmatter, which silently replaces a deliberate cost-and-capability assignment with whatever the parent happened to be running. This applies to every invocation in the framework: the Coordinator dispatching phase agents, and the PM launching Coordinators, `roadmap-planner`, `story-review`, and the escalation agents. The PM itself is a skill and has no frontmatter model; it runs on whatever model the top-level chat is set to.
+**Never pass a `model` parameter when invoking a subagent.** Each agent's model is pinned in its own prompt frontmatter, assigned by bucket at deploy time. A `model` argument supplied by the invoking agent overrides that frontmatter, which silently replaces a deliberate cost-and-capability assignment with whatever the parent happened to be running. This applies to every invocation in Forge: the Coordinator dispatching phase agents, and the PM launching Coordinators, `roadmap-planner`, `story-review`, and the escalation agents. The PM itself is a skill and has no frontmatter model; it runs on whatever model the top-level chat is set to.
 
 ### 11.5 Nesting Budget (hard constraint)
 
-The runtime allows **two levels of subagents** below the top-level chat. The main agent and its direct children may dispatch; a subagent launched by another subagent receives no dispatch tool at all. The framework consumes that budget exactly, with no slack:
+The runtime allows **two levels of subagents** below the top-level chat. The main agent and its direct children may dispatch; a subagent launched by another subagent receives no dispatch tool at all. Forge consumes that budget exactly, with no slack:
 
 | Level | Who | May dispatch |
 |-------|-----|--------------|
@@ -561,7 +563,7 @@ Scripts are the enforcement layer. They:
 
 ### 12.2 Script Categories
 
-Every script sources `taskwarrior/guard.sh`, which resolves the framework root from the script's own location, exports an absolute `TASKDATA`, and enforces the required execution context. A main-tree script run inside a worktree (or vice versa) exits 2 without touching state. **Invoke scripts by absolute path** (`bash <tree-root>/taskwarrior/<script>`): correctness then never depends on an agent's working directory, which subagents cannot be given.
+Every script sources `taskwarrior/guard.sh`, which resolves the project tree root from the script's own location, exports an absolute `TASKDATA`, and enforces the required execution context. A main-tree script run inside a worktree (or vice versa) exits 2 without touching state. **Invoke scripts by absolute path** (`bash <tree-root>/taskwarrior/<script>`): correctness then never depends on an agent's working directory, which subagents cannot be given.
 
 **PM scripts** (run in main tree):
 - `pm-lock-acquire` / `pm-lock-release`: PM singleton lock
@@ -589,7 +591,7 @@ Every script sources `taskwarrior/guard.sh`, which resolves the framework root f
 - `phase-block`: block task with escalation
 
 **Diagnostics and telemetry**:
-- `doctor` (main tree): checks framework invariants D01-D12; dry-run by default, `--fix` applies only the repairs marked fixable, `--json` for machine consumption. Exit 0 all clear, 1 only fixable failures remain, 2 a failure needs a human.
+- `doctor` (main tree): checks Forge invariants D01-D12; dry-run by default, `--fix` applies only the repairs marked fixable, `--json` for machine consumption. Exit 0 all clear, 1 only fixable failures remain, 2 a failure needs a human.
 - `coordinator-heartbeat` (epic worktree): records Coordinator liveness and progress. Called automatically by the lifecycle scripts; agents never call it directly. Never fails its caller.
 - `coordinator-status` (main tree): read-only liveness and progress aggregator across all worktrees, with `--epic` and `--json`. Exit 0 healthy, 1 stale, 2 dead / no heartbeat / escalation.
 
@@ -670,7 +672,7 @@ Requirement agents must never leak solution-space concepts into requirements. Re
 
 ## 14. Extension Points
 
-The framework is designed to be extended via the project profile. Downstream projects customize:
+Forge is designed to be extended via the project profile. Downstream projects customize:
 
 - **Language and build system**: affects architecture artifact type, test framework, build commands
 - **Directory layout**: source, architecture, test, and build output directories
@@ -684,7 +686,9 @@ The framework is designed to be extended via the project profile. Downstream pro
 - **Parallel limit**: recommended maximum concurrent epics
 - **Paavo's Codex MCP**: endpoint URL (Cursor MCP registration) and Paavo's Codex project name/id. The pinned closed version lives in `plan/project.md`, not the profile.
 
-Agent prompts read the project profile to adapt their behavior. The core workflow (phases, states, script protocol, git policy) remains fixed. Paavo's Codex is a hard dependency of this framework (see Section 16); it is not a generic swappable knowledge-source plug-in.
+Agent prompts read the project profile to adapt their behavior. The core workflow (phases, states, script protocol, git policy) remains fixed. Paavo's Codex is a hard dependency of Forge (see Section 16); it is not a generic swappable knowledge-source plug-in.
+
+`deploy-profile` fills deploy-required knobs at install time. After each milestone, `project-profile-maintainer` is the only agent that may update the profile: it fills deferred `[No content yet]` sections and corrects stale knobs from milestone evidence, keeping the file concise.
 
 ---
 
@@ -714,11 +718,11 @@ Discoveries preserve important observations without derailing the current task. 
 
 ## 16. Project Knowledge Source Protocol (Paavo's Codex)
 
-Product intent lives in Paavo's Codex. The framework caches a pinned execution roadmap in `plan/project.md`. Agents discover MCP tool names and signatures via Cursor's MCP tool listing -- this specification does **not** hardcode tool APIs.
+Product intent lives in Paavo's Codex. Forge caches a pinned execution roadmap in `plan/project.md`. Agents discover MCP tool names and signatures via Cursor's MCP tool listing -- this specification does **not** hardcode tool APIs.
 
 ### 16.1 Hard dependency
 
-The Paavo's Codex MCP is required for all framework work. If it is unreachable, the PM hard-stops (Section 4 step 0) and requirements agents escalate. Do not invent product goals or continue execution while product intent is unavailable.
+The Paavo's Codex MCP is required for all Forge work. If it is unreachable, the PM hard-stops (Section 4 step 0) and requirements agents escalate. Do not invent product goals or continue execution while product intent is unavailable.
 
 ### 16.2 Identity and pinning
 
@@ -759,15 +763,15 @@ Open questions are metadata attached to a frozen Paavo's Codex version (clarific
 Rules (mirror the Discovery Protocol):
 
 - Allowed agents may **post** a new open question against the pinned closed version, then continue their task.
-- Agents must **never** list, search, read, deduplicate, modify, answer, or delete existing open questions as part of framework work.
+- Agents must **never** list, search, read, deduplicate, modify, answer, or delete existing open questions as part of Forge work.
 - Non-blocking product-intent gap: post an open question and continue.
-- Blocking product-intent gap (cannot proceed without changed/clarified intent): escalate (and optionally also post an open question so the gap is captured at the source). Answers and classification (clarification vs real change for a future version) happen in the Paavo's Codex web UI / user process, not in the framework.
+- Blocking product-intent gap (cannot proceed without changed/clarified intent): escalate (and optionally also post an open question so the gap is captured at the source). Answers and classification (clarification vs real change for a future version) happen in the Paavo's Codex web UI / user process, not in Forge.
 
 ---
 
 ## 17. Coordinator Observability
 
-Coordinators run as background subagents so that epics execute in parallel. Background execution is only safe if the PM has a reliable, cheap way to tell working from stuck. That signal is a heartbeat written by the framework scripts themselves, never by an agent's own reporting.
+Coordinators run as background subagents so that epics execute in parallel. Background execution is only safe if the PM has a reliable, cheap way to tell working from stuck. That signal is a heartbeat written by the Forge scripts themselves, never by an agent's own reporting.
 
 ### 17.1 Heartbeat file
 

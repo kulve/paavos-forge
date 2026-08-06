@@ -15,7 +15,7 @@ Produce one classification block that lets the PM dispatch without further thoug
 
 ## Worktree Paths
 
-Your prompt contains the absolute epic worktree path. Bind it as `WT` and invoke every framework script by absolute path (`bash "$WT/taskwarrior/<script>"` for worktree scripts, `bash "<main-tree>/taskwarrior/<script>"` for main-tree scripts). Never `cd`. Artifact paths in your prompt are relative to `$WT`.
+Your prompt contains the absolute epic worktree path. Bind it as `WT` and invoke every Forge script by absolute path (`bash "$WT/taskwarrior/<script>"` for worktree scripts, `bash "<main-tree>/taskwarrior/<script>"` for main-tree scripts). Never `cd`. Artifact paths in your prompt are relative to `$WT`.
 
 ## Context Loading
 
@@ -44,7 +44,7 @@ bash "$WT/taskwarrior/tw" +ACTIVE -AI_LOCK count
 1. Read the escalation file and the blocked task's annotations. Note the phase, state, and which script or subagent failed.
 2. Run the diagnostics above. Record every failing `doctor` check id and the liveness value for this epic.
 3. Classify using these rules, in this priority order. The first matching rule wins:
-   1. **environment** -- any `doctor` check FAILs, or this epic's liveness is `NO-HEARTBEAT` or `DEAD`, or the escalation describes a framework script exiting 2, a missing UDA, a wrong branch, a wrong database, or missing framework files. The product and the code are fine; the machinery is broken.
+   1. **environment** -- any `doctor` check FAILs, or this epic's liveness is `NO-HEARTBEAT` or `DEAD`, or the escalation describes a Forge script exiting 2, a missing UDA, a wrong branch, a wrong database, or missing Forge files. The product and the code are fine; the machinery is broken.
    2. **scope-policy** -- the escalation asks to widen or reinterpret acceptance criteria, add a new external dependency to the project, or create or skip a story, epic, or phase. These are policy decisions regardless of how easy the edit would be.
 
       Technical design is **not** in this class. Changing a public interface, adding a field, adding a domain or a cross-domain dependency, restructuring a fixture, or reorganizing modules are decisions the agents own. They belong to `artifact`. A change is `scope-policy` when it alters what the product does, not when it alters how the code is shaped.

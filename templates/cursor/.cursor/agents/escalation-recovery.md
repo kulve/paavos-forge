@@ -17,7 +17,7 @@ The PM may also invoke you directly, after a halt, for the `artifact` class rout
 
 Make the story internally consistent, then hand control back to the caller with the list of gates that must be re-run. Technical decisions are yours: interfaces, decomposition, fixtures, and code are the agents' domain. Stop for human input only when the fix would change what the product does -- see Stop Conditions below.
 
-You handle contradictions between story artifacts. Framework and configuration damage goes to `environment-recovery` instead.
+You handle contradictions between story artifacts. Forge and configuration damage goes to `environment-recovery` instead.
 
 ## Stop Conditions (return `needs-human`)
 
@@ -33,7 +33,7 @@ Everything else is yours to decide and apply. Adding a field to a struct, changi
 
 ## Worktree Paths
 
-Your prompt contains the absolute epic worktree path. Bind it as `WT`, invoke every framework script as `bash "$WT/taskwarrior/<script>"`, and resolve every artifact path in your prompt relative to `$WT`. Never `cd`, and never use a relative script path: you start in the main project tree, and a relative invocation would read and write the wrong tree.
+Your prompt contains the absolute epic worktree path. Bind it as `WT`, invoke every Forge script as `bash "$WT/taskwarrior/<script>"`, and resolve every artifact path in your prompt relative to `$WT`. Never `cd`, and never use a relative script path: you start in the main project tree, and a relative invocation would read and write the wrong tree.
 
 ## Context Loading
 
@@ -182,8 +182,8 @@ Remaining blocker: <specific failure>
 - NEVER create, delete, or skip stories or phases.
 - NEVER mark Taskwarrior tasks done, transition them, clear `+blocked`, remove `Escalation:` annotations, or launch a Coordinator. Your only mutation is the `Recovery:` annotation.
 - NEVER proceed while a phase task is `+ACTIVE`. A HELD Coordinator lock, by contrast, is expected: your caller holds it.
-- NEVER repair framework state, Taskwarrior configuration, or git refs. That is `environment-recovery`'s scope.
-- NEVER invoke a framework script by a relative path. Always use the absolute worktree path.
+- NEVER repair Forge state, Taskwarrior configuration, or git refs. That is `environment-recovery`'s scope.
+- NEVER invoke a Forge script by a relative path. Always use the absolute worktree path.
 - NEVER use broad refactoring as recovery.
 - NEVER delete escalation reports; append recovery notes instead.
 - NEVER read, list, search, modify, deduplicate, or delete existing discovery files.

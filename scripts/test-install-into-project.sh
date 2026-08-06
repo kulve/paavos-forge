@@ -1,6 +1,6 @@
 #!/bin/bash
 # Smoke tests for scripts/install-into-project.sh conflict preflight.
-# Run from the framework repo root: bash scripts/test-install-into-project.sh
+# Run from the Forge repository root: bash scripts/test-install-into-project.sh
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -31,7 +31,7 @@ TMPDIR_TEST="$(mktemp -d)"
 # --- Empty project -------------------------------------------------------
 EMPTY="${TMPDIR_TEST}/empty"
 mkdir -p "$EMPTY"
-if bash "$INSTALL" --framework "$REPO_ROOT" --project "$EMPTY" >/dev/null; then
+if bash "$INSTALL" --forge "$REPO_ROOT" --project "$EMPTY" >/dev/null; then
     if [ -f "$EMPTY/AGENTS.md" ] \
         && [ -f "$EMPTY/paavos-forge/LOGIC.md" ] \
         && [ -f "$EMPTY/.cursor/agents/coordinator.md" ] \
@@ -49,7 +49,7 @@ LEAF="${TMPDIR_TEST}/leaf"
 mkdir -p "$LEAF/.cursor/agents"
 echo preexisting > "$LEAF/.cursor/agents/coordinator.md"
 LEAF_ERR="${TMPDIR_TEST}/leaf.err"
-if bash "$INSTALL" --framework "$REPO_ROOT" --project "$LEAF" >/dev/null 2>"$LEAF_ERR"; then
+if bash "$INSTALL" --forge "$REPO_ROOT" --project "$LEAF" >/dev/null 2>"$LEAF_ERR"; then
     fail "leaf conflict should exit nonzero"
 else
     if grep -q 'coordinator.md' "$LEAF_ERR" && [ ! -f "$LEAF/AGENTS.md" ]; then
@@ -64,7 +64,7 @@ PARENT_FILE="${TMPDIR_TEST}/parent-file"
 mkdir -p "$PARENT_FILE"
 echo notadir > "$PARENT_FILE/plan"
 PF_ERR="${TMPDIR_TEST}/parent-file.err"
-if bash "$INSTALL" --framework "$REPO_ROOT" --project "$PARENT_FILE" >/dev/null 2>"$PF_ERR"; then
+if bash "$INSTALL" --forge "$REPO_ROOT" --project "$PARENT_FILE" >/dev/null 2>"$PF_ERR"; then
     fail "parent-as-file should exit nonzero"
 else
     if grep -qE '(^|[[:space:]])plan$' "$PF_ERR" || grep -q 'plan' "$PF_ERR"; then
@@ -84,7 +84,7 @@ LINK_TARGET="${TMPDIR_TEST}/taskwarrior-elsewhere"
 mkdir -p "$PARENT_LINK" "$LINK_TARGET"
 ln -s "$LINK_TARGET" "$PARENT_LINK/taskwarrior"
 PL_ERR="${TMPDIR_TEST}/parent-link.err"
-if bash "$INSTALL" --framework "$REPO_ROOT" --project "$PARENT_LINK" >/dev/null 2>"$PL_ERR"; then
+if bash "$INSTALL" --forge "$REPO_ROOT" --project "$PARENT_LINK" >/dev/null 2>"$PL_ERR"; then
     fail "parent-as-symlink should exit nonzero"
 else
     if grep -q 'taskwarrior' "$PL_ERR" && [ ! -f "$PARENT_LINK/AGENTS.md" ]; then
@@ -98,7 +98,7 @@ fi
 FORCE_PROJ="${TMPDIR_TEST}/force"
 mkdir -p "$FORCE_PROJ/.cursor/agents"
 echo preexisting > "$FORCE_PROJ/.cursor/agents/coordinator.md"
-if bash "$INSTALL" --framework "$REPO_ROOT" --project "$FORCE_PROJ" --force >/dev/null; then
+if bash "$INSTALL" --forge "$REPO_ROOT" --project "$FORCE_PROJ" --force >/dev/null; then
     if [ -f "$FORCE_PROJ/AGENTS.md" ] \
         && [ -f "$FORCE_PROJ/.cursor/agents/coordinator.md" ] \
         && ! grep -qx preexisting "$FORCE_PROJ/.cursor/agents/coordinator.md"; then
@@ -115,7 +115,7 @@ FORCE_PF="${TMPDIR_TEST}/force-parent-file"
 mkdir -p "$FORCE_PF"
 echo notadir > "$FORCE_PF/plan"
 FORCE_PF_ERR="${TMPDIR_TEST}/force-parent-file.err"
-if bash "$INSTALL" --framework "$REPO_ROOT" --project "$FORCE_PF" --force >/dev/null 2>"$FORCE_PF_ERR"; then
+if bash "$INSTALL" --forge "$REPO_ROOT" --project "$FORCE_PF" --force >/dev/null 2>"$FORCE_PF_ERR"; then
     fail "--force parent-as-file should exit nonzero"
 else
     if grep -q 'plan' "$FORCE_PF_ERR" && [ ! -f "$FORCE_PF/AGENTS.md" ]; then
@@ -131,7 +131,7 @@ FORCE_LINK_TARGET="${TMPDIR_TEST}/force-taskwarrior-elsewhere"
 mkdir -p "$FORCE_PL" "$FORCE_LINK_TARGET"
 ln -s "$FORCE_LINK_TARGET" "$FORCE_PL/taskwarrior"
 FORCE_PL_ERR="${TMPDIR_TEST}/force-parent-link.err"
-if bash "$INSTALL" --framework "$REPO_ROOT" --project "$FORCE_PL" --force >/dev/null 2>"$FORCE_PL_ERR"; then
+if bash "$INSTALL" --forge "$REPO_ROOT" --project "$FORCE_PL" --force >/dev/null 2>"$FORCE_PL_ERR"; then
     fail "--force parent-as-symlink should exit nonzero"
 else
     if grep -q 'taskwarrior' "$FORCE_PL_ERR" && [ ! -f "$FORCE_PL/AGENTS.md" ]; then

@@ -1,15 +1,15 @@
 #!/bin/bash
-# Assign a model to every Cursor agent prompt according to its framework bucket.
+# Assign a model to every Cursor agent prompt according to its Forge bucket.
 #
-# Two mappings meet here. Agent -> bucket is framework knowledge and lives in the
+# Two mappings meet here. Agent -> bucket is Forge knowledge and lives in the
 # BUCKET_MAP table below. Bucket -> model is your budget decision and is supplied
 # on the command line. See DEPLOY.md "Choose Models for Agent Buckets".
 #
-# Re-runnable at any time. Upstream framework updates ship `model: inherit`, so
+# Re-runnable at any time. Upstream Forge updates ship `model: inherit`, so
 # re-run this after merging agent prompt changes.
 set -euo pipefail
 
-AI_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+AI_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 AGENT_DIR="$AI_ROOT/.cursor/agents"
 
 BUCKETS="frontier deep critic builder checker orchestration"
@@ -33,6 +33,7 @@ builder:implementation-write
 builder:implementation-plan
 builder:integration-test-write
 builder:requirements-write
+builder:project-profile-maintainer
 checker:integration-test-review
 checker:escalation-triage
 orchestration:coordinator
@@ -66,11 +67,11 @@ Buckets:
                  requirements-review so Grok-written requirements get an
                  independent-family check.
   builder        Bulk write volume: requirements, architecture headers,
-                 implementation plans/writes, and tests. Turning an approved
-                 architecture plan into interface declarations is mechanical, so
-                 architecture-write sits here while architecture-plan stays in
-                 frontier. Must be vision-capable if the project profile's UI
-                 kind is not `none`.
+                 implementation plans/writes, tests, and project-profile
+                 maintainer. Turning an approved architecture plan into
+                 interface declarations is mechanical, so architecture-write sits
+                 here while architecture-plan stays in frontier. Must be
+                 vision-capable if the project profile's UI kind is not `none`.
   checker        Bounded structural checks against written artifacts and
                  executable output. Prefer a different family than builder when
                  that does not force a clearly weaker model.
@@ -315,7 +316,7 @@ echo ""
 if [ "$DRY_RUN" -eq 1 ]; then
     echo "Dry run: $CHANGED agent prompt(s) would change. Nothing written."
 elif [ "$CHANGED" -eq 0 ]; then
-    echo "All 19 agent prompts already match the requested buckets."
+    echo "All 20 agent prompts already match the requested buckets."
 else
     echo "Updated $CHANGED agent prompt(s). Commit .cursor/agents/ so epic worktrees inherit the change."
 fi

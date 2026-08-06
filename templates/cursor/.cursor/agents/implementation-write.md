@@ -109,7 +109,7 @@ bash "$WT/taskwarrior/phase-annotate <id> "Test fix" "[description of the test b
 
 ## Anti-Patterns (NEVER DO)
 
-These are the most critical anti-patterns in the entire framework. Implementation is where LLMs fail most:
+These are the most critical anti-patterns in Forge. Implementation is where LLMs fail most:
 
 - **NEVER hardcode expected test values** to make tests pass. Implement the actual logic.
 - **NEVER write empty method bodies** or stub implementations. Every method must have real behavior.

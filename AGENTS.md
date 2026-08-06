@@ -1,6 +1,6 @@
 # AI Agents: Paavo's Forge Maintenance Guide
 
-This file is for AI agents maintaining the Paavo's Forge template repository itself. If you are an agent working in a downstream project that deployed this framework, read your project's `AGENTS.md` and `paavos-forge/LOGIC.md` instead.
+This file is for AI agents maintaining the Paavo's Forge template repository itself. If you are an agent working in a downstream project that deployed Forge, read your project's `AGENTS.md` and `paavos-forge/LOGIC.md` instead.
 
 ## Repository Purpose
 
@@ -40,7 +40,7 @@ This template must work for C++, Python, TypeScript, and other languages. When m
 - Use "architecture artifacts" instead of "headers" in generic contexts
 - Test your changes mentally against at least C++ and Python use cases
 
-**Exception -- Paavo's Codex:** This framework intentionally couples to Paavo's Codex as the hard dependency for product intent (MCP knowledge source). Naming Paavo's Codex in `LOGIC.md`, agent prompts, the project profile, and deployment docs is allowed and required. Do not "genericize" that coupling away unless the user explicitly requests it. Still do not hardcode MCP tool names/signatures -- agents discover them via MCP.
+**Exception -- Paavo's Codex:** Forge intentionally couples to Paavo's Codex as the hard dependency for product intent (MCP knowledge source). Naming Paavo's Codex in `LOGIC.md`, agent prompts, the project profile, and deployment docs is allowed and required. Do not "genericize" that coupling away unless the user explicitly requests it. Still do not hardcode MCP tool names/signatures -- agents discover them via MCP.
 
 ### Keep Templates and Docs Consistent
 
@@ -59,7 +59,7 @@ Never add content that assumes a specific *downstream application* project. This
 - Specific build commands (always reference "the build command from the project profile")
 - Hardcoded directory paths (always reference "the directory from the project profile")
 
-Paavo's Codex as the product-intent knowledge source is a framework dependency, not leakage (see Preserve Genericity exception above).
+Paavo's Codex as the product-intent knowledge source is a Forge dependency, not leakage (see Preserve Genericity exception above).
 
 ## Script Protocol (`taskwarrior/`)
 
@@ -78,7 +78,7 @@ AI lock and gate recovery is manual-only. Agents must never clear stale locks or
 
 ## Isolation Invariants (do not regress these)
 
-Worktree isolation is enforced by construction: scripts source `guard.sh`, use `AI_ROOT`, require their main/worktree context, and export absolute Taskwarrior state. Keep `.taskrc` generated and ignored; never reintroduce `SCRIPT_DIR`, `PROJECT_ROOT`, relative `data.location`, subagent `working_directory`, relative framework paths, or transcript-based Coordinator supervision.
+Worktree isolation is enforced by construction: scripts source `guard.sh`, use `AI_ROOT`, require their main/worktree context, and export absolute Taskwarrior state. Keep `.taskrc` generated and ignored; never reintroduce `SCRIPT_DIR`, `PROJECT_ROOT`, relative `data.location`, subagent `working_directory`, relative Forge script paths, or transcript-based Coordinator supervision.
 
 After any change in `taskwarrior/`, `scripts/`, or the isolation-related prompt sections, run both:
 
@@ -102,7 +102,7 @@ When editing prompts:
 7. Verify script names match `recipes.md` and actual script files
 8. Keep `model: inherit` in the frontmatter. Downstream deployments assign the real model by bucket; a concrete slug shipped upstream would override every deployed project's choice on merge.
 
-**Adding or removing an agent prompt** also requires updating `BUCKET_MAP` in `templates/base/paavos-forge/set-agent-models.sh` and the agent counts in both validators. `validate-template-repo.sh` fails if the two sets disagree, so a forgotten bucket assignment cannot ship.
+**Adding or removing an agent prompt** also requires updating `BUCKET_MAP` in `templates/base/paavos-forge/scripts/set-agent-models.sh` and the agent counts in both validators. `validate-template-repo.sh` fails if the two sets disagree, so a forgotten bucket assignment cannot ship.
 
 ## Nesting Budget (do not regress this)
 

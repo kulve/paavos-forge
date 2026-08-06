@@ -17,7 +17,7 @@ is a historical record of the intent it was authored against.
   - [article-id] -- "[title at that version]" [domain: domain-id]
 
 If no single article backs this story (intent synthesized across a whole domain,
-framework scaffolding, and similar cases), state the absence deliberately
+Forge scaffolding, and similar cases), state the absence deliberately
 instead of leaving the list empty:
 
 - Articles:

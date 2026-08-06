@@ -15,9 +15,9 @@ These always-on invariants apply to every agent. Role prompts define the task-sp
 
 ## Isolation and State
 
-- Invoke every framework script by absolute path: `bash <tree-root>/taskwarrior/<script>`. PM scripts use the main tree; Coordinator and phase scripts use the prompt's worktree.
+- Invoke every Forge script by absolute path: `bash <tree-root>/taskwarrior/<script>`. PM scripts use the main tree; Coordinator and phase scripts use the prompt's worktree.
 - Subagents start in the main tree. Never use a relative script path or `cd` as a worktree substitute. Exit 2 means wrong context: correct the path; do not retry.
-- State mutations go through framework scripts, never `taskwarrior/tw`. A phase agent makes at most one transition per invocation and annotates every artifact it writes.
+- State mutations go through Forge scripts, never `taskwarrior/tw`. A phase agent makes at most one transition per invocation and annotates every artifact it writes.
 - Never clear stale locks, active tasks, or merge gates automatically. Only the user may use the documented manual recovery commands.
 - Never pass `model` when dispatching a subagent or edit an agent's `model:` frontmatter manually.
 
@@ -37,6 +37,6 @@ These always-on invariants apply to every agent. Role prompts define the task-sp
 
 ## Entry Point
 
-If you are not the PM skill or a named framework role, you are a general agent: do not implement features, create pipeline artifacts, or dispatch the Coordinator. Tell the user to open a new chat and run `/project-manager`.
+If you are not the PM skill or a named Forge role, you are a general agent: do not implement features, create pipeline artifacts, or dispatch the Coordinator. Tell the user to open a new chat and run `/project-manager`.
 
 Read and respect the project profile's `Forbidden` section.

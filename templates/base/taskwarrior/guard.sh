@@ -1,5 +1,5 @@
 #!/bin/bash
-# Sourced by every framework script. Resolves the framework root from this file's
+# Sourced by every Forge script. Resolves the project tree root from this file's
 # own location, makes Taskwarrior state absolute, and enforces execution context.
 #
 # Because the root is derived from ${BASH_SOURCE[0]} and this file cds into it,

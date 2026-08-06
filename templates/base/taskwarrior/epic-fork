@@ -21,21 +21,21 @@ BRANCH_NAME="epic/${EPIC_ID}-${SLUG}"
 # --- Preconditions -------------------------------------------------------
 
 if ! git rev-parse --verify --quiet main >/dev/null; then
-    echo "ERROR: Branch 'main' does not exist. The framework forks epic worktrees from main."
+    echo "ERROR: Branch 'main' does not exist. Forge forks epic worktrees from main."
     exit 2
 fi
 
-# The worktree is created from `main`, so the framework must already be committed
+# The worktree is created from `main`, so Forge must already be committed
 # there. Otherwise the worktree has no scripts and no templates.
 for REQUIRED in taskwarrior paavos-forge plan/templates AGENTS.md; do
     if [ -z "$(git ls-tree --name-only main -- "$REQUIRED")" ]; then
-        echo "ERROR: Framework files are not committed to main. Complete deployment first."
+        echo "ERROR: Forge files are not committed to main. Complete deployment first."
         echo "  Missing on main: $REQUIRED"
         exit 2
     fi
 done
 
-# Uncommitted framework or planning changes would not reach the worktree.
+# Uncommitted Forge or planning changes would not reach the worktree.
 DIRTY=$(git status --porcelain -- taskwarrior paavos-forge plan)
 if [ -n "$DIRTY" ]; then
     echo "ERROR: Uncommitted changes under taskwarrior/, paavos-forge/, or plan/."

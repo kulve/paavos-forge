@@ -2,6 +2,8 @@
 
 Fill in this file when deploying Paavo's Forge. Agents read this to adapt their behavior to your project's language, conventions, and directory layout.
 
+Sections marked `[e.g. ...]` must be filled at deploy (`deploy-profile` or by hand). Sections marked `[No content yet]` may wait until the `project-profile-maintainer` agent fills them after a milestone lands evidence. Keep every filled value concise -- this file is a knob list, not a handbook.
+
 ## Language and Build
 
 - Primary language: [e.g. C++17, Python 3.12, TypeScript 5.x, Rust 2021]
@@ -37,18 +39,15 @@ The implementation phase gate is `Run integration tests` above.
 
 ## Architecture Conventions
 
-- Architecture artifact type: [e.g. "C++ header files", "Python abstract base classes", "TypeScript interfaces", "Rust trait definitions"]
-- Architecture artifacts list requirements in: [e.g. "comments above declarations", "docstrings on abstract methods"]
-- Requirement-to-code traceability syntax: [e.g. `// REQ:XXXXX-name` in header comments]
+- Architecture artifact type: [No content yet]
+- Architecture artifacts list requirements in: [No content yet]
+- Requirement-to-code traceability syntax: [No content yet]
 
 ## Mock Boundaries
 
 Only mock these system boundaries in tests:
 
-- [e.g. File I/O]
-- [e.g. Network sockets]
-- [e.g. GPU/hardware contexts]
-- [e.g. OS system calls]
+- [No content yet]
 
 Do NOT mock internal collaborators.
 
@@ -60,9 +59,7 @@ This section guides the implementation agent's self-verification during the impl
 
 How the app exposes a deterministic, read-only snapshot/query of internal state for verification:
 
-- [e.g. "Core exposes `World::snapshot()` returning a value struct of entity/component state"]
-- [e.g. "Python: a `state()` dataclass on the top-level service"]
-- [e.g. "Web: a Redux/store selector, or `data-testid`-addressable DOM state"]
+- [No content yet]
 
 Rules:
 - The inspection surface must be **derived from real runtime state**, never a parallel bookkeeping field the implementation updates by hand.
@@ -78,9 +75,9 @@ If `none`, the visual verification step is not applicable; the implementation ag
 
 How to launch the app in a drivable mode, drive it into a named state, and capture a screenshot to a file path:
 
-- Launch/drive command: [e.g. "Playwright: `npx playwright test --project=chromium`", or a game debug hook `./game --screenshot <state-name> <out.png>`]
-- Named states to capture: [e.g. "main-menu, in-play, game-over" -- the states referenced by story visual acceptance criteria]
-- Screenshot output path: [e.g. `tmp/verify/<state-name>.png`]
+- Launch/drive command: [No content yet]
+- Named states to capture: [No content yet]
+- Screenshot output path: [No content yet]
 
 Rules:
 - Setup for each named state must be **deterministic/seeded** so a screenshot is a stable oracle (no random layout, no wall-clock-dependent content).
@@ -88,13 +85,11 @@ Rules:
 
 ## Review Standards
 
-- [e.g. "All public functions must have error handling for invalid inputs"]
-- [e.g. "No raw pointers in new code (use smart pointers)"]
-- [e.g. "All new functions must have docstrings/documentation comments"]
+- [No content yet]
 
 ## Forbidden
 
-Framework-enforced write gates (do not remove):
+Forge-enforced write gates (do not remove):
 - Never write to the source code directory except when operating as the `implementation-write` agent with an active Taskwarrior task at `aiphase:impl aistate:write`.
 - Never write to the architecture artifacts directory except when operating as the `architecture-write` agent with an active Taskwarrior task at `aiphase:arch aistate:write`.
 - Never write to the integration tests directory except when operating as the `integration-test-write` agent with an active Taskwarrior task at `aiphase:test aistate:write`.
@@ -102,10 +97,7 @@ Framework-enforced write gates (do not remove):
 - A general agent must never write to any of the above directories. If asked to implement or write code, tell the user to start a new chat and invoke the `/project-manager` skill.
 
 Project-specific forbidden items:
-- [e.g. "Never modify files in `vendor/` or `third_party/`"]
-- [e.g. "Never commit credentials or API keys"]
-- [e.g. "Never use `unsafe` blocks without escalation"]
-- [e.g. "Never modify generated files in `build/`"]
+- [No content yet]
 
 ## Taskwarrior
 
@@ -120,16 +112,16 @@ Project-specific forbidden items:
 
 `coordinator-status` calls a worktree `STALE` and then `DEAD` based on how long ago its heartbeat last advanced. Raise these if a single phase in this project legitimately runs longer than the default (for example a slow full build in the implementation phase).
 
-- Stale threshold (`AI_HEARTBEAT_STALE_SECONDS`): [default 1800]
-- Dead threshold (`AI_HEARTBEAT_DEAD_SECONDS`): [default 5400]
-- Longest expected single phase for this project: [e.g. 20 minutes, dominated by a full rebuild]
+- Stale threshold (`AI_HEARTBEAT_STALE_SECONDS`): [No content yet]
+- Dead threshold (`AI_HEARTBEAT_DEAD_SECONDS`): [No content yet]
+- Longest expected single phase for this project: [No content yet]
 
 ## Domain Tags
 
 Valid domain tags for organizing requirements in this project:
 
 - core
-- [add project-specific domains here]
+- [No content yet]
 
 ## Project Knowledge Source (Paavo's Codex MCP)
 

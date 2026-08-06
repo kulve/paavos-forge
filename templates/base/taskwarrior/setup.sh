@@ -85,14 +85,14 @@ if [ "$MODE" = "--main" ]; then
     # Singleton lock tasks
     PM_LOCK_COUNT=$(task status:pending +AI_LOCK airole:pm count 2>/dev/null || echo "0")
     if [ "$PM_LOCK_COUNT" -eq 0 ]; then
-        task add "AI Framework Lock: Project Manager" +AI_LOCK airole:pm
+        task add "Forge Lock: Project Manager" +AI_LOCK airole:pm
         echo "Created PM lock task."
     fi
 
     # Merge gate task
     GATE_COUNT=$(task status:pending +MERGE_GATE count 2>/dev/null || echo "0")
     if [ "$GATE_COUNT" -eq 0 ]; then
-        task add "AI Framework: Merge Gate" +MERGE_GATE
+        task add "Forge: Merge Gate" +MERGE_GATE
         echo "Created merge gate task."
     fi
 
@@ -145,7 +145,7 @@ elif [ "$MODE" = "--worktree" ]; then
     # Coordinator lock task
     COORD_LOCK_COUNT=$(task status:pending +AI_LOCK airole:coordinator count 2>/dev/null || echo "0")
     if [ "$COORD_LOCK_COUNT" -eq 0 ]; then
-        task add "AI Framework Lock: Coordinator" +AI_LOCK airole:coordinator
+        task add "Forge Lock: Coordinator" +AI_LOCK airole:coordinator
         echo "Created Coordinator lock task."
     fi
 

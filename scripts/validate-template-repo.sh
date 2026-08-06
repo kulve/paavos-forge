@@ -1,6 +1,6 @@
 #!/bin/bash
 # Validate Paavo's Forge template repository layout.
-# Run from the framework repo root.
+# Run from the Forge repository root.
 set -euo pipefail
 
 ERRORS=0
@@ -147,11 +147,11 @@ fi
 
 echo "--- Worktree agent prompts must use absolute script paths ---"
 if grep -rq 'bash taskwarrior/' templates/cursor/.cursor/agents/; then
-    fail "An agent prompt uses a relative framework script path; subagents must use the prompt's absolute main-tree or worktree path"
+    fail "An agent prompt uses a relative Forge script path; subagents must use the prompt's absolute main-tree or worktree path"
 fi
 
 echo "--- Agent model buckets ---"
-BUCKET_SCRIPT="templates/base/paavos-forge/set-agent-models.sh"
+BUCKET_SCRIPT="templates/base/paavos-forge/scripts/set-agent-models.sh"
 if [ ! -f "$BUCKET_SCRIPT" ]; then
     fail "Missing $BUCKET_SCRIPT (agent-to-bucket mapping and model assignment)"
 elif [ ! -x "$BUCKET_SCRIPT" ]; then
@@ -191,8 +191,8 @@ if [ ! -d "templates/cursor/.cursor/agents" ]; then
     fail "Missing Cursor agent prompt directory"
 else
     AGENT_COUNT=$(find templates/cursor/.cursor/agents -maxdepth 1 -type f -name '*.md' | wc -l | tr -d ' ')
-    if [ "$AGENT_COUNT" -ne 19 ]; then
-        fail "Expected 19 Cursor agent prompt files, found $AGENT_COUNT"
+    if [ "$AGENT_COUNT" -ne 20 ]; then
+        fail "Expected 20 Cursor agent prompt files, found $AGENT_COUNT"
     fi
     for agent in escalation-recovery escalation-triage environment-recovery roadmap-planner; do
         if [ ! -f "templates/cursor/.cursor/agents/${agent}.md" ]; then

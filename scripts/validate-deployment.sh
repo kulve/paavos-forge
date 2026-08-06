@@ -118,7 +118,7 @@ if [ -f "taskwarrior/env.sh" ] && ! grep -q 'export TASKDATA' taskwarrior/env.sh
     ERRORS=$((ERRORS + 1))
 fi
 
-# Every framework script must go through the context guard.
+# Every Forge script must go through the context guard.
 if [ -d "taskwarrior" ]; then
     for script_path in taskwarrior/*; do
         script_name="$(basename "$script_path")"
@@ -185,7 +185,7 @@ check_file ".cursor/agents/deploy-profile.md"
 if [ -d ".cursor/agents" ]; then
     AGENT_COUNT=$(find .cursor/agents -maxdepth 1 -type f -name '*.md' | wc -l | tr -d ' ')
     if [ "$AGENT_COUNT" -ne 19 ]; then
-        echo "WARNING: Expected 19 agent prompt files, found $AGENT_COUNT"
+        echo "WARNING: Expected 20 agent prompt files, found $AGENT_COUNT"
         WARNINGS=$((WARNINGS + 1))
     fi
 fi
@@ -198,8 +198,8 @@ if [ -f ".cursor/agents/project-manager.md" ]; then
 fi
 
 echo "--- Agent Models ---"
-check_file "paavos-forge/set-agent-models.sh"
-check_executable "paavos-forge/set-agent-models.sh"
+check_file "paavos-forge/scripts/set-agent-models.sh"
+check_executable "paavos-forge/scripts/set-agent-models.sh"
 if [ -d ".cursor/agents" ]; then
     INHERIT_COUNT=0
     for agent_path in .cursor/agents/*.md; do
@@ -240,7 +240,7 @@ if [ -d ".cursor/agents" ]; then
     done
     if [ "$INHERIT_COUNT" -gt 0 ]; then
         echo "WARNING: $INHERIT_COUNT agent(s) still on 'model: inherit'; they will run on whatever model the chat happens to use"
-        echo "         Assign models by bucket: bash paavos-forge/set-agent-models.sh --list  (see DEPLOY.md Step 6)"
+        echo "         Assign models by bucket: bash paavos-forge/scripts/set-agent-models.sh --list  (see DEPLOY.md Step 6)"
         WARNINGS=$((WARNINGS + 1))
     fi
 fi
@@ -282,7 +282,7 @@ if [ ! -d ".git" ]; then
     echo "WARNING: Not a git repository. Initialize with: git init"
     WARNINGS=$((WARNINGS + 1))
 else
-    # Epic worktrees are created from main, so the framework must be committed there.
+    # Epic worktrees are created from main, so Forge must be committed there.
     for required in taskwarrior paavos-forge plan/templates AGENTS.md; do
         if [ -z "$(git ls-tree --name-only main -- "$required" 2>/dev/null)" ]; then
             echo "WARNING: '$required' is not committed to main. epic-fork will refuse until it is."
@@ -291,7 +291,7 @@ else
     done
 fi
 
-echo "--- Framework Invariants (doctor) ---"
+echo "--- Forge Invariants (doctor) ---"
 if [ -x "taskwarrior/doctor" ] && command -v task &> /dev/null; then
     if bash taskwarrior/doctor >/dev/null 2>&1; then
         echo "doctor: all checks passed"
@@ -309,7 +309,7 @@ if [ $ERRORS -eq 0 ] && [ $WARNINGS -eq 0 ]; then
 elif [ $ERRORS -eq 0 ]; then
     echo "$WARNINGS warning(s), 0 errors. Deployment is functional but has issues to address."
 else
-    echo "$ERRORS error(s), $WARNINGS warning(s). Fix errors before using the framework."
+    echo "$ERRORS error(s), $WARNINGS warning(s). Fix errors before using Forge."
 fi
 
 exit $ERRORS

@@ -94,7 +94,7 @@ Liveness values: `OK`, `STALE`, `DEAD`, `NO-HEARTBEAT` (Coordinator never starte
 ### Diagnostics
 
 ```bash
-# Check framework invariants D01-D12. Dry-run: changes nothing.
+# Check Forge invariants D01-D12. Dry-run: changes nothing.
 bash taskwarrior/doctor
 bash taskwarrior/doctor --json
 
@@ -274,7 +274,7 @@ bash taskwarrior/epic-gate-release --force
 ```bash
 bash taskwarrior/pm-lock-acquire
 bash taskwarrior/pm-preflight
-# Commit the framework and planning files to main first: epic-fork rejects an
+# Commit Forge and planning files to main first: epic-fork rejects an
 # uncommitted or undeployed tree, because the worktree is created from main.
 bash taskwarrior/epic-fork E0001 auth-system
 # Launch a background Coordinator subagent. Subagents get no working directory,

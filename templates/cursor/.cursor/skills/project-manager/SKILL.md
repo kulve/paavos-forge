@@ -13,7 +13,7 @@ You are the top-level agent for this chat, not a subagent. The PM is a skill rat
 | Level | Who | May dispatch? |
 |-------|-----|---------------|
 | 0 | You, the PM, in this chat | yes |
-| 1 | Coordinator, `roadmap-planner`, `story-review`, escalation agents | Coordinator only |
+| 1 | Coordinator, `roadmap-planner`, `story-review`, `project-profile-maintainer`, escalation agents | Coordinator only |
 | 2 | Phase agents dispatched by a Coordinator | no |
 
 The runtime allows exactly two levels of subagents below the top-level chat, so this budget has no slack. If you were somehow invoked as a subagent, every Coordinator you launch lands at level 2 and cannot dispatch phase agents at all. Do not attempt to work around that by doing phase work yourself: stop and tell the user to start a new top-level chat and invoke `/project-manager` there.
@@ -86,7 +86,7 @@ Do NOT modify any file, task, or git state.
 
 ### Hard Dependency: Paavo's Codex
 
-Before any planning or execution work, verify the Paavo's Codex MCP is reachable (MCP tool discovery or a lightweight call). If unreachable: hard-stop all framework work, report to the user, and do not invent goals or continue already-planned execution.
+Before any planning or execution work, verify the Paavo's Codex MCP is reachable (MCP tool discovery or a lightweight call). If unreachable: hard-stop all Forge work, report to the user, and do not invent goals or continue already-planned execution.
 
 ### First Run (No Project / Milestone / Epic)
 
@@ -109,7 +109,7 @@ If `plan/project.md` already exists, skip steps 2-3 and continue from the In-Pro
    - Ordered within the epic (later stories may depend on earlier ones)
 9. Write each story to `plan/stories/XXXXX-slug.md` using `plan/templates/story.md`. Assign sequential 5-digit IDs. The `## Epic` field must reference the epic file.
    Set `## Rigor` on every story. Use `light` only when all three qualifying tests in the template hold: no new or changed architecture artifact, no new integration test, and no new product intent. Otherwise `full`. Feature stories are almost always `full`; discovery-derived stories are almost always `light`.
-   Fill `## Product Intent Source` for every story: the Paavo's Codex project id and pinned closed version from `plan/project.md`, plus one line per source article with the article id, its title at that version, and its domain id. Retrieve the ids from Paavo's Codex at the pinned version -- never write an id from memory or guess one. Use `None -- [reason]` only when no single article backs the story (intent synthesized across a whole domain, framework scaffolding); never leave the template placeholder unfilled.
+   Fill `## Product Intent Source` for every story: the Paavo's Codex project id and pinned closed version from `plan/project.md`, plus one line per source article with the article id, its title at that version, and its domain id. Retrieve the ids from Paavo's Codex at the pinned version -- never write an id from memory or guess one. Use `None -- [reason]` only when no single article backs the story (intent synthesized across a whole domain, Forge scaffolding); never leave the template placeholder unfilled.
 10. Update the epic file's "Stories (ordered)" section with the new story list.
 11. Git commit: `git add plan/stories/ plan/epics/ && git commit -m "stories: XXXXX-XXXXX for epic EXXXX"`
 
@@ -132,7 +132,7 @@ If `plan/project.md` already exists, skip steps 2-3 and continue from the In-Pro
 16. Launch a Coordinator subagent with `run_in_background: true` and **no `model` parameter** (the Coordinator's frontmatter pins its own model; an argument here would override it). Subagents have **no `working_directory` parameter**: a Coordinator always starts in the main tree, so its prompt must make every path explicit. The prompt must include:
     - The absolute worktree path returned by `epic-fork` (call it `WT`)
     - The epic file path relative to the worktree (e.g. `plan/epics/E0001-auth-system.md`)
-    - This exact invariant: "Invoke every framework script by absolute path, `bash <WT>/taskwarrior/<script>`. Never `cd` first and never use a relative script path. Read and write artifacts under `<WT>/`."
+    - This exact invariant: "Invoke every Forge script by absolute path, `bash <WT>/taskwarrior/<script>`. Never `cd` first and never use a relative script path. Read and write artifacts under `<WT>/`."
     - Instruction to follow the coordinator's own role definition
     - Instruction to run its Startup Assertion before any other work
 
@@ -160,7 +160,7 @@ If `plan/project.md` already exists, skip steps 2-3 and continue from the In-Pro
 
     `coordinator-status --epic EXXXX` narrows to one epic; `--json` gives the same data machine-readably.
 
-    Liveness is derived from a heartbeat that the framework scripts write automatically on every phase transition, annotation, and story boundary, so a silent worktree genuinely means stuck work, not a quiet agent.
+    Liveness is derived from a heartbeat that the Forge scripts write automatically on every phase transition, annotation, and story boundary, so a silent worktree genuinely means stuck work, not a quiet agent.
 
 ### Epic Completion and Merge
 
@@ -184,10 +184,11 @@ If `plan/project.md` already exists, skip steps 2-3 and continue from the In-Pro
 23. If milestone done criteria are met:
     - Set milestone Status to Done (immutable) in the milestone file and in the matching `plan/project.md` roadmap entry
     - Perform Discovery Triage
+    - Invoke `project-profile-maintainer` in the foreground (`run_in_background: false`). Pass the completed milestone path and the git range on `main` from the previous milestone Done commit (or project init / Forge deploy commit if this is the first milestone) through `HEAD`. The maintainer may update `paavos-forge/project-profile.md` or report `no-change`.
     - If the product Definition of Done is met: declare the product complete to the user
     - Otherwise: advance the next TODO roadmap entry to In Progress, or rewrite/reorder remaining TODO milestones (optionally invoke `roadmap-planner`) with user direction
     - **Version migration**: if the user wants a newer closed Paavo's Codex version, re-pin `plan/project.md`, scope the delta with MCP per-step change/diff tools (one call per version step), then search `plan/stories/` for the changed article ids to find exactly which existing stories the new version affects. That impacted set scopes the migration milestone(s). Update the Version Migration Log and discuss with the user before continuing
-    - Commit: `git add plan/project.md plan/milestones/ && git commit -m "plan: milestone XX done; roadmap update"`
+    - Commit: `git add plan/project.md plan/milestones/ paavos-forge/project-profile.md && git commit -m "plan: milestone XX done; roadmap update"`
 
 ### Discovery Triage
 
@@ -304,7 +305,7 @@ The natural user checkpoint is milestone completion, not each decision inside a 
 - NEVER invent product goals; derive them from Paavo's Codex via the roadmap.
 - NEVER ask the user to approve a roadmap, a technical decision, or anything else that fails all three tests in "When to Stop for the User". Summarize and proceed.
 - NEVER define a milestone that is not traceable to `plan/project.md`.
-- NEVER proceed with framework work if the Paavo's Codex MCP is unreachable.
+- NEVER proceed with Forge work if the Paavo's Codex MCP is unreachable.
 - NEVER leave a story's `## Product Intent Source` as an unfilled template placeholder, and NEVER cite an article id that does not resolve at the pinned version.
 - NEVER generate all stories for an epic upfront. Use rolling batches of 2-3.
 - NEVER read source code, test code, or architecture artifacts. Stories describe user-facing behavior.

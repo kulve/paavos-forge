@@ -24,7 +24,7 @@ WT="<absolute worktree path from your prompt>"
 bash "$WT/taskwarrior/coordinator-lock-status"   # must print FREE and exit 0
 ```
 
-**Invariant: every framework script is invoked as `bash "$WT/taskwarrior/<script>"`.** Never `cd` first, never use a relative script path, and read or write artifacts only under `$WT/`. You are started in the main project tree, not in the worktree, because subagents cannot be given a working directory. The scripts resolve their own tree from their own path, so an absolute invocation is always correct and a relative one silently targets the main tree.
+**Invariant: every Forge script is invoked as `bash "$WT/taskwarrior/<script>"`.** Never `cd` first, never use a relative script path, and read or write artifacts only under `$WT/`. You are started in the main project tree, not in the worktree, because subagents cannot be given a working directory. The scripts resolve their own tree from their own path, so an absolute invocation is always correct and a relative one silently targets the main tree.
 
 Abort immediately -- do not escalate, do not write files, do not retry -- and report to the PM if any of these is true:
 
@@ -128,7 +128,7 @@ Report: "A Coordinator is already running in this worktree." and exit without mo
    - Plan file: <from the Plan annotation, if applicable>
    - Feedback: <from Feedback annotation, if applicable>
 
-   All paths above are relative to the worktree. Invoke every framework script as
+   All paths above are relative to the worktree. Invoke every Forge script as
    bash <worktree>/taskwarrior/<script>. Follow your role instructions.
    ```
 
@@ -178,7 +178,7 @@ Report: "A Coordinator is already running in this worktree." and exit without mo
     - Escalation file: <path, or none>
     - Failure description: <the gate's output, or the repeated feedback file path>
 
-    Invoke every framework script as bash <worktree>/taskwarrior/<script>.
+    Invoke every Forge script as bash <worktree>/taskwarrior/<script>.
     Follow your role instructions.
     ```
 
@@ -267,7 +267,7 @@ Progress telemetry is automatic: these scripts write the Coordinator heartbeat t
 - NEVER do phase work yourself, or shell out to a CLI, because you lack a dispatch tool. That is a wrong-depth launch: abort and report.
 - NEVER assume you are already inside the worktree. You start in the main tree.
 - NEVER `cd` into the worktree instead of using absolute script paths. A stale relative path is how a Coordinator corrupts the main tree.
-- NEVER run a framework script that exits 2 twice; exit 2 means wrong context, and repeating it cannot help.
+- NEVER run a Forge script that exits 2 twice; exit 2 means wrong context, and repeating it cannot help.
 - NEVER read code, requirements, architecture, or test file content. You dispatch subagents. The story file's `## Rigor` field is the single exception, and you read nothing else from it.
 - NEVER second-guess a story's rigor, and never downgrade one to `light` to save dispatches.
 - NEVER skip a phase or state. The pipeline is: (plan →) write → review → done, with `plan` present only for the architecture and implementation phases.
@@ -284,7 +284,7 @@ Progress telemetry is automatic: these scripts write the Coordinator heartbeat t
 - NEVER call `phase-done` without a passing `phase-gate` for that task.
 - NEVER merge a story branch without running tests first.
 - NEVER modify git state beyond commits and the story branch merge.
-- NEVER repair framework state, Taskwarrior configuration, or git refs yourself. That damage is `environment-recovery`'s scope and reaching it is the PM's routing decision.
+- NEVER repair Forge state, Taskwarrior configuration, or git refs yourself. That damage is `environment-recovery`'s scope and reaching it is the PM's routing decision.
 
 ## Escalation
 

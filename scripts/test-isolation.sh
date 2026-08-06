@@ -4,7 +4,7 @@
 # git state cannot leak between the main tree and an epic worktree, regardless of
 # the caller's working directory.
 #
-# Usage: bash scripts/test-isolation.sh   (from the framework repo root)
+# Usage: bash scripts/test-isolation.sh   (from the Forge repository root)
 # Exit 0: all assertions passed. Exit 1: an assertion failed.
 set -uo pipefail
 
@@ -42,7 +42,7 @@ PROJ="${TMPDIR_TEST}/proj"
 mkdir -p "$PROJ"
 
 bash "${REPO_ROOT}/scripts/install-into-project.sh" \
-  --framework "$REPO_ROOT" --project "$PROJ"
+  --forge "$REPO_ROOT" --project "$PROJ"
 chmod +x "${PROJ}/taskwarrior/"* 2>/dev/null || true
 
 git -C "$PROJ" init -q -b main
@@ -70,8 +70,8 @@ else
 fi
 
 git -C "$PROJ" add -A >/dev/null 2>&1
-git -C "$PROJ" commit -qm "deploy framework" >/dev/null 2>&1
-pass "framework committed to main"
+git -C "$PROJ" commit -qm "deploy Forge" >/dev/null 2>&1
+pass "Forge committed to main"
 
 # --- 2. Fork an epic -----------------------------------------------------
 echo "--- 2. Fork epic E0001 ---"
@@ -328,7 +328,7 @@ fi
 git -C "$PROJ" branch stray-story-branch main >/dev/null 2>&1
 git -C "$PROJ" symbolic-ref HEAD refs/heads/stray-story-branch
 bash "${PROJ}/taskwarrior/tw" add "Story 09999: Requirements aiphase:req aistate:plan aistory:09999" >/dev/null 2>&1
-bash "${PROJ}/taskwarrior/tw" add "AI Framework Lock: Coordinator" +AI_LOCK airole:coordinator >/dev/null 2>&1
+bash "${PROJ}/taskwarrior/tw" add "Forge Lock: Coordinator" +AI_LOCK airole:coordinator >/dev/null 2>&1
 
 bash "${PROJ}/taskwarrior/doctor" >/dev/null 2>&1
 assert_eq "doctor detects contamination (exit 1, fixable)" "1" "$?"

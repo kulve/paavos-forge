@@ -1,15 +1,25 @@
 # paavos-forge/
 
-This directory holds project-specific framework configuration in deployed projects.
+Forge configuration and workflow for a deployed project.
 
-## Files at deploy time
+## Contents
 
-| File | Source |
-|------|--------|
-| `LOGIC.md` | Copied from the framework repo root `LOGIC.md` (see `DEPLOY.md` Step 1b) |
-| `project-profile.md` | Copied from `templates/base/paavos-forge/project-profile.md` and filled in by you |
-| `set-agent-models.sh` | Copied from `templates/base/paavos-forge/`; assigns a model to every agent prompt by bucket (see `DEPLOY.md` Step 6) |
+| Path | Ownership | Role |
+|------|-----------|------|
+| `LOGIC.md` | Forge (upstream) | Workflow specification. Copied from the Forge repo root at deploy; do not edit unless forking Forge. |
+| `scripts/set-agent-models.sh` | Forge (upstream) | Assigns a Cursor model to every agent prompt by bucket. Re-run after merging upstream agent prompts. |
+| `project-profile.md` | Project | Concise knobs: language, layout, build/test/gate commands, conventions, Codex binding. Filled at deploy (`deploy-profile`); synced after each milestone by `project-profile-maintainer`. |
 
-`LOGIC.md` is not stored in `templates/base/` because it is maintained once at the framework repo root. Deployment copies it here as-is.
+`LOGIC.md` is not stored under `templates/base/` in the Forge repo because it is maintained once at the repo root. Deployment copies it here as-is.
 
-`set-agent-models.sh` carries the canonical agent-to-bucket mapping and rewrites the `model:` line in each `.cursor/agents/*.md`. Run `bash paavos-forge/set-agent-models.sh --list` to see the current assignment, and re-run it with your chosen models after merging upstream agent prompt updates.
+## Project profile
+
+`project-profile.md` is a knob file, not a handbook. Deploy fills `[e.g. ...]` placeholders (build, directories, gates, UI kind, Codex). Sections marked `[No content yet]` wait until milestone work provides evidence. Keep values short; detailed architecture lives in `ARCHITECTURE.md` and architecture artifacts.
+
+## Model buckets
+
+```bash
+bash paavos-forge/scripts/set-agent-models.sh --list
+```
+
+See `DEPLOY.md` Step 6 for bucket meanings and how to list selectable model IDs.
