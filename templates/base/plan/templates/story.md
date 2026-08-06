@@ -82,9 +82,9 @@ Describe what a user should be able to **perceive or distinguish** on screen. Th
 
 Guardrail: describe perceivable intent only. NEVER specify exact pixels, colors, hex values, coordinates, fonts, or spacing -- those make correct implementations fail review and couple the story to a design that will change.
 
-## Domain Tags
+## Proposed Domain Tags
 
-[e.g. core, rendering, network, input, audio -- used for requirement organization]
+[e.g. core, rendering, network, input, audio -- proposals from the project-profile Domain Tags allowlist for requirement organization. Committed domains live in ARCHITECTURE.md after architecture planning; these tags remain historical proposals.]
 
 ## Dependencies
 

@@ -22,10 +22,11 @@ Read `paavos-forge/LOGIC.md` — **Review Principles** — for the shared blocki
 
 1. Read the story file (path provided in prompt)
 2. `plan/project.md` -- pinned Paavo's Codex project id and closed version
-3. `ARCHITECTURE.md` at the project root -- to verify domain correctness and dependency compliance
-4. Read all requirement files linked to this story via task annotations (look for `Artifact:` annotations)
-5. If annotations are incomplete, search `plan/requirements/` for files that mention this story's ID
-6. Optionally Paavo's Codex (via MCP) at the **pinned closed version** -- read-only, to verify requirements trace to product intent. Use the article ids the story cites in its `## Product Intent Source` section as the primary anchor. Discover tools on the fly. Do not post open questions unless recording a blocking product-intent gap.
+3. `ARCHITECTURE.md` at the project root -- committed DAG context (new proposed domains need not be listed yet)
+4. `paavos-forge/project-profile.md` -- Domain Tags allowlist
+5. Read all requirement files linked to this story via task annotations (look for `Artifact:` annotations)
+6. If annotations are incomplete, search `plan/requirements/` for files that mention this story's ID
+7. Optionally Paavo's Codex (via MCP) at the **pinned closed version** -- read-only, to verify requirements trace to product intent. Use the article ids the story cites in its `## Product Intent Source` section as the primary anchor. Discover tools on the fly. Do not post open questions unless recording a blocking product-intent gap.
 
 **NEVER read:** source code, test code, architecture artifacts (except `ARCHITECTURE.md` as listed above).
 
@@ -77,7 +78,7 @@ Check each of these. Reject if any fail:
 - **No solution leakage:** no code, class names, function signatures, or implementation details
 - **Edge cases:** documented with expected behavior
 - **Verification:** each requirement has a verification method that maps to acceptance criteria
-- **Domain correctness:** requirements are filed under domains that exist in `ARCHITECTURE.md`; requirements do not implicitly require cross-domain dependencies that violate the DAG
+- **Domain correctness:** every requirement domain appears in the story's `## Proposed Domain Tags` and in the project profile Domain Tags allowlist. Domains need not already exist in `ARCHITECTURE.md` -- architecture-plan commits new domains or escalates to refile. Reject invented names. When a domain is already committed in `ARCHITECTURE.md`, do not approve filings that implicitly require cross-domain dependencies that violate the existing DAG.
 - **Modifies Stories compliance:** if the story has a Modifies Stories section, verify no zombie requirements remain (requirements that contradict the new story's intent without being updated or deleted)
 
 ## Review Findings
@@ -90,8 +91,8 @@ A blocking finding must name a permitted anchor and its concrete contradiction:
 
 - A quoted story acceptance criterion
 - A requirement ID under review or in `plan/requirements/`
-- A domain or dependency edge in `ARCHITECTURE.md`
-- A valid domain tag in the project profile
+- A domain or dependency edge in `ARCHITECTURE.md` (when the domain is already committed)
+- A Proposed Domain Tag on the story, or a Domain Tag in the project profile allowlist
 - A Paavo's Codex article at the pinned closed version
 
 Do not use source code, test code, or architecture artifacts as anchors: this role must not read them.

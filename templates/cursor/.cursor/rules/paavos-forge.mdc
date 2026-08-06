@@ -10,7 +10,7 @@ These always-on invariants apply to every agent. Role prompts define the task-sp
 ## Authority and Context
 
 - `paavos-forge/LOGIC.md` is authoritative if instructions conflict. For a task, follow these invariants, your role prompt, the project profile, and the relevant named LOGIC section. Taskwarrior is the execution-state authority.
-- Respect `ARCHITECTURE.md`'s domain DAG. Read only the files your role prompt permits.
+- Respect committed domains and the DAG in `ARCHITECTURE.md`. Story `## Proposed Domain Tags` are proposals only until architecture-plan commits them (or escalation-recovery refiles requirements). Read only the files your role prompt permits.
 - Use `taskwarrior/tw` only for read-only Taskwarrior queries.
 
 ## Isolation and State

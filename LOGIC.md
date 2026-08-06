@@ -383,6 +383,8 @@ The Coordinator dispatches `escalation-recovery` in the foreground, while holdin
 
 The reconciler may edit any story artifact, including one belonging to a completed phase. It returns `resolved` with a list of **invalidated gates**, `needs-human`, or `failed-recovery`. On `resolved` the Coordinator re-runs those gates and continues the same phase; the completed task stays completed and nothing is re-opened. Returning a resume state instead is what produced the `Illegal transition done -> review` deadlock this protocol replaced.
 
+Domain disposition mismatches (architecture-plan rejects a Proposed Domain Tag and requires requirement refile under a surviving domain) are ordinary `artifact` contradictions. The normal path is this inline recovery, not a human halt and not reopening the requirements task (Section 10.10).
+
 Only `needs-human`, `failed-recovery`, a gate that fails again after a fix, or a recurrence of the same cause reaches the halt below. One reconciliation attempt per cause.
 
 ### 9.1 Escalation Halt (the exception path)
@@ -453,7 +455,9 @@ Coherent feature areas decomposed into ordered stories. Contain goal, boundaries
 
 ### 10.3 Stories (`plan/stories/XXXXX-slug.md`)
 
-Problem-space documents describing vertical feature slices. Must include: epic reference, product intent source, goal (what and why), scope boundaries, trigger conditions, binary acceptance criteria, domain tags, dependencies, and non-goals. Stories describe user-facing behavior, not technical tasks.
+Problem-space documents describing vertical feature slices. Must include: epic reference, product intent source, goal (what and why), scope boundaries, trigger conditions, binary acceptance criteria, **Proposed Domain Tags**, dependencies, and non-goals. Stories describe user-facing behavior, not technical tasks.
+
+**Proposed Domain Tags** are proposals for requirement organization, drawn from the project profile's Domain Tags allowlist. They are not committed DAG membership. Committed domains live in `ARCHITECTURE.md` after the architecture-plan gatekeeper runs (Section 10.10). Story tags are left as historical proposals even when recovery refiles requirements under different domain folders.
 
 Mandatory **Product Intent Source** section: the story's citation of the Paavo's Codex articles it derives from. It records the Paavo's Codex project id, the closed version the story was authored against, and one line per source article (id, title at that version, domain id). Article ids are stable across versions while titles are not, so the id is the identity and the title is only a human label. The version is recorded per story even though `plan/project.md` pins it: project.md is re-pinned over time, while a completed story is a historical record of the intent it was written against. When no single article backs the story -- intent synthesized across a whole domain, Forge scaffolding, and similar cases -- the section states `None -- [reason]` so the absence is a deliberate, reviewable claim rather than an omission. See Section 16.4.
 
@@ -491,11 +495,27 @@ Written by Review agents when rejecting artifacts. Must contain: verdict, specif
 
 ### 10.9 Escalation Reports (`plan/escalations/XXXXX-phase-slug.md`)
 
-Written by any agent that cannot complete its task. Must contain: blocked task ID, failure description with exact errors, reproduction steps, root cause analysis, and proposed recovery action.
+Written by any agent that cannot complete its task. Must contain: blocked task ID, failure description with exact errors, reproduction steps, root cause analysis, and proposed recovery action. Proposed recovery describes which artifacts to edit in place; it must not ask to reopen a completed phase task (Section 9.0). Domain-disposition escalations also include a **Domain Disposition** block listing proposed-domain → surviving-domain mappings and the requirement paths to refile.
 
 ### 10.10 Architecture Policy (`ARCHITECTURE.md`)
 
-A living document at the project root maintained by the Architecture Plan agent. Lists domain definitions and their strict dependency rules as a DAG. Must NEVER list classes, methods, or internal design patterns.
+A living document at the project root maintained by the Architecture Plan agent. It is the committed domain vocabulary and dependency policy for the project. Must NEVER list classes, methods, function signatures, or internal design patterns.
+
+**Domain vocabulary lifecycle** (one shared vocabulary):
+
+1. **Propose** -- the story lists `## Proposed Domain Tags` from the profile allowlist.
+2. **File** -- requirements-write places requirement files under `plan/requirements/[domain]/` using those names (folders may exist before the domain is committed in this file).
+3. **Commit or escalate** -- architecture-plan is the gatekeeper. For every domain that has requirement files for the current story it must either already appear here or be committed by this plan. Prefer introducing a real domain over expanding `core`. Silent fold (satisfying a proposed domain by appending prose to another domain without refiling) is forbidden. When a proposal cannot be committed, architecture-plan writes an escalation with a **Domain Disposition** and exits; inline `escalation-recovery` refiles the requirements (class `artifact`). Completed phase tasks stay completed.
+4. **Consume** -- later agents use only the committed domains and DAG in this file. Story Proposed Domain Tags remain historical proposals.
+
+**Per-domain policy schema** (under Domain Definitions). Each domain uses these fields, kept consistent with the Strict Dependency Rules DAG:
+
+- **Owns** -- responsibilities and concern areas (no types or APIs)
+- **Does not own** -- explicit exclusions
+- **May depend on** -- allowed upstream domains (empty for a root such as `core`)
+- **Artifacts under** -- path prefix consistent with the project-profile directory layout
+
+The Strict Dependency Rules section summarizes the DAG; circular dependencies across domains are prohibited.
 
 ### 10.11 Discoveries (`plan/discoveries/YYYYMMDD-HHMMSS-slug.md`)
 
@@ -682,7 +702,7 @@ Forge is designed to be extended via the project profile. Downstream projects cu
 - **Verification tooling**: UI kind, the UI harness (launch/drive/screenshot commands), and internal-state inspection conventions used by the implementation agent to self-verify
 - **Review standards**: project-specific quality requirements
 - **Forbidden areas**: directories and actions agents must never touch
-- **Domain tags**: valid categories for organizing requirements
+- **Domain tags**: allowlist for story Proposed Domain Tags and requirement folders; committed DAG membership is in `ARCHITECTURE.md`
 - **Parallel limit**: recommended maximum concurrent epics
 - **Paavo's Codex MCP**: endpoint URL (Cursor MCP registration) and Paavo's Codex project name/id. The pinned closed version lives in `plan/project.md`, not the profile.
 

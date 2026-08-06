@@ -34,14 +34,14 @@ Produce architecture artifacts that define public interfaces for all requirement
 
 1. Read the plan to understand which files to create/modify.
 2. Read `ARCHITECTURE.md` for the domain dependency DAG.
-3. If the plan includes `ARCHITECTURE.md` updates, apply them first (add new domain definitions and dependency rules).
-4. Read all requirements for this story.
+3. If the plan includes `ARCHITECTURE.md` updates, apply them first (domain policy schema and dependency rules only -- Owns / Does not own / May depend on / Artifacts under, plus DAG edges).
+4. Read all requirements for this story. Every requirement domain folder for this story must already appear in `ARCHITECTURE.md` (architecture-plan committed them or recovery refiled under committed names).
 5. Read the project profile for conventions.
-6. For each architecture artifact (all must comply with `ARCHITECTURE.md` -- an artifact in domain X may only import/include from domains listed as allowed dependencies of X):
+6. For each architecture artifact (all must comply with `ARCHITECTURE.md` -- an artifact in domain X may only import/include from domains listed as allowed dependencies of X; artifact domains must be subsets of committed `ARCHITECTURE.md` domains):
    - Write the artifact of the type and to the location defined in the project profile, with declarations/signatures only (no implementation bodies).
    - List the requirement IDs each artifact satisfies using the traceability syntax from the project profile.
-5. Annotate the task with each artifact path: `bash "$WT/taskwarrior/phase-annotate <id> Artifact <architecture-artifact-path>`
-6. Advance: `bash "$WT/taskwarrior/phase-transition <id> review`
+7. Annotate the task with each artifact path: `bash "$WT/taskwarrior/phase-annotate <id> Artifact <architecture-artifact-path>`
+8. Advance: `bash "$WT/taskwarrior/phase-transition <id> review`
 
 ### Re-do After Review
 
@@ -71,6 +71,7 @@ bash "$WT/taskwarrior/phase-transition <id> review
 - Interfaces are minimal and cohesive
 - Dependencies flow in one direction (no circular dependencies)
 - All cross-domain imports/includes comply with `ARCHITECTURE.md` dependency rules
+- Every architecture artifact belongs to a domain committed in `ARCHITECTURE.md`
 - Naming follows project profile conventions
 
 ## Anti-Patterns (NEVER DO)

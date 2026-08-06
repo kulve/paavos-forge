@@ -84,7 +84,7 @@ By default the script **refuses to overwrite** any destination path that already
 After a successful install, the project contains:
 
 - `AGENTS.md` -- from `templates/base/AGENTS.md`; project-level AI instructions
-- `ARCHITECTURE.md` -- domain dependency policy registry (populated by agents as domains are introduced)
+- `ARCHITECTURE.md` -- committed domain vocabulary and dependency DAG (populated by architecture-plan as domains are introduced; schema: Owns / Does not own / May depend on / Artifacts under)
 - `.gitignore` -- ignores `.task/`, `.taskrc`, `build/`, and `.worktrees/`
 - `paavos-forge/LOGIC.md` -- workflow specification (copied from Forge repository root)
 - `paavos-forge/project-profile.md` -- to be filled in (Step 5)
@@ -181,7 +181,7 @@ All scripts are invoked by **absolute path** (`bash <tree-root>/taskwarrior/<scr
 
 Open `paavos-forge/project-profile.md` and answer the deploy-time questions. This is the most important customization step -- it tells all agents how your project works.
 
-You can fill this in by hand, or open a chat with the `deploy-profile` agent, which interviews you and writes the profile for you (it edits only `project-profile.md`). Replace every `[e.g. ...]` placeholder. Sections marked `[No content yet]` may stay that way until the `project-profile-maintainer` agent fills them after a milestone lands evidence (architecture conventions, mocks, verification harness details, review standards, extra domain tags, heartbeat tuning).
+You can fill this in by hand, or open a chat with the `deploy-profile` agent, which interviews you and writes the profile for you (it edits only `project-profile.md`). Replace every `[e.g. ...]` placeholder. Sections marked `[No content yet]` may stay that way until the `project-profile-maintainer` agent fills them after a milestone lands evidence (architecture conventions, mocks, verification harness details, review standards, Domain Tags evidenced by `ARCHITECTURE.md` / requirements, heartbeat tuning). Domain Tags are the allowlist for story Proposed Domain Tags -- keep `core` at deploy; do not invent a speculative domain wishlist.
 
 ### Questions to Answer at Deploy
 

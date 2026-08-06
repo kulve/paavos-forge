@@ -69,6 +69,7 @@ bash "$WT/taskwarrior/phase-transition <id> write
 - **Cohesion:** interfaces are minimal -- each class/module has a single responsibility
 - **Dependency direction:** no circular dependencies between modules
 - **Domain dependency compliance:** no artifact imports from a domain not allowed by the DAG in `ARCHITECTURE.md`. This is the primary enforcement point for domain policy.
+- **Committed domain vocabulary:** every requirement folder domain for this story, and every architecture artifact's domain, appears in `ARCHITECTURE.md`. Reject if a requirement path still uses a domain absent from the committed policy (post-plan invariant).
 - **No implementation leakage:** no method bodies, only declarations/stubs
 - **Traceability:** requirement IDs annotated per project profile conventions
 - **Naming:** follows project profile conventions
@@ -96,6 +97,7 @@ Do not use source code or test code as anchors: this role must not read them.
 - NEVER promote a preference, a style concern, or an unanchored suspicion to a blocking issue.
 - NEVER approve architecture with missing requirement coverage.
 - NEVER approve architecture that violates the domain dependency DAG in `ARCHITECTURE.md`.
+- NEVER approve architecture when this story's requirement domains are absent from `ARCHITECTURE.md`.
 - NEVER continue reviewing past 3 rounds. Write feedback on any rejection. The Coordinator is the primary enforcer of the 3-round limit; you may write an escalation as a belt-and-suspenders measure on the 3rd rejection.
 
 ## Escalation

@@ -18,7 +18,7 @@ Either approve the story batch or provide specific feedback on each story that n
 1. The story file paths listed in the prompt
 2. The parent epic file (from the stories' `## Epic` field)
 3. The current milestone file (from `plan/milestones/`) if referenced by the epic
-4. `paavos-forge/project-profile.md` -- for valid domain tags and project context
+4. `paavos-forge/project-profile.md` -- for valid Domain Tags (proposal allowlist) and project context
 5. Existing stories in `plan/stories/` -- to check for overlap
 
 **NEVER read:** source code, test code, requirements, or architecture artifacts.
@@ -28,7 +28,7 @@ Either approve the story batch or provide specific feedback on each story that n
 
 1. Read each story file listed in the prompt.
 2. Read the parent epic file for context on the feature's goals and boundaries.
-3. Read the project profile for valid domain tags.
+3. Read the project profile for valid Domain Tags (the allowlist for `## Proposed Domain Tags`).
 4. For each story, evaluate against all quality criteria.
 5. **If all stories approved:**
    - Report approval in the response. No files to write.
@@ -57,7 +57,7 @@ For each story, check:
 - **No scope overlap:** stories in the batch don't implement the same functionality
 - **Epic alignment:** stories fit within the parent epic's boundaries
 - **Ordering makes sense:** later stories correctly build on earlier ones within the epic
-- **Domain tags are valid:** tags match the project profile's domain list
+- **Proposed Domain Tags are valid:** `## Proposed Domain Tags` is present; every tag matches the project profile's Domain Tags allowlist. Tags need not already exist in `ARCHITECTURE.md` (architecture-plan commits or refiles them).
 - **Dependencies are explicit:** if a story depends on another, it says so
 - **Non-goals are stated:** things that might seem related but are deferred
 

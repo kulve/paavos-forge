@@ -70,6 +70,7 @@ Do not read, list, search, modify, deduplicate, or delete existing files under `
    This is the one Taskwarrior mutation you are permitted. It writes a heartbeat, which is how `coordinator-status` shows a long recovery as alive.
 2. Identify the failure from your prompt: the escalation report, the gate output, or the repeated review feedback.
 3. Trace the root cause to the artifact that is actually wrong, regardless of which phase produced it:
+   - **Domain disposition:** the escalation has a `## Domain Disposition` block (architecture-plan rejected a Proposed Domain Tag). This is a standard `artifact` repair: refile requirements under the surviving domains; do not reopen the requirements task; do not edit the story's `## Proposed Domain Tags` (they remain historical proposals).
    - Requirements problem: contradictory, missing, or overbroad requirement for the current story
    - Architecture problem: impossible contract, invalid dependency, or mismatch with requirements
    - Integration test problem: test contradicts requirements/architecture or encodes the wrong behavior
@@ -78,11 +79,18 @@ Do not read, list, search, modify, deduplicate, or delete existing files under `
    A completed phase holding the wrong artifact is the common case, not an exception. The architecture that omitted a field the tests need was approved; that does not make it right.
 4. Check the Stop Conditions. If none applies, the fix is yours to make. Do not ask.
 5. Apply the smallest correction that removes the contradiction. Preserve story intent. Do not refactor beyond the fix.
+
+   For **domain disposition** specifically:
+   - Move each listed requirement file to the surviving domain folder; update its `## Domain` field; fix relative links if paths change.
+   - Follow the escalation's mappings only; do not invent new product domains beyond the disposition.
+   - You may apply minimal `ARCHITECTURE.md` consistency fixes only when the surviving domain already exists and the disposition requires the DAG/definitions to acknowledge the merge -- do not introduce unrelated domains.
+   - Record every old→new path in the `Recovery:` annotation and in `## Recovery Result`. Stale Taskwarrior `Artifact:` annotations may remain; downstream agents fall back to grepping `plan/requirements/` by story id.
 6. Determine which gates your change invalidated, and run each one to confirm the fix holds:
    - Edited an architecture artifact: the `arch` and `test` gates
    - Edited an integration test: the `test` gate
    - Edited source: the `impl` gate
-   - Edited a requirement only: no gate, but say so explicitly
+   - Edited a requirement only (including domain refile with no architecture artifacts written yet): `none`, but say so explicitly
+   - Edited `ARCHITECTURE.md` or architecture artifacts as part of disposition: name `arch`
 
    ```bash
    bash "$WT/taskwarrior/phase-gate" <uuid-of-that-phase-task>
@@ -97,14 +105,15 @@ Never transition, complete, block, or unblock a task, and never re-open a comple
 
 You may modify only files needed for a bounded correction to the current story:
 
-- Requirements under `plan/requirements/`
+- Requirements under `plan/requirements/` (including moves/refiles for domain disposition)
+- `ARCHITECTURE.md` when a domain disposition or other artifact fix requires minimal DAG/definition consistency with an already-surviving domain
 - Architecture artifacts in the project-profile architecture directory
 - Integration tests in the project-profile test directory
 - Source files in the project-profile source directory
 - Phase plans or review feedback only when correcting stale or contradictory instructions for the current blocked flow
 - The existing escalation file, by appending recovery notes
 
-You must not create new stories, milestones, discoveries, or escalation files. You must not delete the escalation file.
+You must not create new stories, milestones, discoveries, or escalation files. You must not delete the escalation file. You must not edit story files (including `## Proposed Domain Tags`).
 
 ## Taskwarrior Protocol
 
@@ -176,6 +185,7 @@ Remaining blocker: <specific failure>
 ## Anti-Patterns (NEVER DO)
 
 - NEVER change story intent, widen acceptance criteria, or reinterpret user requirements.
+- NEVER edit story files to "sync" Proposed Domain Tags after a domain refile; those tags are historical proposals.
 - NEVER add a new external dependency to the project.
 - NEVER stop for a purely technical decision. Changing an interface, adding a field, or restructuring a fixture is your call, not the user's.
 - NEVER return a resume phase or resume `aistate`. Return invalidated gates.

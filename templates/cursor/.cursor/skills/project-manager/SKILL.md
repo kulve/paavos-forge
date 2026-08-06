@@ -110,6 +110,7 @@ If `plan/project.md` already exists, skip steps 2-3 and continue from the In-Pro
 9. Write each story to `plan/stories/XXXXX-slug.md` using `plan/templates/story.md`. Assign sequential 5-digit IDs. The `## Epic` field must reference the epic file.
    Set `## Rigor` on every story. Use `light` only when all three qualifying tests in the template hold: no new or changed architecture artifact, no new integration test, and no new product intent. Otherwise `full`. Feature stories are almost always `full`; discovery-derived stories are almost always `light`.
    Fill `## Product Intent Source` for every story: the Paavo's Codex project id and pinned closed version from `plan/project.md`, plus one line per source article with the article id, its title at that version, and its domain id. Retrieve the ids from Paavo's Codex at the pinned version -- never write an id from memory or guess one. Use `None -- [reason]` only when no single article backs the story (intent synthesized across a whole domain, Forge scaffolding); never leave the template placeholder unfilled.
+   Fill `## Proposed Domain Tags` from the project profile's Domain Tags allowlist. These are proposals for requirement organization, not committed DAG membership; do not invent tags absent from the profile.
 10. Update the epic file's "Stories (ordered)" section with the new story list.
 11. Git commit: `git add plan/stories/ plan/epics/ && git commit -m "stories: XXXXX-XXXXX for epic EXXXX"`
 

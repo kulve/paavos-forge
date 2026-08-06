@@ -15,7 +15,7 @@ Feature work starts in a new chat with `/project-manager`. The PM is a top-level
 3. Read `paavos-forge/project-profile.md` for project conventions and paths.
 4. Read only the named section(s) of `paavos-forge/LOGIC.md` when your role prompt requires them; it is not mandatory per-task context.
 
-`ARCHITECTURE.md` defines the domain DAG. Artifact templates live in `plan/templates/`; the project profile defines source, architecture-artifact, and test directories.
+`ARCHITECTURE.md` defines the committed domain vocabulary and DAG. Story Proposed Domain Tags are proposals only. Artifact templates live in `plan/templates/`; the project profile defines source, architecture-artifact, and test directories.
 
 ## Write Gates
 

@@ -37,7 +37,7 @@ Produce a deploy-ready `paavos-forge/project-profile.md` with no remaining `[e.g
    - Paavo's Codex MCP (endpoint URL, exact project name, optional entry domains)
 3. Infer sensible defaults from the language when the user is unsure (e.g. Rust -> `cargo build` / `cargo test` / `cargo clippy`), and confirm them with the user.
 4. Write the answers into `paavos-forge/project-profile.md`, replacing every `[e.g. ...]` placeholder. Keep the Forge-enforced write gates in the Forbidden section exactly as written.
-5. Leave `[No content yet]` markers alone unless the user already has a concrete answer (do not invent snapshot APIs, screenshot harnesses, review standards, mock lists, or domain tags that do not exist yet).
+5. Leave `[No content yet]` markers alone unless the user already has a concrete answer (do not invent snapshot APIs, screenshot harnesses, review standards, mock lists, or Domain Tags that do not exist yet). Domain Tags are a proposal allowlist synced from evidence -- keep `core` and do not seed a speculative wishlist; committed domains live in `ARCHITECTURE.md`.
 6. Verify no `[e.g.` placeholder text remains, then report a short summary of what was filled in and which sections remain `[No content yet]`.
 
 ### Part 2: Agent Model Buckets

@@ -58,7 +58,7 @@ Read:
 | Review Standards | Short standing rules only (a few bullets). Skip long style guides |
 | Project-specific Forbidden | Add durable "never touch" paths/actions evidenced by the project; never alter Forge write gates |
 | Coordinator Heartbeat Thresholds | Fill or raise only when phases routinely need longer than the defaults (1800 / 5400) |
-| Domain Tags | Keep `core`; add tags that `ARCHITECTURE.md` / requirements domains actually use; remove tags that never appear if clearly obsolete |
+| Domain Tags | Proposal allowlist only. Keep `core`; add tags that committed `ARCHITECTURE.md` / requirements domains actually use; remove tags that never appear if clearly obsolete. Do not invent speculative wishlist tags. |
 | Paavo's Codex | Update project id or entry-domain hints only when known; never invent a project name |
 
 ## Output Specification

@@ -118,7 +118,7 @@ Project-specific forbidden items:
 
 ## Domain Tags
 
-Valid domain tags for organizing requirements in this project:
+Allowlist for story `## Proposed Domain Tags` and `plan/requirements/[domain]/` folders. Committed DAG membership lives in `ARCHITECTURE.md` (architecture-plan is the gatekeeper). Keep `core`; add tags when evidence exists -- do not seed a speculative wishlist at deploy.
 
 - core
 - [No content yet]

@@ -34,9 +34,9 @@ Read the files specified in the prompt:
 4. Determine the root cause and the earliest phase where the problem originates.
 5. Append analysis to the escalation file:
    - Root cause identification with evidence
-   - Which upstream phase should be reopened
-   - Specific changes needed in the upstream artifacts
-   - Whether this is a phase-level problem (Coordinator can handle) or a story-level problem (PM must intervene)
+   - Which upstream artifacts to edit in place (completed phase tasks stay completed; do not recommend reopening a `done` task)
+   - Specific changes needed in those artifacts
+   - Whether this is a story-local artifact contradiction (`escalation-recovery`) or a story-level / product problem (PM or user)
 
 ## Output Specification
 
@@ -46,8 +46,8 @@ Read the files specified in the prompt:
 ## Quality Criteria
 
 - Root cause is identified with specific evidence (file paths, line numbers, contradictions)
-- Recovery recommendation is concrete (which phase, which files, what changes)
-- Analysis distinguishes between phase-level problems (fixable by reopening upstream) and story-level problems (need PM/user input)
+- Recovery recommendation is concrete (which files, what changes; edit in place per LOGIC.md Section 9.0)
+- Analysis distinguishes between story-local artifact contradictions (reconciler) and story-level / product problems (PM or user)
 
 ## Anti-Patterns (NEVER DO)
 
