@@ -44,17 +44,15 @@ for UDA in aiphase aistate aistory; do
     fi
 done
 
-# Story branches are cut from the epic branch. Anything else means this script is
-# about to move the wrong HEAD.
+# Story branches are cut from this worktree's epic branch. Anything else means
+# this script is about to move the wrong HEAD (including a swapped sibling epic).
+EXPECTED_EPIC="$(expected_epic_branch)"
 CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
-case "$CURRENT_BRANCH" in
-    epic/*) ;;
-    *)
-        echo "ERROR: Expected to be on an epic/* branch, found '${CURRENT_BRANCH}'."
-        echo "  Root: ${AI_ROOT}"
-        exit 2
-        ;;
-esac
+if [ "$CURRENT_BRANCH" != "$EXPECTED_EPIC" ]; then
+    echo "ERROR: Expected to be on '${EXPECTED_EPIC}', found '${CURRENT_BRANCH}'."
+    echo "  Root: ${AI_ROOT}"
+    exit 2
+fi
 
 EXISTING=$(task "aistory:$STORY_ID" count 2>/dev/null || echo "0")
 if [ "$EXISTING" -gt 0 ]; then

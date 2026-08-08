@@ -36,6 +36,31 @@ require_context() {
     fi
 }
 
+# expected_epic_branch
+# Echo the epic/* branch that belongs to this worktree, derived from AI_ROOT's
+# directory name (.worktrees/epic-ID-slug → epic/ID-slug). Do not guess from git
+# decorations or branch listing order: parallel epics forked from the same tip
+# share decorations, and head -1 is non-deterministic.
+# Exits 2 if AI_ROOT is not an epic worktree path or the branch ref is missing.
+expected_epic_branch() {
+    local base branch
+    if [[ "$AI_ROOT" != */.worktrees/epic-* ]]; then
+        echo "ERROR: expected_epic_branch: not an epic worktree: ${AI_ROOT}" >&2
+        exit 2
+    fi
+    base="$(basename "$AI_ROOT")"
+    if [[ ! "$base" =~ ^epic-(.+)$ ]]; then
+        echo "ERROR: expected_epic_branch: cannot derive epic branch from: ${AI_ROOT}" >&2
+        exit 2
+    fi
+    branch="epic/${BASH_REMATCH[1]}"
+    if ! git rev-parse --verify --quiet "$branch" >/dev/null; then
+        echo "ERROR: Expected epic branch '${branch}' does not exist." >&2
+        exit 2
+    fi
+    echo "$branch"
+}
+
 # ai_heartbeat <event> [key=value ...]
 # Record Coordinator progress. Never fails the caller, so lifecycle scripts can
 # emit telemetry unconditionally.

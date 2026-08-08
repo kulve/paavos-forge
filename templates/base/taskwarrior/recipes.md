@@ -94,7 +94,7 @@ Liveness values: `OK`, `STALE`, `DEAD`, `NO-HEARTBEAT` (Coordinator never starte
 ### Diagnostics
 
 ```bash
-# Check Forge invariants D01-D12. Dry-run: changes nothing.
+# Check Forge invariants D01-D13. Dry-run: changes nothing.
 bash taskwarrior/doctor
 bash taskwarrior/doctor --json
 
@@ -104,7 +104,7 @@ bash taskwarrior/doctor --fix
 # Exit 0: all clear. Exit 1: only fixable failures remain. Exit 2: a failure needs a human.
 ```
 
-`--fix` is reserved for the `environment-recovery` agent and the user. Manual-only checks (D07, D09, D10, D11, D12) are never auto-repaired; they involve tracked config, orphaned active tasks, held locks, missing worktrees, and escalation bookkeeping.
+`--fix` is reserved for the `environment-recovery` agent and the user. Manual-only checks (D07, D09, D10, D11, D12, D13) are never auto-repaired; they involve tracked config, orphaned active tasks, held locks, missing worktrees, escalation bookkeeping, and wrong-epic worktree checkouts.
 
 ---
 

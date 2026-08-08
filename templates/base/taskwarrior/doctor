@@ -149,13 +149,14 @@ else
     record D04 FAIL high fixable "Main tree missing UDA(s):${MISSING_MAIN}. Fix: bash taskwarrior/setup.sh --main"
 fi
 
-# --- Per-worktree checks (D05, D06, D07w, D09, D10, D12) ----------------
+# --- Per-worktree checks (D05, D06, D07w, D09, D10, D12, D13) -----------
 D05_FAIL=""; D05_FIXED=""
 D06_FAIL_MANUAL=""; D06_FIXED=""
 D07_TRACKED=""
 D09_FAIL=""
 D10_FAIL=""
 D12_FAIL=""
+D13_FAIL=""
 WT_COUNT=0
 
 if [ -d "${AI_ROOT}/.worktrees" ]; then
@@ -259,6 +260,15 @@ for t in tasks:
         if [ -n "$BLOCKED_PROBLEMS" ]; then
             D12_FAIL="${D12_FAIL} ${WT_NAME}($(echo "$BLOCKED_PROBLEMS" | tr '\n' ',' | sed 's/,$//'))"
         fi
+
+        # D13: worktree path must match checked-out epic/* (story/* HEADs are OK)
+        if [[ "$WT_NAME" =~ ^epic-(.+)$ ]]; then
+            WT_HEAD=$(git -C "$WT" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
+            EXPECTED_EPIC="epic/${BASH_REMATCH[1]}"
+            if [[ "$WT_HEAD" == epic/* ]] && [ "$WT_HEAD" != "$EXPECTED_EPIC" ]; then
+                D13_FAIL="${D13_FAIL} ${WT_NAME}(on ${WT_HEAD}, expected ${EXPECTED_EPIC})"
+            fi
+        fi
     done
 fi
 
@@ -349,6 +359,12 @@ if [ -z "$D12_FAIL" ]; then
     record D12 PASS medium manual "Every blocked task references an escalation file that exists."
 else
     record D12 FAIL medium manual "Blocked task/escalation mismatch:${D12_FAIL}"
+fi
+
+if [ -z "$D13_FAIL" ]; then
+    record D13 PASS high manual "No worktree is checked out on another epic's branch."
+else
+    record D13 FAIL high manual "Worktree path/epic branch mismatch:${D13_FAIL}. Likely a wrong-epic story-merge; repair git refs by hand (do not auto-checkout)."
 fi
 
 # --- Render -------------------------------------------------------------

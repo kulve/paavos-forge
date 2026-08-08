@@ -438,7 +438,7 @@ Only `needs-human`, `failed-recovery`, a gate that fails again after a fix, or a
 
    Technical design is explicitly **not** a stop condition. Interfaces, decomposition, module boundaries, test fixtures, and code are the agents' to decide, and asking the user to approve them is the failure mode this rule exists to prevent -- a user asked to approve a struct field is a user who stops reading. Milestone completion is the natural checkpoint, not each technical choice inside one.
 
-   Runtime-state cleanup remains user-only exactly where `taskwarrior/doctor` marks a check manual: D07 (`.taskrc` tracked by git), D09 (multiple active phase tasks in a worktree), D10 (a held Coordinator lock with a stale, dead, or missing heartbeat), D11 (an active epic with no worktree), and D12 (blocked task / escalation file mismatch). Checks that `doctor` marks fixable are not human stop conditions: `environment-recovery` repairs them through `doctor --fix`. No agent may ever clear a lock or an orphaned active task; that is `cleanup-ai-state.sh`, run by the user.
+   Runtime-state cleanup remains user-only exactly where `taskwarrior/doctor` marks a check manual: D07 (`.taskrc` tracked by git), D09 (multiple active phase tasks in a worktree), D10 (a held Coordinator lock with a stale, dead, or missing heartbeat), D11 (an active epic with no worktree), D12 (blocked task / escalation file mismatch), and D13 (worktree checked out on another epic's branch). Checks that `doctor` marks fixable are not human stop conditions: `environment-recovery` repairs them through `doctor --fix`. No agent may ever clear a lock or an orphaned active task; that is `cleanup-ai-state.sh`, run by the user.
 
 ---
 
@@ -614,7 +614,7 @@ Every script sources `taskwarrior/guard.sh`, which resolves the project tree roo
 - `phase-block`: block task with escalation
 
 **Diagnostics and telemetry**:
-- `doctor` (main tree): checks Forge invariants D01-D12; dry-run by default, `--fix` applies only the repairs marked fixable, `--json` for machine consumption. Exit 0 all clear, 1 only fixable failures remain, 2 a failure needs a human.
+- `doctor` (main tree): checks Forge invariants D01-D13; dry-run by default, `--fix` applies only the repairs marked fixable, `--json` for machine consumption. Exit 0 all clear, 1 only fixable failures remain, 2 a failure needs a human.
 - `coordinator-heartbeat` (epic worktree): records Coordinator liveness and progress. Called automatically by the lifecycle scripts; agents never call it directly. Never fails its caller.
 - `coordinator-status` (main tree): read-only liveness and progress aggregator across all worktrees, with `--epic` and `--json`. Exit 0 healthy, 1 stale, 2 dead / no heartbeat / escalation.
 

@@ -55,7 +55,7 @@ If a repair you believe is correct requires anything outside this list, stop wit
 - Any `git` command whatsoever, including read-only ones. Use `doctor` output instead.
 - Any direct `task` mutation (`add`, `modify`, `done`, `start`, `stop`, `delete`, `annotate`, `denotate`). `doctor --fix` owns Taskwarrior repairs.
 - Any file edit anywhere, except appending a `## Recovery Result` section to the escalation file.
-- Any action at all when `doctor` reports a manual-only failure (D07, D09, D10, D11, D12). Those are reserved for the user by the Escalation Protocol's Human stop conditions.
+- Any action at all when `doctor` reports a manual-only failure (D07, D09, D10, D11, D12, D13). Those are reserved for the user by the Escalation Protocol's Human stop conditions.
 - Clearing an AI lock, an `+ACTIVE` task, or a `+blocked` tag. Only the user may, via `cleanup-ai-state.sh`.
 - Running `doctor --fix --force`. If `--fix` refuses because a lock is ACTIVE, an agent may still be running: stop with `needs-human`.
 

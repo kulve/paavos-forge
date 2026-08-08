@@ -20,19 +20,21 @@ if [ "$CURRENT_BRANCH" != "$STORY_BRANCH" ]; then
     exit 2
 fi
 
-EPIC_BRANCH=$(git log --format=%D "$STORY_BRANCH" | grep -oP 'epic/[^ ,]+' | head -1 || true)
-if [ -z "$EPIC_BRANCH" ]; then
-    EPIC_BRANCH=$(git branch --list 'epic/*' | head -1 | tr -d ' *')
-fi
-if [ -z "$EPIC_BRANCH" ]; then
-    echo "ERROR: Cannot determine epic branch to merge into."
+# Bind to this worktree's epic. Never resolve via git decorations or branch order.
+EPIC_BRANCH="$(expected_epic_branch)"
+
+git checkout "$EPIC_BRANCH"
+HEAD_AFTER=$(git rev-parse --abbrev-ref HEAD)
+if [ "$HEAD_AFTER" != "$EPIC_BRANCH" ]; then
+    echo "ERROR: After checkout, HEAD is '${HEAD_AFTER}', expected '${EPIC_BRANCH}'."
     exit 2
 fi
 
-git checkout "$EPIC_BRANCH"
 git merge --squash "$STORY_BRANCH"
 git commit -m "story: ${STORY_ID}-${SLUG}"
-git branch -d "$STORY_BRANCH"
+# Squash does not make the story tip an ancestor of the epic tip, so -d would
+# refuse; the squash commit is the durable record — force-delete the story branch.
+git branch -D "$STORY_BRANCH"
 
 ai_heartbeat story-merged "story=${STORY_ID}"
 echo "OK: Story $STORY_ID merged into $EPIC_BRANCH."

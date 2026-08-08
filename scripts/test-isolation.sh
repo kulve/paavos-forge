@@ -274,8 +274,52 @@ git -C "$WT" checkout -q "epic/E0001-smoke" 2>/dev/null
 bash "${WT}/taskwarrior/story-init" 00003 bad-rigor --rigor sloppy >/dev/null 2>&1
 assert_eq "story-init rejects an unknown rigor" "2" "$?"
 
-# Put the tree back where section 7 and doctor expect it.
+# --- 6b. story-merge binds to this worktree's epic, not decorations ------
+# Parallel epics forked from the same tip share decorations; the old story-merge
+# used head -1 and could squash onto a sibling epic.
+echo "--- 6b. story-merge / story-init epic binding ---"
+WT2="${PROJ}/.worktrees/epic-E0002-smoke2"
+if bash "${PROJ}/taskwarrior/epic-fork" E0002 smoke2 >/dev/null 2>&1; then
+    pass "epic-fork E0002 smoke2"
+else
+    fail "epic-fork E0002 smoke2"
+fi
+
+git -C "$WT" checkout -q "epic/E0001-smoke" 2>/dev/null
+bash "${WT}/taskwarrior/story-init" 00004 merge-bind --rigor light >/dev/null 2>&1
+assert_eq "story-init 00004 merge-bind exit code" "0" "$?"
+echo "merge-bind marker" > "${WT}/.merge-bind-marker"
+git -C "$WT" add .merge-bind-marker >/dev/null 2>&1
+git -C "$WT" -c user.email=test@example.com -c user.name=test \
+    commit -qm "wip: merge-bind story content" >/dev/null 2>&1
+
+bash "${WT}/taskwarrior/story-merge" 00004 merge-bind >/dev/null 2>&1
+assert_eq "story-merge 00004 exit code" "0" "$?"
+
+E1_HAS=$(git -C "$PROJ" log --oneline --grep='story: 00004-merge-bind' -n 1 \
+    epic/E0001-smoke 2>/dev/null || true)
+E2_HAS=$(git -C "$PROJ" log --oneline --grep='story: 00004-merge-bind' -n 1 \
+    epic/E0002-smoke2 2>/dev/null || true)
+if [ -n "$E1_HAS" ]; then
+    pass "story-merge landed squash on epic/E0001-smoke"
+else
+    fail "story-merge landed squash on epic/E0001-smoke"
+fi
+if [ -z "$E2_HAS" ]; then
+    pass "story-merge did not land squash on epic/E0002-smoke2"
+else
+    fail "story-merge did not land squash on epic/E0002-smoke2"
+fi
+
+# Free epic/E0002 so the E0001 worktree can check it out (simulate swap).
+git -C "$WT2" checkout --detach -q 2>/dev/null
+git -C "$WT" checkout -q "epic/E0002-smoke2" 2>/dev/null
+bash "${WT}/taskwarrior/story-init" 00005 wrong-epic --rigor light >/dev/null 2>&1
+assert_eq "story-init rejects wrong epic checkout" "2" "$?"
+
+# Restore both worktrees for later doctor / escalation checks.
 git -C "$WT" checkout -q "story/00001-smoke-story" 2>/dev/null
+git -C "$WT2" checkout -q "epic/E0002-smoke2" 2>/dev/null
 
 # --- 7. Escalation is visible to the PM ---------------------------------
 # The req task is completed by now, so block the arch task instead.
@@ -317,7 +361,7 @@ fi
 if bash "${PROJ}/taskwarrior/doctor" --json 2>/dev/null | python3 -c "
 import json, sys
 d = json.load(sys.stdin)
-assert len(d['checks']) >= 12, len(d['checks'])
+assert len(d['checks']) >= 13, len(d['checks'])
 " 2>/dev/null; then
     pass "doctor --json reports all checks"
 else

@@ -172,7 +172,7 @@ The `taskwarrior/` directory contains orchestration scripts used by the agents:
 | `coordinator-lock-status` | Check whether a Coordinator lock is held |
 | `coordinator-heartbeat` | Record Coordinator liveness/progress (called by the scripts above, never by agents) |
 | `coordinator-status` | Aggregate liveness and progress across all epic worktrees (PM supervision) |
-| `doctor` | Check Forge invariants D01-D12; `--fix` applies only the safe repairs |
+| `doctor` | Check Forge invariants D01-D13; `--fix` applies only the safe repairs |
 | `cleanup-ai-state.sh` | Manual cleanup of stale locks and state |
 
 All scripts are invoked by **absolute path** (`bash <tree-root>/taskwarrior/<script>`) and exit 2 if run against the wrong kind of tree.
