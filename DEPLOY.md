@@ -181,7 +181,7 @@ All scripts are invoked by **absolute path** (`bash <tree-root>/taskwarrior/<scr
 
 Open `paavos-forge/project-profile.md` and answer the deploy-time questions. This is the most important customization step -- it tells all agents how your project works.
 
-You can fill this in by hand, or open a chat with the `deploy-profile` agent, which interviews you and writes the profile for you (it edits only `project-profile.md`). Replace every `[e.g. ...]` placeholder. Sections marked `[No content yet]` may stay that way until the `project-profile-maintainer` agent fills them after a milestone lands evidence (architecture conventions, mocks, verification harness details, review standards, Domain Tags evidenced by `ARCHITECTURE.md` / requirements, heartbeat tuning). Domain Tags are the allowlist for story Proposed Domain Tags -- keep `core` at deploy; do not invent a speculative domain wishlist.
+You can fill this in by hand, or open a chat with the `deploy-profile` agent, which interviews you and writes the profile for you (it edits only `project-profile.md`). Replace every `[e.g. ...]` placeholder. Sections marked `[No content yet]` may stay that way until the `project-profile-maintainer` agent fills them after a milestone lands evidence (architecture conventions, mocks, verification harness details, review standards, Domain Tags evidenced by `ARCHITECTURE.md` / requirements, heartbeat tuning). Domain Tags are a growing allowlist for story Proposed Domain Tags -- keep `core` at deploy; do not invent a speculative wishlist. Stories may propose justified new durable domains; maintainer syncs committed ones from `ARCHITECTURE.md`.
 
 ### Questions to Answer at Deploy
 
@@ -283,7 +283,7 @@ Model choice trades off two independent axes. **World knowledge** decides which 
 | Bucket | For | Why it is separate |
 |--------|-----|--------------------|
 | `frontier` | Architecture planning only | The scarce high-leverage slot: interfaces, dependency direction, extensibility. One dispatch per full story. |
-| `deep` | Roadmap, escalation recovery, environment repair, deploy-profile | Generative design and diagnosis that still needs real technical judgment, without spending the frontier budget. |
+| `deep` | Roadmap, story-write, escalation recovery, environment repair, deploy-profile | Generative design and diagnosis that still needs real technical judgment, without spending the frontier budget. |
 | `critic` | Adversarial review: architecture, implementation, stories, requirements | Must judge semantic correctness of work it did not write. This is where weak models rubber-stamp. |
 | `builder` | Requirements write, architecture write, implementation plan/write, tests, project-profile-maintainer | Your largest token consumer, and the place where the hard decisions are already made upstream. |
 | `checker` | Integration-test review, escalation triage | Bounded checks against written artifacts, gate output, and fixed routing rules. |
@@ -378,7 +378,7 @@ bash paavos-forge/scripts/set-agent-models.sh \
 What this buys:
 
 - `frontier` (Opus) is only `architecture-plan` -- about one expensive design dispatch per full story.
-- `deep` (Sonnet) covers roadmap, recovery, environment repair, and deploy-profile without spending Opus.
+- `deep` (Sonnet) covers roadmap, story-write, recovery, environment repair, and deploy-profile without spending Opus.
 - `critic` (Terra) reviews architecture, implementation, stories, and requirements. Requirements review left the Grok `checker` bucket so it does not share a family with `requirements-write`.
 - `builder` and `checker` (Grok) absorb the bulk token volume from Cursor's included first-party pool. High effort is fine there because that pool's usage is included.
 - `orchestration` (Luna) runs the Coordinator. It never reads code or artifacts; isolation scripts make mistakes fail loudly.
@@ -442,7 +442,7 @@ Or verify manually:
 - [ ] `taskwarrior/recipes.md` exists
 - [ ] `taskwarrior/` contains 27 orchestration scripts (epic, story, phase, lock management, diagnostics, telemetry)
 - [ ] `bash taskwarrior/doctor` exits 0
-- [ ] `.cursor/agents/` contains 20 agent files (including `roadmap-planner.md`, `project-profile-maintainer.md`, `escalation-triage.md`, and `environment-recovery.md`) and **no** `project-manager.md`
+- [ ] `.cursor/agents/` contains 21 agent files (including `roadmap-planner.md`, `story-write.md`, `project-profile-maintainer.md`, `escalation-triage.md`, and `environment-recovery.md`) and **no** `project-manager.md`
 - [ ] `paavos-forge/scripts/set-agent-models.sh` exists and is executable
 - [ ] Every agent has a model assigned and none still says `inherit`: `bash paavos-forge/scripts/set-agent-models.sh --list`
 - [ ] `.cursor/rules/paavos-forge.mdc` exists
@@ -496,7 +496,7 @@ Project (mandatory: plan/project.md) → Milestone → Epic (parallel) → Stori
 1. Open your project in Cursor with the Paavo's Codex MCP registered and running.
 2. Start a new chat and invoke the **`/project-manager`** skill. The skill loads into the chat you are already in, so from that point on you are talking to the PM directly, with no intermediary agent relaying messages. You do not need to invoke it again in the same thread.
 3. Confirm the Paavo's Codex project name in the profile. The PM verifies MCP reachability (hard-stop if down).
-4. If `plan/project.md` is missing, the PM invokes **`roadmap-planner`** to synthesize a milestone roadmap from Paavo's Codex (human-in-loop). Refine and accept the roadmap.
+4. If `plan/project.md` is missing, the PM invokes **`roadmap-planner`** (`init`) to synthesize the roadmap, near milestones, and next-milestone epics from Paavo's Codex. Summarize and proceed; milestone completion is the user checkpoint.
 5. The PM creates the current In Progress milestone from the roadmap, then defines one or more **epics** in `plan/epics/`.
 6. For each epic, the PM generates stories in rolling batches of 2-3 that execute serially within that epic.
 7. The PM **dispatches** an epic: `epic-fork` creates a worktree and branch, and a Coordinator begins executing stories in that worktree.

@@ -118,7 +118,7 @@ Project-specific forbidden items:
 
 ## Domain Tags
 
-Allowlist for story `## Proposed Domain Tags` and `plan/requirements/[domain]/` folders. Committed DAG membership lives in `ARCHITECTURE.md` (architecture-plan is the gatekeeper). Keep `core`; add tags when evidence exists -- do not seed a speculative wishlist at deploy.
+Growing allowlist for story `## Proposed Domain Tags` and `plan/requirements/[domain]/` folders. Committed DAG membership lives in `ARCHITECTURE.md` (architecture-plan is the gatekeeper). Stories may propose a justified new durable domain ahead of allowlist sync; `project-profile-maintainer` adds committed domains here. Keep `core` at deploy; do not seed a speculative wishlist.
 
 - core
 - [No content yet]

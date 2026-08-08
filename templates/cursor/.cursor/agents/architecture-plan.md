@@ -39,15 +39,18 @@ Read these files:
 
 6. **Domain disposition (gatekeeper -- do this before planning interfaces).**
    Collect the set of domains from (a) this story's requirement file paths under `plan/requirements/[domain]/` and (b) `## Proposed Domain Tags`.
-   For each domain in that set, decide **commit** or **merge**:
+   For each domain in that set, decide **commit**, **reuse**, or **merge**:
 
-   - **Commit (happy path, prefer this):** the domain already appears in `ARCHITECTURE.md`, or you add/update it now using the schema in LOGIC.md Section 10.10 and the `ARCHITECTURE.md` template:
+   - **Reuse:** the story only extends an existing domain's Owns -- refine Owns / Does not own / Artifacts under as needed; do not invent a sibling domain.
+   - **Commit (prefer for durable new clusters):** the domain already appears in `ARCHITECTURE.md`, or you add it now using the schema in LOGIC.md Section 10.10 and the `ARCHITECTURE.md` template:
      - **Owns**, **Does not own**, **May depend on**, **Artifacts under**
      - Matching Strict Dependency Rules DAG edges; verify no cycles
-     - Prefer introducing a real domain over expanding `core`
+     - Prefer introducing a real domain over expanding `core` (including on that domain's founding story)
      - Refine Owns / Does not own when ownership changes; split a bloated domain rather than growing a laundry-list Owns line
-     - Planned domain names must be in the profile Domain Tags allowlist or already committed in `ARCHITECTURE.md`
-   - **Merge (reject proposal):** the domain cannot be a distinct DAG node (for example it would force a cycle, or ownership truly belongs in an existing domain). Do **not** write the architecture plan as if the work were folded. Do **not** edit `plan/requirements/` or the story. Write an escalation with a Domain Disposition (step 11) and exit immediately.
+     - `core` stays kernel (entry, host ports, shared neutral types), not menus/HUD/persistence/audio/traversal/camera
+     - Planned names should be in the profile allowlist, already committed, or a justified new durable cluster from the story's Proposed Domain Tags
+   - **Merge (reject proposal):** the proposal is a **task-shaped vanity domain**, ownership truly belongs in an existing domain, or committing it would force a cycle. Do **not** write the architecture plan as if the work were folded. Do **not** edit `plan/requirements/` or the story. Write an escalation with a Domain Disposition (step 11) and exit immediately.
+   - If the story (or requirements) parked a durable cluster in `core` that matches an unused/proposed real domain name, **commit that domain** (or escalate disposition to refile into it) instead of appending feature-inventory prose to `core` Owns.
 
    Silent fold is forbidden: never satisfy a proposed domain by appending prose to another domain's Owns line without refiling the requirements under the surviving domain name.
 
@@ -110,7 +113,8 @@ bash "$WT/taskwarrior/phase-annotate" <id> Escalation plan/escalations/XXXXX-arc
 - Plan follows architecture conventions from the project profile
 - Every domain that has requirement files for this story appears in `ARCHITECTURE.md` after a successful plan (committed, not silently folded)
 - `ARCHITECTURE.md` domains use Owns / Does not own / May depend on / Artifacts under and match the DAG section
-- Planned domain names ⊆ profile Domain Tags allowlist ∪ domains already in `ARCHITECTURE.md`
+- Planned domain names are allowlisted, already committed, or justified durable new clusters from the story
+- Prefer reuse over new domains when Owns already covers the concern; prefer commit over expanding `core` for durable new clusters
 - Planned dependency additions do not create cycles in the DAG
 
 ## Anti-Patterns (NEVER DO)
@@ -118,6 +122,9 @@ bash "$WT/taskwarrior/phase-annotate" <id> Escalation plan/escalations/XXXXX-arc
 - NEVER write architecture artifacts (headers/interfaces). Only write the plan, `ARCHITECTURE.md` policy updates, or an escalation.
 - NEVER edit `plan/requirements/` or story files. Refile is `escalation-recovery`'s job after a Domain Disposition escalation.
 - NEVER silently fold a proposed domain into `core` (or any other domain) by prose alone.
+- NEVER grow `core` Owns into a product-shell feature inventory.
+- NEVER commit task-shaped vanity domains; merge those into the real owner via disposition.
+- NEVER refuse a justified founding-story domain solely because it is new.
 - NEVER read implementation source code.
 - NEVER plan implementation details -- only public interfaces and contracts.
 - NEVER ignore the project profile's architecture conventions.
@@ -126,5 +133,5 @@ bash "$WT/taskwarrior/phase-annotate" <id> Escalation plan/escalations/XXXXX-arc
 
 ## Escalation
 
-- **Domain disposition:** when a proposed/filed domain cannot be committed as its own DAG node, escalate to `plan/escalations/XXXXX-arch-domain-disposition.md` as in procedure step 11.
+- **Domain disposition:** when a proposed/filed domain is task-shaped, wrongly placed, or cannot be its own DAG node, escalate to `plan/escalations/XXXXX-arch-domain-disposition.md` as in procedure step 11.
 - **Infeasible architecture:** if requirements are contradictory or cannot be mapped to a coherent architecture for reasons other than domain naming, write an escalation to `plan/escalations/XXXXX-arch-infeasible.md` and annotate `Escalation:` the same way.

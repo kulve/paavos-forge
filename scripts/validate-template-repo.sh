@@ -191,10 +191,10 @@ if [ ! -d "templates/cursor/.cursor/agents" ]; then
     fail "Missing Cursor agent prompt directory"
 else
     AGENT_COUNT=$(find templates/cursor/.cursor/agents -maxdepth 1 -type f -name '*.md' | wc -l | tr -d ' ')
-    if [ "$AGENT_COUNT" -ne 20 ]; then
-        fail "Expected 20 Cursor agent prompt files, found $AGENT_COUNT"
+    if [ "$AGENT_COUNT" -ne 21 ]; then
+        fail "Expected 21 Cursor agent prompt files, found $AGENT_COUNT"
     fi
-    for agent in escalation-recovery escalation-triage environment-recovery roadmap-planner; do
+    for agent in escalation-recovery escalation-triage environment-recovery roadmap-planner story-write story-review; do
         if [ ! -f "templates/cursor/.cursor/agents/${agent}.md" ]; then
             fail "Missing agent prompt: ${agent}.md"
         fi

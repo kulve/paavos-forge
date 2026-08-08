@@ -19,6 +19,7 @@ BUCKETS="frontier deep critic builder checker orchestration"
 BUCKET_MAP="
 frontier:architecture-plan
 deep:roadmap-planner
+deep:story-write
 deep:fixer
 deep:escalation-analysis
 deep:escalation-recovery
@@ -59,9 +60,9 @@ Buckets:
   frontier       Architecture planning only. The one place worth a frontier model:
                  interfaces, dependency direction, and extensibility. Keep this
                  rare; one dispatch per full story.
-  deep           Remaining generative design and diagnosis: roadmap, escalation
-                 recovery, environment repair, deploy-profile. High leverage, but
-                 not the scarce frontier slot.
+  deep           Remaining generative design and diagnosis: roadmap, story-write,
+                 escalation recovery, environment repair, deploy-profile. High
+                 leverage, but not the scarce frontier slot.
   critic         Adversarial review of semantic correctness. Prefer a different
                  model family than builder and frontier/deep. Includes
                  requirements-review so Grok-written requirements get an

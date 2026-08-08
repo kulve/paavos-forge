@@ -165,6 +165,7 @@ echo "--- Cursor Agents (19 required) ---"
 check_file ".cursor/agents/coordinator.md"
 check_file ".cursor/agents/fixer.md"
 check_file ".cursor/agents/roadmap-planner.md"
+check_file ".cursor/agents/story-write.md"
 check_file ".cursor/agents/story-review.md"
 check_file ".cursor/agents/requirements-write.md"
 check_file ".cursor/agents/requirements-review.md"
@@ -184,8 +185,8 @@ check_file ".cursor/agents/deploy-profile.md"
 
 if [ -d ".cursor/agents" ]; then
     AGENT_COUNT=$(find .cursor/agents -maxdepth 1 -type f -name '*.md' | wc -l | tr -d ' ')
-    if [ "$AGENT_COUNT" -ne 19 ]; then
-        echo "WARNING: Expected 20 agent prompt files, found $AGENT_COUNT"
+    if [ "$AGENT_COUNT" -ne 21 ]; then
+        echo "WARNING: Expected 21 agent prompt files, found $AGENT_COUNT"
         WARNINGS=$((WARNINGS + 1))
     fi
 fi

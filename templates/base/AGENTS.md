@@ -4,7 +4,7 @@ This project uses Paavo's Forge.
 
 ## Entry Point
 
-Feature work starts in a new chat with `/project-manager`. The PM is a top-level skill, not a subagent: it dispatches Coordinators, which dispatch phase agents. A general agent must not implement features, create Forge artifacts, or run the Coordinator; direct the user to `/project-manager`.
+Feature work starts in a new chat with `/project-manager`. The PM is a top-level skill, not a subagent: it dispatches `roadmap-planner` and `story-write` for planning artifacts, then Coordinators, which dispatch phase agents. A general agent must not implement features, create Forge artifacts, or run the Coordinator; direct the user to `/project-manager`.
 
 ## Instruction Order
 
@@ -21,12 +21,15 @@ Feature work starts in a new chat with `/project-manager`. The PM is a top-level
 
 Only these roles may write their respective artifacts:
 
+- `roadmap-planner`: `plan/project.md`, near `plan/milestones/`, current-milestone `plan/epics/`
+- `story-write`: `plan/stories/` (and epic Stories list updates)
+- `story-review`: `plan/story-review/` feedback on reject
 - `requirements-write`: `plan/requirements/`
 - `architecture-plan` / `implementation-plan`: phase plans
 - `architecture-write`: architecture artifacts
 - `integration-test-write`: integration tests
 - `implementation-write`: source code
-- matching review agent: its review feedback
+- matching phase review agent: its review feedback
 - `deploy-profile` (deploy time only) / `project-profile-maintainer` (after each milestone): `paavos-forge/project-profile.md`
 
 `escalation-recovery` may make bounded current-story corrections; `environment-recovery` may only perform its whitelisted repairs and append its recovery result; `escalation-triage` writes nothing; `fixer` fixes existing source and tests only.

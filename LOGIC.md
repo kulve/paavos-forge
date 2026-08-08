@@ -16,13 +16,14 @@ The workflow is language-agnostic: language, layout, build, test, and architectu
 
 | Role | Owns / may read | Must not do |
 |------|-----------------|-------------|
-| PM (`/project-manager` skill) | Roadmap, milestones, epics, stories, Paavo's Codex; main tree | Read or edit code, tests, requirements, or architecture artifacts |
+| PM (`/project-manager` skill) | Orchestration: dispatch planning agents, commit, fork/merge, supervise Coordinators; Paavo's Codex; main tree | Author milestones/epics/stories; read or edit code, tests, requirements, or architecture artifacts |
 | Coordinator | One epic's Taskwarrior state and dispatch; worktree | Read artifact content or Paavo's Codex |
 | Requirements agents | Problem-space requirements and pinned Paavo's Codex | Read source, tests, or architecture artifacts |
 | Architecture agents | Interfaces, requirements, DAG | Read source or tests |
 | Test agents | Integration tests, requirements, interfaces | Read implementation source |
 | Implementation agents | Source, tests, interfaces, requirements | Access Paavo's Codex |
-| Roadmap Planner / Story Review | Roadmap or story quality | Enter the Coordinator phase pipeline |
+| Roadmap Planner | Near-horizon `project.md`, milestones, next-milestone epics | Write stories or enter the Coordinator pipeline |
+| Story Write / Story Review | Stories and story-review feedback | Enter the Coordinator phase pipeline |
 | Escalation Triage / Environment Recovery | Classification or Forge repair | Respectively write artifacts / run outside the closed whitelist |
 | Escalation Recovery | Bounded cross-phase correction | Change intent, task state, or unbounded scope |
 | Fixer | Existing source and tests outside the pipeline | Add features, interfaces, requirements, or Taskwarrior state |
@@ -166,62 +167,63 @@ The Coordinator reads these annotations (via `story-next` script output) to cons
 
 ## 4. PM Loop (Parallel Epic Dispatch)
 
-The PM operates in the main project tree. It owns the project roadmap, defines milestones from that roadmap, and dispatches epics for parallel execution.
+The PM operates in the main project tree as a planning orchestrator. It dispatches `roadmap-planner` and `story-write` for planning artifacts, commits them, forks epics, and supervises Coordinators. It does not author milestones, epics, or stories itself.
 
 0. **Paavo's Codex hard dependency**: Before any planning or execution work, the PM verifies the Paavo's Codex MCP is reachable (using Cursor MCP discovery / a lightweight tool call). If unreachable, the PM stops all Forge work and reports to the user. This is a hard stop -- already-planned work must not continue while product intent is unavailable. See Section 16.
 
-1. **Project init**: If `plan/project.md` does not exist, the PM invokes the `roadmap-planner` subagent (foreground, human-in-loop). The planner synthesizes a milestone roadmap from Paavo's Codex and writes `plan/project.md`, pinning the Paavo's Codex project id and a closed version. The PM discusses refinements with the user, then commits `plan/project.md` to `main`. Project init must complete before any milestone is created.
+1. **Horizon planning (`roadmap-planner`)**: The PM invokes `roadmap-planner` in the foreground with mode `init` (no `plan/project.md` yet) or `post-milestone` (after a milestone is marked Done). The planner:
+   - Writes or updates `plan/project.md` (pins Paavo's Codex project id and closed version; MVP-first near milestones; far milestones may be brief)
+   - Drafts or updates **near** milestone files under `plan/milestones/` (goals as bullets, boundaries, done criteria, epic list)
+   - Writes epic files under `plan/epics/` **only for the In-Progress / next milestone** (prefer parallel-safe independence; declare Dependencies when serialization is required)
+   - Must not rewrite Done milestones or Done roadmap entries; may freely rewrite TODO / future milestones
+   The PM commits those outputs to `main`. At most one roadmap/milestone entry is In Progress at a time. Horizon planning for the current milestone must complete before story generation for its epics.
 
-2. **Milestone definition**: PM writes `plan/milestones/XX-name.md` for the current In-Progress (or next TODO) roadmap entry. The milestone must be traceable to `plan/project.md`. It contains high-level goals, epic list, boundaries, Status, and done criteria. Important decisions from chat are captured in the milestone file. Mark the matching roadmap entry In Progress; at most one milestone is In Progress at a time.
+2. **Story generation (`story-write`)**: After discovery triage (Section 15), the PM invokes `story-write` in the foreground for the next 2-3 vertical stories on an epic (or discovery-derived stories). Stories are vertical feature slices, not horizontal technical layers. Every story records **Product Intent Source** and **Proposed Domain Tags** (Section 10.3). The PM does not edit story files.
 
-3. **Epic definition**: PM writes `plan/epics/EXXXX-slug.md` containing goal, boundaries, ordered story list, done criteria, and epic dependencies. Epics are coherent feature areas that can execute independently.
+3. **Story review**: The PM invokes `story-review` on the batch. On reject, the reviewer writes `plan/story-review/XXXXX-feedback.md` and the PM re-dispatches `story-write` with that feedback path (fix only flagged items). Cap review rounds at 3, then stop for the user. On approve, the PM commits stories (and any epic story-list updates) to `main`.
 
-4. **Story generation**: PM reads the epic, existing stories, and codebase README, then writes the next 2-3 stories to `plan/stories/XXXXX-slug.md`. Stories are vertical feature slices, not horizontal technical layers. Every story records its **Product Intent Source**: the Paavo's Codex project id, the pinned closed version it was authored against, and the article ids it derives from (Section 16.4). When new behavior conflicts with or replaces behavior from an earlier story, the new story must include a **Modifies Stories** section.
-
-5. **Story review**: PM invokes the story-review subagent for the batch. PM addresses feedback by updating story files directly.
-
-6. **Epic dispatch**: PM runs the preflight check and forks the epic:
+4. **Epic dispatch**: PM runs the preflight check and forks the epic:
    ```
    bash taskwarrior/pm-preflight
    bash taskwarrior/epic-fork EXXXX slug
    ```
    The fork script checks the merge gate, creates the worktree, initializes Taskwarrior, and registers the epic. Preflight for the PM also includes the Paavo's Codex reachability check from step 0.
 
-7. **Coordinator invocation**: PM launches a Coordinator subagent with `run_in_background: true`. Subagents cannot be given a working directory, so the Coordinator starts in the main tree: its prompt must carry the absolute worktree path and the invariant that every Forge script is invoked as `bash <worktree>/taskwarrior/<script>`. The Coordinator runs its Startup Assertion before any other work.
+5. **Coordinator invocation**: PM launches a Coordinator subagent with `run_in_background: true`. Subagents cannot be given a working directory, so the Coordinator starts in the main tree: its prompt must carry the absolute worktree path and the invariant that every Forge script is invoked as `bash <worktree>/taskwarrior/<script>`. The Coordinator runs its Startup Assertion before any other work.
 
-8. **Parallel dispatch**: PM may repeat steps 3-7 for additional independent epics. Multiple epics execute simultaneously in their own worktrees.
+6. **Parallel dispatch**: PM may repeat steps 2-5 for additional epics in the current milestone (respecting epic Dependencies). Multiple independent epics may execute simultaneously in their own worktrees.
 
-9. **Supervision**: PM supervises background Coordinators through the aggregator and acts on its exit code (Section 17):
+7. **Supervision**: PM supervises background Coordinators through the aggregator and acts on its exit code (Section 17):
    ```
    bash taskwarrior/coordinator-status
    bash taskwarrior/epic-status
    ```
    The PM must never infer Coordinator progress from agent transcripts.
 
-10. **Epic completion**: When a Coordinator signals that all stories are done (epic becomes merge-ready):
+8. **Epic completion**: When a Coordinator signals that all stories are done (epic becomes merge-ready):
     ```
     bash taskwarrior/epic-mark-ready EXXXX
     ```
 
-11. **Merge**: PM merges completed epics to main:
+9. **Merge**: PM merges completed epics to main:
     ```
     bash taskwarrior/epic-merge EXXXX
     ```
     If exit 1 (gate blocked): another merge in progress, wait and retry.
     If exit 2 (conflict): report to user, suggest `epic-rebase`.
 
-12. **Re-evaluation**: After epic merge, PM re-reads the milestone file and `plan/project.md`. If milestone done criteria are met:
+10. **Re-evaluation**: After epic merge, PM re-reads the milestone file and `plan/project.md`. If milestone done criteria are met:
     - Mark the milestone Status Done (immutable history) in both the milestone file and the roadmap entry in `plan/project.md`
     - Perform discovery triage on whatever accumulated since the last story batch (Section 15)
     - Invoke `project-profile-maintainer` (foreground) with the completed milestone path and the git range on `main` since the previous milestone Done commit (or project init if first). That agent is the only post-deploy writer of `paavos-forge/project-profile.md`; it fills deferred knobs and corrects stale ones from milestone evidence, or reports `no-change`
-    - Advance the next TODO roadmap entry to In Progress, or rewrite/reorder remaining TODO milestones (optionally re-invoke `roadmap-planner`) based on Paavo's Codex and user direction
     - If the product Definition of Done in `plan/project.md` is met, declare the product complete
+    - Otherwise: **must** re-invoke `roadmap-planner` with mode `post-milestone` to refresh TODO milestones and write epics for the newly In-Progress milestone before further story work
     - **Version migration**: if Paavo's Codex has a newer closed version the user wants to adopt, the PM re-pins `plan/project.md` to the new version, scopes changes via the MCP per-step change/diff tools (one call per version step), and inserts one or more **migration milestones** (Status TODO / In Progress as appropriate) before continuing normal roadmap work
     - Commit planning artifacts and `paavos-forge/project-profile.md` together on the milestone closeout
 
-13. **Git for planning artifacts**: PM commits project, milestone, epic, and story files to `main` directly, before dispatching the epic.
+11. **Git for planning artifacts**: PM commits project, milestone, epic, and story files produced by its subagents to `main` directly, before dispatching the epic.
 
-14. **Escalation received**: A Coordinator that returns due to escalation has already tried inline recovery (Section 9.0), so what reaches the PM is what the reconciler could not settle. PM reads the escalation file, verifies the Coordinator lock is inactive (via worktree status), then invokes `escalation-triage` in the foreground and routes by class per Section 9.1. If a handler resolves it, PM clears the block with `phase-resume` and launches a fresh Coordinator for the same epic.
+12. **Escalation received**: A Coordinator that returns due to escalation has already tried inline recovery (Section 9.0), so what reaches the PM is what the reconciler could not settle. PM reads the escalation file, verifies the Coordinator lock is inactive (via worktree status), then invokes `escalation-triage` in the foreground and routes by class per Section 9.1. If a handler resolves it, PM clears the block with `phase-resume` and launches a fresh Coordinator for the same epic.
 
 15. **Discovery triage**: Once a milestone is otherwise complete (all epics merged), the PM reads `plan/discoveries/`, groups findings, writes `plan/discoveries/triage-XX.md`, and summarizes proposed handling for the user. Product-intent gaps that belong in Paavo's Codex are surfaced as open questions there (Section 16), not as local discoveries.
 
@@ -443,21 +445,21 @@ Only `needs-human`, `failed-recovery`, a gate that fails again after a fix, or a
 
 ### 10.0 Projects (`plan/project.md`)
 
-Mandatory living document owned by the PM (produced by the Roadmap Planner). Pins the Paavo's Codex project identity and a closed integer version, states the product vision and product-level Definition of Done, and lists an ordered milestone roadmap. Each roadmap entry has Status `Done` (immutable), `In Progress` (at most one), or `TODO` (freely rewritable on re-evaluation). Near milestones are detailed; far milestones may be brief bullets. Includes a Version Migration Log when the pinned Paavo's Codex version changes.
+Mandatory living document produced by the Roadmap Planner (PM commits). Pins the Paavo's Codex project identity and a closed integer version, states the product vision and product-level Definition of Done, and lists an ordered milestone roadmap. Shape near milestones for an MVP-first path so the user can exercise a runnable product early; later milestones layer features. Each roadmap entry has Status `Done` (immutable), `In Progress` (at most one), or `TODO` (freely rewritable on re-evaluation). Near milestones are detailed; far milestones may be brief bullets. Includes a Version Migration Log when the pinned Paavo's Codex version changes.
 
 ### 10.1 Milestones (`plan/milestones/XX-name.md`)
 
-High-level planning documents derived from the project roadmap. Contain a backlink to `plan/project.md`, Status (`Done` / `In Progress` / `TODO`), vision, goals, boundaries, epic list, and done criteria. Updated by the PM as epics are generated and completed. **Migration milestones** are a special kind used when adopting a newer Paavo's Codex version: their scope is the product-intent delta between the old and new pinned versions (scoped via MCP per-step change/diff tools).
+Near-horizon planning documents produced by the Roadmap Planner from the project roadmap. Contain a backlink to `plan/project.md`, Status (`Done` / `In Progress` / `TODO`), vision, goals (bullet points), boundaries, epic list, and done criteria. Done milestones are immutable; TODO / future milestones may be rewritten on `post-milestone` planning. **Migration milestones** are a special kind used when adopting a newer Paavo's Codex version: their scope is the product-intent delta between the old and new pinned versions (scoped via MCP per-step change/diff tools).
 
 ### 10.2 Epics (`plan/epics/EXXXX-slug.md`)
 
-Coherent feature areas decomposed into ordered stories. Contain goal, boundaries, ordered story list, done criteria, and inter-epic dependencies. Each epic is the unit of parallel execution -- it gets its own git worktree.
+Coherent feature areas for the current / next milestone only, produced by the Roadmap Planner. Contain goal, boundaries, ordered story list (may start as a sketch), done criteria, and inter-epic dependencies. Prefer epics that can fork in parallel; when they cannot, declare Dependencies. Each epic is the unit of parallel execution -- it gets its own git worktree.
 
 ### 10.3 Stories (`plan/stories/XXXXX-slug.md`)
 
-Problem-space documents describing vertical feature slices. Must include: epic reference, product intent source, goal (what and why), scope boundaries, trigger conditions, binary acceptance criteria, **Proposed Domain Tags**, dependencies, and non-goals. Stories describe user-facing behavior, not technical tasks.
+Problem-space documents describing vertical feature slices, produced by the Story Write agent. Must include: epic reference, product intent source, goal (what and why), scope boundaries, trigger conditions, binary acceptance criteria, **Proposed Domain Tags**, dependencies, and non-goals. Stories describe user-facing behavior, not technical tasks.
 
-**Proposed Domain Tags** are proposals for requirement organization, drawn from the project profile's Domain Tags allowlist. They are not committed DAG membership. Committed domains live in `ARCHITECTURE.md` after the architecture-plan gatekeeper runs (Section 10.10). Story tags are left as historical proposals even when recovery refiles requirements under different domain folders.
+**Proposed Domain Tags** are proposals for requirement organization. Prefer a tag from the project profile Domain Tags allowlist, or a **new** tag justified by a durable ownership cluster missing from `ARCHITECTURE.md` Owns (a founding story may introduce such a domain). Do not mint task-shaped domains. They are not committed DAG membership until architecture-plan commits them (Section 10.10). Story tags remain historical proposals even when recovery refiles requirements under different domain folders.
 
 Mandatory **Product Intent Source** section: the story's citation of the Paavo's Codex articles it derives from. It records the Paavo's Codex project id, the closed version the story was authored against, and one line per source article (id, title at that version, domain id). Article ids are stable across versions while titles are not, so the id is the identity and the title is only a human label. The version is recorded per story even though `plan/project.md` pins it: project.md is re-pinned over time, while a completed story is a historical record of the intent it was written against. When no single article backs the story -- intent synthesized across a whole domain, Forge scaffolding, and similar cases -- the section states `None -- [reason]` so the absence is a deliberate, reviewable claim rather than an omission. See Section 16.4.
 
@@ -491,7 +493,7 @@ Written by the Architecture Plan and Implementation Plan agents, in `plan/arch-p
 
 ### 10.8 Review Feedback (`plan/*-review/XXXXX-feedback.md`)
 
-Written by Review agents when rejecting artifacts. Must contain: verdict, specific blocking issues each carrying an anchor, a file path, and a fix instruction, missed requirements, non-blocking observations, and approved aspects.
+Written by Review agents when rejecting artifacts, including story-review under `plan/story-review/`. Must contain: verdict, specific blocking issues each carrying an anchor, a file path, and a fix instruction, missed requirements, non-blocking observations, and approved aspects. For stories, the PM re-dispatches `story-write` with the feedback path rather than editing stories itself.
 
 ### 10.9 Escalation Reports (`plan/escalations/XXXXX-phase-slug.md`)
 
@@ -503,10 +505,10 @@ A living document at the project root maintained by the Architecture Plan agent.
 
 **Domain vocabulary lifecycle** (one shared vocabulary):
 
-1. **Propose** -- the story lists `## Proposed Domain Tags` from the profile allowlist.
+1. **Propose** -- the story lists `## Proposed Domain Tags`: reuse a committed domain whose Owns covers the concern, or propose a new durable ownership cluster not covered by existing Owns (founding story may be the first user). Prefer profile allowlist names; a justified new name may precede allowlist sync. Never mint task-shaped domains. `core` stays kernel (entry, host ports, shared neutral types), not the product shell.
 2. **File** -- requirements-write places requirement files under `plan/requirements/[domain]/` using those names (folders may exist before the domain is committed in this file).
-3. **Commit or escalate** -- architecture-plan is the gatekeeper. For every domain that has requirement files for the current story it must either already appear here or be committed by this plan. Prefer introducing a real domain over expanding `core`. Silent fold (satisfying a proposed domain by appending prose to another domain without refiling) is forbidden. When a proposal cannot be committed, architecture-plan writes an escalation with a **Domain Disposition** and exits; inline `escalation-recovery` refiles the requirements (class `artifact`). Completed phase tasks stay completed.
-4. **Consume** -- later agents use only the committed domains and DAG in this file. Story Proposed Domain Tags remain historical proposals.
+3. **Commit or escalate** -- architecture-plan is the gatekeeper. For every domain that has requirement files for the current story it must either already appear here or be committed by this plan. Prefer introducing a real domain over expanding `core`; prefer reuse when the story only extends existing Owns. Silent fold (satisfying a proposed domain by appending prose to another domain without refiling) is forbidden. When a proposal cannot be committed, architecture-plan writes an escalation with a **Domain Disposition** and exits; inline `escalation-recovery` refiles the requirements (class `artifact`). Completed phase tasks stay completed.
+4. **Consume** -- later agents use only the committed domains and DAG in this file. Story Proposed Domain Tags remain historical proposals. Profile Domain Tags grow from committed domains via `project-profile-maintainer`.
 
 **Per-domain policy schema** (under Domain Definitions). Each domain uses these fields, kept consistent with the Strict Dependency Rules DAG:
 
@@ -543,7 +545,7 @@ Update Taskwarrior via scripts when done.
 
 The subagent reads its own agent definition file for role instructions, then reads the files listed in the prompt for task-specific context.
 
-**Never pass a `model` parameter when invoking a subagent.** Each agent's model is pinned in its own prompt frontmatter, assigned by bucket at deploy time. A `model` argument supplied by the invoking agent overrides that frontmatter, which silently replaces a deliberate cost-and-capability assignment with whatever the parent happened to be running. This applies to every invocation in Forge: the Coordinator dispatching phase agents, and the PM launching Coordinators, `roadmap-planner`, `story-review`, and the escalation agents. The PM itself is a skill and has no frontmatter model; it runs on whatever model the top-level chat is set to.
+**Never pass a `model` parameter when invoking a subagent.** Each agent's model is pinned in its own prompt frontmatter, assigned by bucket at deploy time. A `model` argument supplied by the invoking agent overrides that frontmatter, which silently replaces a deliberate cost-and-capability assignment with whatever the parent happened to be running. This applies to every invocation in Forge: the Coordinator dispatching phase agents, and the PM launching Coordinators, `roadmap-planner`, `story-write`, `story-review`, and the escalation agents. The PM itself is a skill and has no frontmatter model; it runs on whatever model the top-level chat is set to.
 
 ### 11.5 Nesting Budget (hard constraint)
 
@@ -552,7 +554,7 @@ The runtime allows **two levels of subagents** below the top-level chat. The mai
 | Level | Who | May dispatch |
 |-------|-----|--------------|
 | 0 | PM, via the `project-manager` skill loaded into the top-level chat | yes |
-| 1 | Coordinator (background), `roadmap-planner`, `story-review`, `escalation-triage`, `escalation-recovery`, `environment-recovery` | Coordinator only |
+| 1 | Coordinator (background), `roadmap-planner`, `story-write`, `story-review`, `escalation-triage`, `escalation-recovery`, `environment-recovery` | Coordinator only |
 | 2 | Phase agents dispatched by a Coordinator | no |
 
 Three rules follow, and all three are enforced rather than merely documented:
@@ -702,7 +704,7 @@ Forge is designed to be extended via the project profile. Downstream projects cu
 - **Verification tooling**: UI kind, the UI harness (launch/drive/screenshot commands), and internal-state inspection conventions used by the implementation agent to self-verify
 - **Review standards**: project-specific quality requirements
 - **Forbidden areas**: directories and actions agents must never touch
-- **Domain tags**: allowlist for story Proposed Domain Tags and requirement folders; committed DAG membership is in `ARCHITECTURE.md`
+- **Domain tags**: growing allowlist for story Proposed Domain Tags and requirement folders (synced from committed `ARCHITECTURE.md`); stories may propose a justified new name ahead of allowlist sync; committed DAG membership is in `ARCHITECTURE.md`
 - **Parallel limit**: recommended maximum concurrent epics
 - **Paavo's Codex MCP**: endpoint URL (Cursor MCP registration) and Paavo's Codex project name/id. The pinned closed version lives in `plan/project.md`, not the profile.
 
