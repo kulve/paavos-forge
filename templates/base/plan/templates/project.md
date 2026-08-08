@@ -21,6 +21,7 @@ This is the north star -- derived from Paavo's Codex, not invented.]
 ## Milestone Roadmap
 
 [Ordered from first to last. Completing the last milestone completes the product.
+The first milestone is a small runnable foundations slice (thin vertical the user can exercise, plus required scaffolding) and runs with serialized epics.
 Near milestones: detailed goals and boundaries.
 Far milestones: brief bullets only -- rewrite on re-evaluation.
 Status: Done (immutable) | In Progress (at most one) | TODO (rewritable).]

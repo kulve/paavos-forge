@@ -36,4 +36,5 @@ decomposed into ordered stories that build on each other.]
 
 ## Dependencies
 
-[Other epic IDs that must merge to main before this epic can be forked, or "None"]
+[Other epic IDs that must merge to main before this epic can be forked, or "None".
+For the first roadmap milestone: "None" only if this is the sole (or first) epic; every later epic in that milestone must list the prior epic id (linear chain).]

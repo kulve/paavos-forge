@@ -127,6 +127,8 @@ If a current milestone already has epics and stories are needed, skip to Story G
 
 11. For additional epics in the milestone: repeat from Story Generation (or step 9 if stories already exist), respecting epic Dependencies. Each epic gets its own worktree and its own background Coordinator.
 
+    **First roadmap milestone (position 1 in `plan/project.md`):** do **not** parallel-dispatch. While that milestone is In Progress, run at most one epic Coordinator at a time; fork the next epic only after the previous has merged to `main`. If that milestone lists more than one epic and any non-first epic lacks a linear prior-epic entry under `## Dependencies`, treat it as a planner defect: re-invoke `roadmap-planner` (do not invent Dependencies yourself and do not parallelize). After the first milestone is Done, later milestones may parallelize as usual when Dependencies allow.
+
 ### Supervision
 
 12. Coordinators run in the background, so supervise them with one command. It is the only sanctioned progress signal:
@@ -278,6 +280,7 @@ The natural user checkpoint is milestone completion, not each decision inside a 
 - Stories come from `story-write` and pass `story-review` (feedback loop via `plan/story-review/` when rejected)
 - No more than 2-3 stories per batch
 - Project, epic, and story files are committed before dispatch
+- While the first roadmap milestone is In Progress, at most one epic Coordinator runs at a time
 - After milestone Done, `roadmap-planner` (`post-milestone`) runs before the next story batch
 
 ## Anti-Patterns (NEVER DO)
@@ -294,6 +297,8 @@ The natural user checkpoint is milestone completion, not each decision inside a 
 - NEVER call `taskwarrior/tw` directly for state mutations. Use the provided scripts.
 - NEVER merge without going through `epic-merge` (which enforces the merge gate).
 - NEVER fork a new epic while a merge is in progress (the script will reject it, but don't try).
+- NEVER parallel-dispatch Coordinators during the first roadmap milestone; wait for each epic merge before starting the next.
+- NEVER invent or patch epic `## Dependencies` yourself when the first milestone's multi-epic plan is incomplete — re-invoke `roadmap-planner`.
 - NEVER resume an old Coordinator chat after escalation recovery. Launch fresh.
 - NEVER auto-resume interrupted Coordinator work. Report status, wait for user.
 - NEVER clear stale locks automatically. Only the user may do that.

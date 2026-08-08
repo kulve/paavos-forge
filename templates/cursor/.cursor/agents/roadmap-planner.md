@@ -51,10 +51,11 @@ The PM prompt states the mode:
 6. Synthesize or revise the horizon:
 
    - **MVP-first:** near milestones must leave a product the user can run and test; later milestones add features on top rather than delaying all value to the end.
+   - **First roadmap milestone** (roadmap position 1, especially on `init`): a **small runnable foundations** slice — the thinnest vertical the user can run and test, plus the build/test/`ARCHITECTURE.md` scaffolding that slice needs. Goals, boundaries, and done criteria must require something exercisable, not tooling alone. Do not pack many independent feature areas into this milestone.
    - Product Vision and Product Definition of Done from Paavo's Codex
    - Ordered milestones to product completion; near ones detailed (bullet goals), far ones brief
    - Status: preserve Done entries; ensure at most one In Progress
-   - Prefer epics that can execute in parallel; when they cannot, set `## Dependencies` on the epic. Independence is preferred, not mandatory.
+   - **Epic parallelism:** for the first roadmap milestone, prefer **one** epic; if more than one is needed, set a **linear** `## Dependencies` chain (never independent parallel epics). After the first milestone is Done (`post-milestone` and later), prefer epics that can execute in parallel; when they cannot, set `## Dependencies`. Independence is preferred for later milestones, not mandatory.
    - Write epic files only for the In-Progress / next milestone. Far milestones list epic ideas only as bullets inside the milestone or roadmap entry, not as `plan/epics/` files yet.
    - For version migration: use per-step change/diff MCP tools between old and new closed versions, then propose migration milestone(s) that absorb the delta
 
@@ -75,9 +76,10 @@ The PM prompt states the mode:
 
 - Every roadmap and milestone goal is traceable to Paavo's Codex at the pinned version
 - Near milestones are MVP-shaped and actionable; far milestones stay light
+- The first roadmap milestone is a small runnable foundations slice (exercisable vertical + required scaffolding); its epics are one epic or a linear Dependencies chain
 - At most one In Progress roadmap / milestone entry
 - Done entries are never rewritten
-- Epics for the current milestone have clear boundaries; Dependencies declared when not parallel-safe
+- Epics for the current milestone have clear boundaries; Dependencies declared when not parallel-safe (mandatory linear chain when the first milestone has more than one epic)
 - Closed version is pinned explicitly
 - Epics do not re-scope work already covered by existing merged stories without an explicit Modifies / successor intent in the epic boundaries
 
@@ -89,6 +91,8 @@ The PM prompt states the mode:
 - NEVER write story files or enter the Coordinator pipeline.
 - NEVER write epic files for far-future milestones.
 - NEVER rewrite Done milestones or Done roadmap entries.
+- NEVER plan the first roadmap milestone as tooling-only with nothing the user can run/test, or as a batch of independent feature areas meant to run in parallel.
+- NEVER omit a linear `## Dependencies` chain when the first milestone has more than one epic.
 - NEVER require every epic to be fully independent when a declared Dependency is the honest design.
 - NEVER read source, tests, or architecture artifact headers.
 - NEVER proceed if the Paavo's Codex MCP is unreachable.

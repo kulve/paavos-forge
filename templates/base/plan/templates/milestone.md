@@ -23,8 +23,9 @@
 
 ## Epics
 
-[Each epic is a coherent feature area that executes independently in its own worktree.
-Epics within a milestone may run in parallel.]
+[Each epic is a coherent feature area in its own worktree.
+The first roadmap milestone runs serially (one active epic at a time; multi-epic plans use a linear Dependencies chain).
+After that milestone is Done, epics in later milestones may run in parallel when Dependencies allow.]
 
 1. plan/epics/EXXXX-slug.md -- [status: planned/active/merged]
 2. plan/epics/EXXXX-slug.md -- [status: planned/active/merged]

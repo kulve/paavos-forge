@@ -175,6 +175,7 @@ The PM operates in the main project tree as a planning orchestrator. It dispatch
    - Writes or updates `plan/project.md` (pins Paavo's Codex project id and closed version; MVP-first near milestones; far milestones may be brief)
    - Drafts or updates **near** milestone files under `plan/milestones/` (goals as bullets, boundaries, done criteria, epic list)
    - Writes epic files under `plan/epics/` **only for the In-Progress / next milestone** (prefer parallel-safe independence; declare Dependencies when serialization is required)
+   - **First roadmap milestone** (roadmap position 1 in `plan/project.md`): always a small runnable foundations slice — the thinnest vertical the user can run and test, plus the build/test/`ARCHITECTURE.md` scaffolding that slice needs. Prefer one epic; if more than one, they must form a linear `## Dependencies` chain. Never plan independent parallel epics for that milestone.
    - Must not rewrite Done milestones or Done roadmap entries; may freely rewrite TODO / future milestones
    The PM commits those outputs to `main`. At most one roadmap/milestone entry is In Progress at a time. Horizon planning for the current milestone must complete before story generation for its epics.
 
@@ -191,7 +192,7 @@ The PM operates in the main project tree as a planning orchestrator. It dispatch
 
 5. **Coordinator invocation**: PM launches a Coordinator subagent with `run_in_background: true`. Subagents cannot be given a working directory, so the Coordinator starts in the main tree: its prompt must carry the absolute worktree path and the invariant that every Forge script is invoked as `bash <worktree>/taskwarrior/<script>`. The Coordinator runs its Startup Assertion before any other work.
 
-6. **Parallel dispatch**: PM may repeat steps 2-5 for additional epics in the current milestone (respecting epic Dependencies). Multiple independent epics may execute simultaneously in their own worktrees.
+6. **Parallel dispatch**: PM may repeat steps 2-5 for additional epics in the current milestone (respecting epic Dependencies). Multiple independent epics may execute simultaneously in their own worktrees. **Exception — first roadmap milestone:** while roadmap position 1 is In Progress, do not parallel-dispatch. Fork and run at most one epic Coordinator at a time; start the next epic only after the previous has merged to `main`. After that milestone is Done, normal parallel dispatch resumes for later milestones.
 
 7. **Supervision**: PM supervises background Coordinators through the aggregator and acts on its exit code (Section 17):
    ```
@@ -367,7 +368,7 @@ The integration test phase is red-gated: the tests must compile **and** the name
 3. When the Coordinator finishes, PM runs `epic-mark-ready EXXXX`, then `epic-merge EXXXX`. The merge script gates, squash-merges, removes the worktree, and marks the epic merged.
 4. Exit 2 from `epic-merge` marks a conflict. PM may run `epic-rebase EXXXX` or route manual resolution; successful rebase restores `merge-ready`.
 
-Parallelism is bounded by disk, agent context, and merge-conflict risk; the project profile may recommend a limit.
+Parallelism is bounded by disk, agent context, and merge-conflict risk; the project profile may recommend a limit. The first roadmap milestone is always serialized (Section 4 step 6); parallel epic dispatch applies only after that milestone is Done.
 
 ---
 
@@ -445,15 +446,15 @@ Only `needs-human`, `failed-recovery`, a gate that fails again after a fix, or a
 
 ### 10.0 Projects (`plan/project.md`)
 
-Mandatory living document produced by the Roadmap Planner (PM commits). Pins the Paavo's Codex project identity and a closed integer version, states the product vision and product-level Definition of Done, and lists an ordered milestone roadmap. Shape near milestones for an MVP-first path so the user can exercise a runnable product early; later milestones layer features. Each roadmap entry has Status `Done` (immutable), `In Progress` (at most one), or `TODO` (freely rewritable on re-evaluation). Near milestones are detailed; far milestones may be brief bullets. Includes a Version Migration Log when the pinned Paavo's Codex version changes.
+Mandatory living document produced by the Roadmap Planner (PM commits). Pins the Paavo's Codex project identity and a closed integer version, states the product vision and product-level Definition of Done, and lists an ordered milestone roadmap. Shape near milestones for an MVP-first path so the user can exercise a runnable product early; later milestones layer features. The **first** roadmap entry is the foundations horizon: a small runnable product slice plus required scaffolding, executed with serialized epics (Section 4). Each roadmap entry has Status `Done` (immutable), `In Progress` (at most one), or `TODO` (freely rewritable on re-evaluation). Near milestones are detailed; far milestones may be brief bullets. Includes a Version Migration Log when the pinned Paavo's Codex version changes.
 
 ### 10.1 Milestones (`plan/milestones/XX-name.md`)
 
-Near-horizon planning documents produced by the Roadmap Planner from the project roadmap. Contain a backlink to `plan/project.md`, Status (`Done` / `In Progress` / `TODO`), vision, goals (bullet points), boundaries, epic list, and done criteria. Done milestones are immutable; TODO / future milestones may be rewritten on `post-milestone` planning. **Migration milestones** are a special kind used when adopting a newer Paavo's Codex version: their scope is the product-intent delta between the old and new pinned versions (scoped via MCP per-step change/diff tools).
+Near-horizon planning documents produced by the Roadmap Planner from the project roadmap. Contain a backlink to `plan/project.md`, Status (`Done` / `In Progress` / `TODO`), vision, goals (bullet points), boundaries, epic list, and done criteria. The first roadmap milestone is a small runnable foundations slice (thin vertical the user can exercise, plus build/test/domain-policy scaffolding); epic parallelism starts only after it is Done. Done milestones are immutable; TODO / future milestones may be rewritten on `post-milestone` planning. **Migration milestones** are a special kind used when adopting a newer Paavo's Codex version: their scope is the product-intent delta between the old and new pinned versions (scoped via MCP per-step change/diff tools).
 
 ### 10.2 Epics (`plan/epics/EXXXX-slug.md`)
 
-Coherent feature areas for the current / next milestone only, produced by the Roadmap Planner. Contain goal, boundaries, ordered story list (may start as a sketch), done criteria, and inter-epic dependencies. Prefer epics that can fork in parallel; when they cannot, declare Dependencies. Each epic is the unit of parallel execution -- it gets its own git worktree.
+Coherent feature areas for the current / next milestone only, produced by the Roadmap Planner. Contain goal, boundaries, ordered story list (may start as a sketch), done criteria, and inter-epic dependencies. Prefer epics that can fork in parallel; when they cannot, declare Dependencies. Each epic is the unit of parallel execution -- it gets its own git worktree. For the **first** roadmap milestone: prefer a single epic; if more than one epic is written, `## Dependencies` must form a linear chain (each non-first epic lists the prior epic id). Do not treat those epics as independently parallel.
 
 ### 10.3 Stories (`plan/stories/XXXXX-slug.md`)
 

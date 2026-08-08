@@ -480,15 +480,17 @@ Commit planning artifacts to `main` the same way before each later dispatch. The
 
 ## Step 11: First Run
 
-Forge uses a **project → milestone → epic** model with parallel epic execution. The hierarchy is:
+Forge uses a **project → milestone → epic** model with parallel epic execution after foundations. The hierarchy is:
 
 ```
-Project (mandatory: plan/project.md) → Milestone → Epic (parallel) → Stories (serial within epic)
+Project (mandatory: plan/project.md) → Milestone → Epic (parallel after the first milestone) → Stories (serial within epic)
 ```
+
+The **first** roadmap milestone is a small runnable foundations slice and always runs with **serialized** epics (one Coordinator at a time). Later milestones may run independent epics in parallel.
 
 - **Project** (`plan/project.md`) is mandatory. It pins a Paavo's Codex closed version and lists an ordered milestone roadmap to product completion. Created via the `roadmap-planner` agent on first PM run.
 - **Milestones** are derived from the roadmap. They group related epics and define high-level goals. Status: Done / In Progress / TODO.
-- **Epics** are the unit of parallel work. Each epic gets its own git worktree and branch, allowing multiple epics to execute concurrently without interference.
+- **Epics** are the unit of parallel work after the first milestone. Each epic gets its own git worktree and branch; independent epics in later milestones may execute concurrently.
 - **Stories** within an epic execute serially, each passing through the full phase pipeline (requirements → architecture → integration tests → implementation).
 
 ### Starting the Workflow
@@ -500,7 +502,7 @@ Project (mandatory: plan/project.md) → Milestone → Epic (parallel) → Stori
 5. The PM creates the current In Progress milestone from the roadmap, then defines one or more **epics** in `plan/epics/`.
 6. For each epic, the PM generates stories in rolling batches of 2-3 that execute serially within that epic.
 7. The PM **dispatches** an epic: `epic-fork` creates a worktree and branch, and a Coordinator begins executing stories in that worktree.
-8. Multiple epics can run in parallel (up to your configured parallel limit), each in its own worktree with its own Coordinator.
+8. During the first roadmap milestone, the PM runs epics one at a time. After that milestone is Done, multiple epics can run in parallel (up to your configured parallel limit), each in its own worktree with its own Coordinator.
 9. When an epic completes all stories, it is merged back to main via `epic-merge`. After a milestone completes, the PM updates roadmap statuses and may rewrite TODO milestones or migrate to a newer Paavo's Codex version.
 
 Use `/ai-status` to check project/roadmap progress and all active epics at any time. Run it in its own chat, without the PM skill loaded: it is a read-only report and deliberately sits outside the pipeline.
